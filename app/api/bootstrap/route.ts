@@ -81,7 +81,7 @@ export async function GET() {
     const data = await cached<BootstrapPayload>(
       'bootstrap:v5',
       {
-        ttlSec: 60,
+        ttlSec: 600,
         tags: ['category:list', 'category:tree', 'doc:list', `doc:${FEATURED_ID}`],
       },
       async () => {

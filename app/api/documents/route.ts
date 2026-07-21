@@ -55,7 +55,7 @@ function transientDocUnavailable() {
 async function getDocByIdCached(id: number) {
   return cached(
     cacheKey('doc', id),
-    { ttlSec: 30, tags: [docTag(id)] },
+    { ttlSec: 3600, tags: [docTag(id)] },
     async () => {
       const rows = await runDbRead(
         'documents:getDocById',
@@ -111,7 +111,7 @@ export async function GET(req: NextRequest) {
 
       const data = await cached(
         cacheKey('doclist', pathNorm),
-        { ttlSec: 30, tags: ['doc:list', listTag(pathNorm)] },
+        { ttlSec: 600, tags: ['doc:list', listTag(pathNorm)] },
         async () => {
           let mainDocId: number | null = null;
 
@@ -170,10 +170,12 @@ export async function GET(req: NextRequest) {
       );
 
       return NextResponse.json(data, {
-        headers: { 'Cache-Control': 'private, max-age=0, must-revalidate' },
+        headers: {
+          'Cache-Control': 'no-store',
+        },
       });
     } catch (e) {
-      console.error('문서 경로별 목록 실패:', e);
+      console.error('문서 경로�?목록 ?�패:', e);
 
       if (isTransientDbError(e)) {
         return NextResponse.json(
@@ -213,7 +215,9 @@ export async function GET(req: NextRequest) {
       }
 
       return NextResponse.json(data, {
-        headers: { 'Cache-Control': 'private, max-age=0, must-revalidate' },
+        headers: {
+          'Cache-Control': 'no-store',
+        },
       });
     } catch (e) {
       console.error('[documents GET by id] error:', e);
@@ -233,7 +237,7 @@ export async function GET(req: NextRequest) {
     try {
       const result = await cached(
         'doc:all',
-        { ttlSec: 60, tags: ['doc:list'] },
+        { ttlSec: 600, tags: ['doc:list'] },
         async () => {
           const rows = await runDbRead('documents:all', async () => {
             return await sql`
@@ -255,7 +259,9 @@ export async function GET(req: NextRequest) {
       );
 
       return NextResponse.json(result, {
-        headers: { 'Cache-Control': 'private, max-age=0, must-revalidate' },
+        headers: {
+          'Cache-Control': 'no-store',
+        },
       });
     } catch (e) {
       console.error('[documents GET all] error:', e);
@@ -331,7 +337,9 @@ export async function GET(req: NextRequest) {
           content: toContentArray(row.content ?? []),
         },
         {
-          headers: { 'Cache-Control': 'private, max-age=0, must-revalidate' },
+          headers: {
+          'Cache-Control': 'no-store',
+        },
         }
       );
     }
@@ -367,7 +375,9 @@ export async function GET(req: NextRequest) {
     }
 
     return NextResponse.json(data, {
-      headers: { 'Cache-Control': 'private, max-age=0, must-revalidate' },
+      headers: {
+          'Cache-Control': 'no-store',
+        },
     });
   } catch (e) {
     console.error('[documents GET by path/title] error:', e);

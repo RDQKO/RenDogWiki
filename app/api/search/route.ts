@@ -160,8 +160,8 @@ function makeSnippetFromText(text: string, keyword: string, radius = 40) {
 
   const start = Math.max(0, range.start - radius);
   const end = Math.min(text.length, range.end + radius);
-  const prefix = start > 0 ? '…' : '';
-  const suffix = end < text.length ? '…' : '';
+  const prefix = start > 0 ? '… ' : '';
+  const suffix = end < text.length ? ' …' : '';
 
   return `${prefix}${text.slice(start, end)}${suffix}`;
 }
@@ -322,7 +322,7 @@ export async function GET(req: NextRequest) {
     const raw = (sp.get('query') ?? '').trim();
     const lim = Number(sp.get('limit'));
     const limit = Number.isFinite(lim)
-      ? Math.min(500, Math.max(1, Math.trunc(lim)))
+      ? Math.min(50, Math.max(1, Math.trunc(lim)))
       : 50;
 
     if (!raw) {
