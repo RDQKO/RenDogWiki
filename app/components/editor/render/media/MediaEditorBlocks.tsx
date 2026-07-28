@@ -29,10 +29,6 @@ import type {
   VideoElement,
 } from '@/types/slate';
 
-import {
-  toProxyUrl,
-} from '@lib/cdn';
-
 type BlockComponentProps<E = any> = {
   attributes: RenderElementProps['attributes'];
   children: React.ReactNode;
@@ -96,10 +92,9 @@ export function ImageBlock({
   const media =
     resolveMediaNode(element);
 
-  const imgSrc =
-    media.rawSrc.startsWith('http')
-      ? toProxyUrl(media.rawSrc)
-      : media.rawSrc;
+  // 에디터에서도 저장된 원본 URL을 그대로 사용한다.
+  // 프록시 변환 과정에서 저해상도 응답이 선택되는 문제를 피한다.
+  const imgSrc = media.rawSrc;
 
   const handleContextMenu = (
     event: React.MouseEvent<HTMLDivElement>,
@@ -114,7 +109,6 @@ export function ImageBlock({
           editor,
           element,
         );
-
       window.dispatchEvent(
         new CustomEvent('editor:image-menu', {
           detail: {
@@ -164,7 +158,6 @@ export function ImageBlock({
     event.stopPropagation();
 
     const image = imgRef.current;
-
     const renderedWidth = Math.round(
       image
         ?.getBoundingClientRect()
@@ -240,7 +233,6 @@ export function ImageBlock({
       >
         {children}
       </MediaBlock>
-
       <ImageSizeModal
         open={modalOpen}
         width={initSize.w}
@@ -267,7 +259,6 @@ export function VideoBlock({
     modalOpen,
     setModalOpen,
   ] = useState(false);
-
   const media =
     resolveMediaNode(
       element as unknown as Record<
@@ -276,10 +267,7 @@ export function VideoBlock({
       >,
     );
 
-  const src =
-    media.rawSrc.startsWith('http')
-      ? toProxyUrl(media.rawSrc)
-      : media.rawSrc;
+  const src = media.rawSrc;
 
   const handleSaveSize = (
     width: number,
@@ -290,7 +278,6 @@ export function VideoBlock({
         editor,
         element,
       );
-
     Transforms.setNodes(
       editor,
       {
@@ -342,7 +329,6 @@ export function VideoBlock({
       >
         {children}
       </MediaBlock>
-
       <ImageSizeModal
         open={modalOpen}
         width={media.width}
