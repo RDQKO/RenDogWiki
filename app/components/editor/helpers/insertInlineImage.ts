@@ -11,6 +11,7 @@
  */
 
 import { Transforms, Editor } from 'slate';
+import { ReactEditor } from 'slate-react';
 import type { InlineImageElement } from '@/types/slate';
 
 /**
@@ -34,6 +35,22 @@ export function insertInlineImage(editor: Editor, url: string) {
     children: [{ text: '' }],
   };
 
-  // 현재 커서 위치에 삽입
+  // 현재 커서 위치에 삽입한 뒤 void 인라인 노드 바깥으로 선택점을 이동한다.
+  // 선택점이 이미지의 숨은 텍스트 자식에 남으면 특히 표 셀 안에서
+  // 키 입력이 에디터 전체에서 막힌 것처럼 보일 수 있다.
   Transforms.insertNodes(editor, inlineImage);
+  Transforms.move(editor, {
+    distance: 1,
+    unit: 'offset',
+  });
+
+  // 이미지 선택 모달이 닫힌 다음 프레임에 실제 contentEditable로 포커스를
+  // 되돌려, 표 안팎 모두 즉시 이어서 입력할 수 있게 한다.
+  window.requestAnimationFrame(() => {
+    try {
+      ReactEditor.focus(editor as Editor & ReactEditor);
+    } catch {
+      // 모달 종료 사이에 에디터가 언마운트된 경우는 무시한다.
+    }
+  });
 }

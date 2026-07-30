@@ -17,8 +17,6 @@ type TableBlockProps = {
 
   table: React.ReactNode;
   overlay?: React.ReactNode;
-  editControls?: React.ReactNode;
-  readControls?: React.ReactNode;
 
   scrollable?: boolean;
   compact?: boolean;
@@ -40,8 +38,6 @@ export default function TableBlock({
   onMouseUpCapture,
   table,
   overlay,
-  editControls,
-  readControls,
   scrollable = false,
   compact = false,
   tableInnerStyle,
@@ -56,8 +52,6 @@ export default function TableBlock({
       style={containerStyle}
       table={table}
       overlay={overlay}
-      editControls={editControls}
-      readControls={readControls}
       scrollable={scrollable}
       compact={compact}
       tableInnerStyle={tableInnerStyle}

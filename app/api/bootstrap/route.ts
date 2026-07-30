@@ -1,21 +1,34 @@
 // =============================================
 // File: app/api/bootstrap/route.ts
-// (전체 코드)
-// - 위키 초기 bootstrap 데이터
-// - 대표 문서는 다시 "본문 포함"으로 한 번에 내려줌
-// - 첫 화면 DB 요청을 bootstrap 1회로 줄이는 것이 목적
-// - 로컬 TTL 캐시 + stale-on-error 사용
+// 전체 코드
+//
+// - 위키 초기 카테고리와 문서 메타데이터 제공
+// - 문서 본문은 bootstrap에 포함하지 않음
+// - 기본 문서도 일반 문서 상세 API를 통해 최신 본문을 읽음
+// - 카테고리/문서 목록 메타데이터 캐시는 기존대로 유지
 // =============================================
 
-import { NextResponse } from 'next/server';
-import { sql, runDbRead, isTransientDbError } from '@/wiki/lib/db';
-import { cached } from '@/wiki/lib/cache';
+import {
+  NextResponse,
+} from 'next/server';
 
-export const runtime = 'nodejs';
-export const dynamic = 'force-dynamic';
-export const revalidate = 0;
+import {
+  sql,
+  runDbRead,
+  isTransientDbError,
+} from '@/wiki/lib/db';
+import {
+  cached,
+} from '@/wiki/lib/cache';
 
-const FEATURED_ID = 73;
+export const runtime =
+  'nodejs';
+
+export const dynamic =
+  'force-dynamic';
+
+export const revalidate =
+  0;
 
 type BootstrapDocument = {
   id: number;
@@ -28,33 +41,26 @@ type BootstrapDocument = {
   updated_at?: string | null;
 };
 
-type BootstrapFeatured = {
-  id: number;
-  title: string;
-  path: string | number;
-  icon?: string | null;
-  tags?: string[] | string | null;
-  special?: string | null;
-  order?: number | null;
-  updated_at?: string | null;
-  content: any[];
-} | null;
-
 type BootstrapPayload = {
   categories: any[];
-  documents: BootstrapDocument[];
-  featured: BootstrapFeatured;
+  documents:
+    BootstrapDocument[];
+  featured: null;
   degraded?: boolean;
   stale?: boolean;
 };
 
 function noStoreHeaders() {
   return {
-    'Cache-Control': 'no-store, no-cache, must-revalidate, max-age=0',
+    'Cache-Control':
+      'no-store, no-cache, must-revalidate, max-age=0',
   };
 }
 
-function emptyBootstrapPayload(extra?: Partial<BootstrapPayload>): BootstrapPayload {
+function emptyBootstrapPayload(
+  extra?:
+    Partial<BootstrapPayload>,
+): BootstrapPayload {
   return {
     categories: [],
     documents: [],
@@ -63,160 +69,144 @@ function emptyBootstrapPayload(extra?: Partial<BootstrapPayload>): BootstrapPayl
   };
 }
 
-function toContentArray(raw: unknown): any[] {
-  if (Array.isArray(raw)) return raw;
-  if (typeof raw === 'string') {
-    try {
-      const parsed = JSON.parse(raw);
-      return Array.isArray(parsed) ? parsed : [];
-    } catch {
-      return [];
-    }
-  }
-  return [];
-}
-
 export async function GET() {
   try {
-    const data = await cached<BootstrapPayload>(
-      'bootstrap:v5',
+    /*
+     * 본문을 제외한 구조 데이터만 캐시한다.
+     * featured가 null이면 WikiPageInner의 기존 자동 오픈 로직이
+     * 기본 문서를 /api/documents?id=...에서 새로 읽는다.
+     */
+    const data =
+      await cached<BootstrapPayload>(
+        'bootstrap:v7',
+        {
+          ttlSec: 600,
+          tags: [
+            'category:list',
+            'category:tree',
+            'doc:list',
+          ],
+        },
+        async () => {
+          const categories =
+            await runDbRead(
+              'bootstrap:categories',
+              async () => {
+                return await sql`
+                  SELECT
+                    id,
+                    name,
+                    parent_id,
+                    "order",
+                    document_id,
+                    icon,
+                    mode_tags
+                  FROM categories
+                  ORDER BY
+                    parent_id,
+                    "order"
+                `;
+              },
+              0,
+            );
+
+          const docs =
+            await runDbRead(
+              'bootstrap:documents',
+              async () => {
+                return await sql`
+                  SELECT
+                    id,
+                    title,
+                    path,
+                    icon,
+                    is_featured,
+                    special,
+                    "order",
+                    updated_at
+                  FROM documents
+                `;
+              },
+              0,
+            );
+
+          return {
+            categories,
+            documents:
+              (docs ?? []).map(
+                (row: any) => ({
+                  id:
+                    row.id,
+                  title:
+                    row.title,
+                  path:
+                    row.path,
+                  icon:
+                    row.icon,
+                  is_featured:
+                    Boolean(
+                      row.is_featured,
+                    ),
+                  special:
+                    row.special ??
+                    null,
+                  order:
+                    Number(
+                      row.order ??
+                      0,
+                    ),
+                  updated_at:
+                    row.updated_at,
+                }),
+              ),
+            featured: null,
+          };
+        },
+      );
+
+    return NextResponse.json(
+      data,
       {
-        ttlSec: 600,
-        tags: ['category:list', 'category:tree', 'doc:list', `doc:${FEATURED_ID}`],
+        status: 200,
+        headers: {
+          'Cache-Control':
+            'public, max-age=0, s-maxage=300, stale-while-revalidate=600',
+        },
       },
-      async () => {
-        const categories = await runDbRead(
-          'bootstrap:categories',
-          async () => {
-            return await sql`
-              SELECT
-                id,
-                name,
-                parent_id,
-                "order",
-                document_id,
-                icon,
-                mode_tags
-              FROM categories
-              ORDER BY parent_id, "order"
-            `;
-          },
-          0
-        );
-
-        const docs = await runDbRead(
-          'bootstrap:documents',
-          async () => {
-            return await sql`
-              SELECT
-                id,
-                title,
-                path,
-                icon,
-                is_featured,
-                special,
-                "order",
-                updated_at
-              FROM documents
-            `;
-          },
-          0
-        );
-
-        const featuredRows = await runDbRead(
-          'bootstrap:featured',
-          async () => {
-            return await sql`
-              SELECT
-                d.id,
-                d.title,
-                d.path,
-                d.icon,
-                d.tags,
-                d.special,
-                d."order",
-                d.updated_at,
-                dc.content
-              FROM documents d
-              LEFT JOIN document_contents dc
-                ON dc.document_id = d.id
-              WHERE d.id = ${FEATURED_ID}
-              LIMIT 1
-            `;
-          },
-          0
-        );
-
-        const featuredRow = (featuredRows?.[0] ?? null) as
-          | {
-              id: number;
-              title: string;
-              path: string | number;
-              icon?: string | null;
-              tags?: string[] | string | null;
-              special?: string | null;
-              order?: number | null;
-              updated_at?: string | null;
-              content?: unknown;
-            }
-          | null;
-
-        const featured: BootstrapFeatured = featuredRow
-          ? {
-              id: featuredRow.id,
-              title: featuredRow.title,
-              path: featuredRow.path,
-              icon: featuredRow.icon ?? null,
-              tags: featuredRow.tags ?? null,
-              special: featuredRow.special ?? null,
-              order: featuredRow.order ?? null,
-              updated_at: featuredRow.updated_at ?? null,
-              content: toContentArray(featuredRow.content),
-            }
-          : null;
-
-        return {
-          categories,
-          documents: (docs ?? []).map((r: any) => ({
-            id: r.id,
-            title: r.title,
-            path: r.path,
-            icon: r.icon,
-            is_featured: !!r.is_featured,
-            special: r.special ?? null,
-            order: Number(r.order ?? 0),
-            updated_at: r.updated_at,
-          })),
-          featured,
-        };
-      }
+    );
+  } catch (error) {
+    console.error(
+      '[bootstrap] error',
+      error,
     );
 
-    return NextResponse.json(data, {
-      status: 200,
-      headers: noStoreHeaders(),
-    });
-  } catch (e) {
-    console.error('[bootstrap] error', e);
-
-    if (isTransientDbError(e)) {
+    if (
+      isTransientDbError(
+        error,
+      )
+    ) {
       return NextResponse.json(
         emptyBootstrapPayload({
           degraded: true,
         }),
         {
           status: 200,
-          headers: noStoreHeaders(),
-        }
+          headers:
+            noStoreHeaders(),
+        },
       );
     }
 
     return NextResponse.json(
-      { error: 'Server error' },
+      {
+        error:
+          'Server error',
+      },
       {
         status: 500,
-        headers: noStoreHeaders(),
-      }
+        headers:
+          noStoreHeaders(),
+      },
     );
   }
 }

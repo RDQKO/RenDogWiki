@@ -95,7 +95,6 @@ export type PriceTableRendererProps = {
 
   onImageClick?: (item: PriceTablePreparedItem, index: number, event: React.MouseEvent) => void;
   onNameClick?: (item: PriceTablePreparedItem, index: number, event: React.MouseEvent) => void;
-  onPriceClick?: (item: PriceTablePreparedItem, index: number, event: React.MouseEvent) => void;
   onCardContextMenu?: (item: PriceTablePreparedItem, index: number, event: React.MouseEvent) => void;
 
   resolveImageSrc?: (src: string, item: PriceTablePreparedItem, index: number) => string;

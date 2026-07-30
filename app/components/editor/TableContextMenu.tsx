@@ -5,6 +5,7 @@ import React, { useEffect, useRef, useState } from 'react';
 import { Editor, Path, Node as SlateNode, Transforms } from 'slate';
 import { ReactEditor } from 'slate-react';
 import {
+  clearCellsRect,
   getSelectedRectOrCell,
   mergeCells,
   splitCellByCol,
@@ -16,7 +17,10 @@ import {
   removeCols,
 } from './helpers/tableOps';
 import { getDragRect, clearDrag } from './helpers/tableDrag';
-import type { TableElement } from '@/types/slate';
+import {
+  buildTableRectClipboardPayload,
+  writeTableClipboardData,
+} from './helpers/tableClipboard';
 
 type Props = { editor: Editor };
 
@@ -100,19 +104,6 @@ export default function TableContextMenu({ editor }: Props) {
   // 현재 셀이 속한 표 path
   const tablePath = findTablePath(editor, cellPath);
 
-  // 현재 표 정렬 상태 (TableElement.align 만 사용)
-  let align: TableElement['align'] = 'left';
-  try {
-    const tbl = SlateNode.get(editor, tablePath) as TableElement;
-    if (tbl.align === 'center' || tbl.align === 'right') {
-      align = tbl.align;
-    } else {
-      align = 'left';
-    }
-  } catch {
-    /* ignore */
-  }
-
   // 현재 선택 영역(드래그 or selection)
   const rect = (() => {
     const drag = getDragRect();
@@ -123,15 +114,6 @@ export default function TableContextMenu({ editor }: Props) {
   const canDeleteRow = isFullRowSelection(editor, rect);
   const canDeleteCol = isFullColSelection(editor, rect);
   const canDelete = canDeleteRow || canDeleteCol;
-
-  // 표 align 설정 (툴바 텍스트 정렬과 완전히 분리)
-  const setTableAlign = (targetAlign: TableElement['align']) => {
-    Transforms.setNodes<TableElement>(
-      editor,
-      { align: targetAlign } as Partial<TableElement>,
-      { at: tablePath },
-    );
-  };
 
   // ✅ 행 추가(아래) 헬퍼
   const insertRowBelow = () => {
@@ -168,102 +150,68 @@ export default function TableContextMenu({ editor }: Props) {
     }
   };
 
-  // ✅ (신규) Slate fragment 인코딩 (inline-image 포함한 셀 내부 노드를 그대로 복사)
-  const encodeSlateFragment = (fragment: any) => {
-    // Slate 공식 패턴: btoa(encodeURIComponent(JSON.stringify(fragment)))
-    const json = JSON.stringify(fragment);
-    return window.btoa(encodeURIComponent(json));
+  const copyCellInnerContents = async () => {
+    const payload =
+      buildTableRectClipboardPayload(
+        editor,
+        rect,
+      );
+    if (!payload) return;
+
+    await writeTableClipboardData(payload);
   };
 
-  // ✅ Slate fragment 토큰 (plain text에 숨겨서 보관)
-  const SLATE_FRAG_PREFIX = '__RDWIKI_SLATE_FRAGMENT__=';
-  
-  const copyCellInnerContents = async () => {
-    let cellNode: any = null;
+  const insertParagraphBelowTable = () => {
     try {
-      cellNode = SlateNode.get(editor, cellPath);
-    } catch {
-      cellNode = null;
-    }
-    if (!cellNode) return;
+      const insertPath = Path.next(tablePath);
 
-    // ✅ 셀 내부(텍스트+inline-image 포함) = table-cell.children
-    const fragment = Array.isArray(cellNode.children) ? cellNode.children : [];
-    const plain = SlateNode.string(cellNode) ?? '';
+      Transforms.insertNodes(
+        editor,
+        {
+          type: 'paragraph',
+          children: [{ text: '' }],
+        } as any,
+        { at: insertPath },
+      );
 
-    const encoded = encodeSlateFragment(fragment);
-
-    // ✅ 커스텀 MIME 대신 plain text에 “토큰 + fragment”를 심어둔다
-    //    (외부 앱에 붙여넣으면 토큰이 보일 수 있으니, 첫 줄에만 넣고 나머지는 텍스트)
-    const payload = `${SLATE_FRAG_PREFIX}${encoded}\n${plain}`;
-
-    // clipboard writeText는 paste에서 항상 읽힌다
-    if (navigator.clipboard?.writeText) {
-      await navigator.clipboard.writeText(payload);
-      return;
-    }
-
-    // fallback
-    const ta = document.createElement('textarea');
-    ta.value = payload;
-    ta.style.position = 'fixed';
-    ta.style.left = '-9999px';
-    ta.style.top = '0';
-    document.body.appendChild(ta);
-    ta.select();
-    try {
-      document.execCommand('copy');
-    } finally {
-      document.body.removeChild(ta);
+      Transforms.select(
+        editor,
+        Editor.start(editor, insertPath),
+      );
+      ReactEditor.focus(editor as any);
+    } catch (error) {
+      console.error(
+        'insertParagraphBelowTable failed',
+        error,
+      );
     }
   };
 
   return (
     <div
       ref={boxRef}
+      className="editor-table-context-menu"
       style={{
         position: 'fixed',
         top: xy.y,
         left: xy.x,
         transform: 'translateY(-6px)',
-        background: '#fff',
-        border: '1px solid #e5e7eb',
-        borderRadius: 6,
-        boxShadow: '0 6px 18px rgba(0,0,0,.12)',
-        padding: 4,
         zIndex: 99999,
-        minWidth: 160,
-        maxWidth: 240,
-        fontSize: 13,
       }}
       role="menu"
       aria-label="표 메뉴"
     >
-      {/* ✅ 단일 복사 메뉴: 셀 내부(텍스트 + inline-image 포함)만 복사 */}
+      {/* 셀 블록을 제외하고 내부 내용만 복사 */}
       <MenuItem onClick={actAsync(copyCellInnerContents)}>
         셀 내용 복사
       </MenuItem>
-
-      <MenuDivider />
-
-      {/* 표 자체 정렬 (표 블록 align) */}
       <MenuItem
-        onClick={act(() => setTableAlign('left'))}
-        active={align === 'left' || !align}
+        danger
+        onClick={act(() =>
+          clearCellsRect(editor, rect)
+        )}
       >
-        표 왼쪽 정렬
-      </MenuItem>
-      <MenuItem
-        onClick={act(() => setTableAlign('center'))}
-        active={align === 'center'}
-      >
-        표 가운데 정렬
-      </MenuItem>
-      <MenuItem
-        onClick={act(() => setTableAlign('right'))}
-        active={align === 'right'}
-      >
-        표 오른쪽 정렬
+        셀 내용 삭제
       </MenuItem>
 
       <MenuDivider />
@@ -307,6 +255,9 @@ export default function TableContextMenu({ editor }: Props) {
 
       {/* 표 전체 삭제 */}
       <MenuDivider />
+      <MenuItem onClick={act(insertParagraphBelowTable)}>
+        표 아래에 빈 문단 생성
+      </MenuItem>
       <MenuItem
         danger
         onClick={act(() => {
@@ -320,49 +271,27 @@ export default function TableContextMenu({ editor }: Props) {
 }
 
 function MenuDivider() {
-  return (
-    <div
-      style={{
-        margin: '4px 4px',
-        borderTop: '1px solid #e5e7eb',
-      }}
-    />
-  );
+  return <div className="editor-table-context-divider" />;
 }
 
 function MenuItem({
   children,
   onClick,
   danger,
-  active,
 }: {
   children: React.ReactNode;
   onClick: () => void;
   danger?: boolean;
-  active?: boolean;
 }) {
-  const baseColor = danger ? '#e11d48' : active ? '#2563eb' : '#111827';
-
   return (
     <button
       type="button"
       onMouseDown={(e) => e.preventDefault()}
       onClick={onClick}
-      style={{
-        width: '100%',
-        textAlign: 'left',
-        padding: '6px 8px',
-        borderRadius: 6,
-        background: 'transparent',
-        border: 'none',
-        cursor: 'pointer',
-        color: baseColor,
-        fontWeight: active ? 600 : 400,
-        fontSize: 13,
-        lineHeight: 1.2,
-      }}
-      onMouseEnter={(e) => (e.currentTarget.style.background = '#f3f4f6')}
-      onMouseLeave={(e) => (e.currentTarget.style.background = 'transparent')}
+      className={[
+        'editor-table-context-item',
+        danger ? 'is-danger' : '',
+      ].filter(Boolean).join(' ')}
       role="menuitem"
     >
       {children}

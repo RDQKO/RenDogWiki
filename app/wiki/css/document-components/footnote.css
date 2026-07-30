@@ -1,0 +1,503 @@
+/* =============================================
+ * File: app/wiki/css/document-components/footnote.css
+ *
+ * 담당 범위
+ * - 본문 각주 표식
+ * - 데스크톱 각주 툴팁
+ * - 모바일 각주 모달
+ *
+ * 내부 링크와 문서 Heading에는 적용하지 않는다.
+ * ============================================= */
+
+/* ===== 본문 각주 표식 ===== */
+
+.wiki-footnote-inline {
+  position: relative;
+  display: inline-block;
+  margin: 0 1px;
+  padding: 0;
+  vertical-align: super;
+  color: var(--accent);
+  font-size: 0.68em;
+  font-weight: 750;
+  line-height: 1;
+  letter-spacing: -0.01em;
+  white-space: nowrap;
+  background: transparent;
+  border-radius: 4px;
+  -webkit-tap-highlight-color: transparent;
+  touch-action: manipulation;
+}
+
+.wiki-footnote-inline-label {
+  display: inline-block;
+  padding: 1px 2px;
+  color: inherit;
+  background: transparent;
+  border-radius: 4px;
+  transition:
+    color 0.14s ease,
+    background-color 0.14s ease,
+    box-shadow 0.14s ease;
+}
+
+.wiki-footnote-inline--read[
+  data-footnote-has-content='true'
+]:hover
+.wiki-footnote-inline-label {
+  color:
+    color-mix(
+      in srgb,
+      var(--accent) 82%,
+      var(--foreground)
+    );
+  background:
+    color-mix(
+      in srgb,
+      var(--accent) 9%,
+      transparent
+    );
+  box-shadow:
+    0 0 0 2px
+    color-mix(
+      in srgb,
+      var(--accent) 5%,
+      transparent
+    );
+}
+
+.wiki-footnote-inline:focus-visible {
+  outline: none;
+}
+
+.wiki-footnote-inline:focus-visible
+.wiki-footnote-inline-label {
+  background:
+    color-mix(
+      in srgb,
+      var(--accent) 10%,
+      transparent
+    );
+  box-shadow:
+    0 0 0 2px
+    color-mix(
+      in srgb,
+      var(--accent) 22%,
+      transparent
+    );
+}
+
+.wiki-footnote-inline--edit {
+  user-select: none;
+  cursor: pointer;
+}
+
+.wiki-footnote-inline--edit:hover
+.wiki-footnote-inline-label {
+  background:
+    color-mix(
+      in srgb,
+      var(--accent) 10%,
+      transparent
+    );
+  box-shadow:
+    0 0 0 1px
+    color-mix(
+      in srgb,
+      var(--accent) 18%,
+      transparent
+    );
+}
+
+/* ===== 데스크톱 툴팁 ===== */
+
+.wiki-footnote-tooltip {
+  --footnote-panel:
+    var(
+      --wiki-chrome-panel,
+      var(--surface-elevated)
+    );
+  --footnote-panel-soft:
+    var(
+      --wiki-chrome-panel-soft,
+      var(--surface-soft)
+    );
+  --footnote-text:
+    var(
+      --wiki-chrome-text,
+      var(--foreground)
+    );
+  --footnote-muted:
+    var(
+      --wiki-chrome-muted,
+      var(--muted)
+    );
+  --footnote-border:
+    var(
+      --wiki-chrome-border,
+      var(--border)
+    );
+  --footnote-accent:
+    var(
+      --wiki-chrome-accent,
+      #4d9b5c
+    );
+  --footnote-active:
+    var(
+      --wiki-chrome-active,
+      #e9f5e4
+    );
+
+  position: fixed;
+  z-index: 9998;
+  width: max-content;
+  min-width: 170px;
+  max-width: min(340px, calc(100vw - 24px));
+  box-sizing: border-box;
+  padding: 12px 13px 13px;
+  color: var(--footnote-text);
+  text-align: left;
+  white-space: normal;
+  word-break: keep-all;
+  overflow-wrap: break-word;
+  pointer-events: none;
+  background:
+    linear-gradient(
+      145deg,
+      color-mix(
+        in srgb,
+        var(--footnote-panel) 98%,
+        white
+      ),
+      color-mix(
+        in srgb,
+        var(--footnote-panel-soft) 66%,
+        var(--footnote-panel)
+      )
+    );
+  border: 1px solid var(--footnote-border);
+  border-radius: 13px;
+  box-shadow:
+    0 4px 12px
+    rgba(31, 55, 36, 0.075),
+    0 16px 34px
+    rgba(31, 55, 36, 0.1);
+  animation:
+    wiki-footnote-tooltip-in
+    0.14s ease-out;
+}
+
+.wiki-footnote-tooltip-head {
+  display: flex;
+  min-width: 0;
+  align-items: center;
+  margin-bottom: 7px;
+}
+
+.wiki-footnote-tooltip-label {
+  min-width: 0;
+  overflow: hidden;
+  color: var(--accent);
+  font-size: 11px;
+  font-weight: 800;
+  line-height: 1.2;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.wiki-footnote-tooltip-content {
+  color: var(--footnote-text);
+  font-size: 13px;
+  font-weight: 520;
+  line-height: 1.58;
+  letter-spacing: -0.01em;
+  white-space: pre-wrap;
+}
+
+.wiki-footnote-tooltip-arrow {
+  position: absolute;
+  bottom: -6px;
+  left:
+    var(
+      --wiki-footnote-arrow-left,
+      20px
+    );
+  width: 10px;
+  height: 10px;
+  box-sizing: border-box;
+  background:
+    color-mix(
+      in srgb,
+      var(--footnote-panel-soft) 66%,
+      var(--footnote-panel)
+    );
+  border-right:
+    1px solid
+    var(--footnote-border);
+  border-bottom:
+    1px solid
+    var(--footnote-border);
+  transform:
+    translateX(-50%)
+    rotate(45deg);
+}
+
+@keyframes wiki-footnote-tooltip-in {
+  from {
+    opacity: 0;
+    transform: translateY(4px);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* ===== 모바일 모달 ===== */
+
+.wiki-footnote-modal-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 9999;
+  display: none;
+  align-items: center;
+  justify-content: center;
+  box-sizing: border-box;
+  padding: 16px;
+  background:
+    rgba(20, 29, 22, 0.42);
+  backdrop-filter: blur(3px);
+  -webkit-backdrop-filter: blur(3px);
+}
+
+.wiki-footnote-modal-backdrop[
+  data-open='true'
+] {
+  display: flex;
+}
+
+.wiki-footnote-modal {
+  width:
+    min(
+      420px,
+      calc(100vw - 32px)
+    );
+  max-height:
+    min(
+      70vh,
+      520px
+    );
+  box-sizing: border-box;
+  overflow-y: auto;
+  color:
+    var(
+      --wiki-chrome-text,
+      var(--foreground)
+    );
+  background:
+    linear-gradient(
+      145deg,
+      var(
+        --wiki-chrome-panel,
+        var(--surface-elevated)
+      ),
+      color-mix(
+        in srgb,
+        var(
+          --wiki-chrome-panel-soft,
+          var(--surface-soft)
+        ) 64%,
+        var(
+          --wiki-chrome-panel,
+          var(--surface-elevated)
+        )
+      )
+    );
+  border:
+    1px solid
+    var(
+      --wiki-chrome-border,
+      var(--border)
+    );
+  border-radius: 16px;
+  box-shadow:
+    0 20px 52px
+    rgba(21, 38, 25, 0.22);
+  animation:
+    wiki-footnote-modal-in
+    0.16s ease-out;
+}
+
+.wiki-footnote-modal-head {
+  position: sticky;
+  top: 0;
+  z-index: 1;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  box-sizing: border-box;
+  padding: 13px 14px 11px;
+  background:
+    color-mix(
+      in srgb,
+      var(
+        --wiki-chrome-panel,
+        var(--surface-elevated)
+      ) 94%,
+      transparent
+    );
+  border-bottom:
+    1px solid
+    color-mix(
+      in srgb,
+      var(
+        --wiki-chrome-border,
+        var(--border)
+      ) 74%,
+      transparent
+    );
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+}
+
+.wiki-footnote-modal-title {
+  display: flex;
+  min-width: 0;
+  align-items: center;
+}
+
+.wiki-footnote-modal-title strong {
+  color: var(--accent);
+  font-size: 13px;
+  font-weight: 820;
+  line-height: 1.2;
+}
+
+.wiki-footnote-modal-close {
+  display: inline-grid;
+  flex: 0 0 30px;
+  width: 30px;
+  height: 30px;
+  padding: 0;
+  place-items: center;
+  color:
+    var(
+      --wiki-chrome-muted,
+      var(--muted)
+    );
+  cursor: pointer;
+  background: transparent;
+  border:
+    1px solid
+    transparent;
+  border-radius: 9px;
+  transition:
+    color 0.14s ease,
+    background-color 0.14s ease,
+    border-color 0.14s ease;
+}
+
+.wiki-footnote-modal-close:hover {
+  color:
+    var(
+      --wiki-chrome-text,
+      var(--foreground)
+    );
+  background:
+    var(
+      --wiki-chrome-hover,
+      var(--surface-soft)
+    );
+  border-color:
+    var(
+      --wiki-chrome-border,
+      var(--border)
+    );
+}
+
+.wiki-footnote-modal-close:focus-visible {
+  outline:
+    3px solid
+    color-mix(
+      in srgb,
+      var(--accent) 20%,
+      transparent
+    );
+  outline-offset: 1px;
+}
+
+.wiki-footnote-modal-close svg {
+  display: block;
+  width: 17px;
+  height: 17px;
+}
+
+.wiki-footnote-modal-content {
+  padding: 14px 15px 16px;
+  color:
+    var(
+      --wiki-chrome-text,
+      var(--foreground)
+    );
+  font-size: 14px;
+  font-weight: 500;
+  line-height: 1.68;
+  letter-spacing: -0.01em;
+  white-space: pre-wrap;
+  word-break: keep-all;
+  overflow-wrap: break-word;
+}
+
+@keyframes wiki-footnote-modal-in {
+  from {
+    opacity: 0;
+    transform:
+      translateY(7px)
+      scale(0.985);
+  }
+
+  to {
+    opacity: 1;
+    transform:
+      translateY(0)
+      scale(1);
+  }
+}
+
+/* ===== 다크 모드 ===== */
+
+:root[data-theme='dark']
+.wiki-footnote-tooltip,
+.dark
+.wiki-footnote-tooltip {
+  box-shadow:
+    0 5px 16px
+    rgba(0, 0, 0, 0.22),
+    0 18px 38px
+    rgba(0, 0, 0, 0.26);
+}
+
+:root[data-theme='dark']
+.wiki-footnote-modal-backdrop,
+.dark
+.wiki-footnote-modal-backdrop {
+  background:
+    rgba(6, 10, 7, 0.56);
+}
+
+/* ===== 접근성 ===== */
+
+@media (
+  prefers-reduced-motion: reduce
+) {
+  .wiki-footnote-inline-label {
+    transition: none;
+  }
+
+  .wiki-footnote-tooltip,
+  .wiki-footnote-modal {
+    animation: none;
+  }
+}

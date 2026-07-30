@@ -5,6 +5,10 @@ import React from 'react';
 import type {
   RenderElementProps,
 } from 'slate-react';
+import {
+  ReactEditor,
+  useSlateStatic,
+} from 'slate-react';
 
 import type {
   InlineImageElement,
@@ -38,6 +42,7 @@ export function InlineImageEditorAdapter({
   children,
   element,
 }: InlineAdapterProps<InlineImageElement>) {
+  const editor = useSlateStatic();
   const {
     rawSrc,
     width,
@@ -48,6 +53,38 @@ export function InlineImageEditorAdapter({
     ? toProxyUrl(rawSrc)
     : rawSrc;
 
+  const handleContextMenu = (
+    event: React.MouseEvent<HTMLSpanElement>,
+  ) => {
+    event.preventDefault();
+    event.stopPropagation();
+    event.nativeEvent.stopImmediatePropagation();
+
+    try {
+      const path =
+        ReactEditor.findPath(
+          editor as ReactEditor,
+          element,
+        );
+
+      window.dispatchEvent(
+        new CustomEvent('editor:image-menu', {
+          detail: {
+            x: event.clientX,
+            y: event.clientY,
+            kind: 'inline',
+            path: [...path],
+          },
+        }),
+      );
+    } catch (error) {
+      console.error(
+        '인라인 이미지 메뉴 경로 확인 실패',
+        error,
+      );
+    }
+  };
+
   return (
     <InlineImage
       mode="edit"
@@ -55,7 +92,11 @@ export function InlineImageEditorAdapter({
       width={width}
       height={height}
       attributes={
-        attributes as React.HTMLAttributes<HTMLSpanElement>
+        {
+          ...attributes,
+          onContextMenu:
+            handleContextMenu,
+        } as React.HTMLAttributes<HTMLSpanElement>
       }
     >
       {children}

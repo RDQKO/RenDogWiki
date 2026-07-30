@@ -1,11 +1,8 @@
 'use client';
 
 import React from 'react';
-import { Transforms } from 'slate';
 import { ReactEditor } from 'slate-react';
 import type { RenderElementProps } from 'slate-react';
-
-import type { TableElement } from '@/types/slate';
 
 import {
   TableBlock,
@@ -13,7 +10,6 @@ import {
   WikiTableRowRenderer,
 } from '@/components/wiki-render';
 import {
-  getTableContainerStyle,
   tableElementBaseStyle,
 } from '@/components/wiki-render/table/tableLayout';
 
@@ -28,24 +24,12 @@ export function TableEditorAdapter(
   props: RenderElementProps & { editor: any },
 ) {
   const { attributes, children, element, editor } = props;
-  const table = element as TableElement;
   const tablePath = ReactEditor.findPath(editor, element);
   const tkey = tablePathKey(tablePath);
   const rect = useDragRect(tkey);
 
   const wrapRef = React.useRef<HTMLDivElement | null>(null);
   const ovRef = React.useRef<HTMLDivElement | null>(null);
-
-  const widthFromNode =
-    typeof table.maxWidth === 'number' ? table.maxWidth : null;
-
-  const [liveWidth, setLiveWidth] = React.useState<number | null>(
-    widthFromNode,
-  );
-
-  React.useEffect(() => {
-    setLiveWidth(widthFromNode);
-  }, [widthFromNode]);
 
   const positionOverlay = React.useCallback(() => {
     const wrap = wrapRef.current;
@@ -99,75 +83,6 @@ export function TableEditorAdapter(
     return () => resizeObserver.disconnect();
   }, [positionOverlay]);
 
-  const onResizeMouseDown = (event: React.MouseEvent<HTMLDivElement>) => {
-    event.preventDefault();
-    event.stopPropagation();
-
-    const wrap = wrapRef.current;
-    if (!wrap) return;
-
-    const startX = event.clientX;
-    const wrapRect = wrap.getBoundingClientRect();
-    const startWidth = liveWidth ?? wrapRect.width;
-    const parentRect = wrap.parentElement?.getBoundingClientRect();
-    const containerWidth = parentRect?.width ?? window.innerWidth;
-
-    const minWidth = 400;
-    const maxWidth = Math.max(minWidth, containerWidth - 16);
-
-    let latestWidth = startWidth;
-
-    const onMove = (moveEvent: MouseEvent) => {
-      moveEvent.preventDefault();
-
-      const deltaX = moveEvent.clientX - startX;
-      let nextWidth = startWidth + deltaX;
-
-      if (!Number.isFinite(nextWidth)) {
-        nextWidth = startWidth;
-      }
-
-      nextWidth = Math.max(minWidth, Math.min(nextWidth, maxWidth));
-      latestWidth = nextWidth;
-      setLiveWidth(nextWidth);
-    };
-
-    const onUp = (upEvent: MouseEvent) => {
-      upEvent.preventDefault();
-
-      document.removeEventListener('mousemove', onMove);
-      document.removeEventListener('mouseup', onUp);
-
-      if (!Number.isFinite(latestWidth)) return;
-
-      const fullWidthThreshold = containerWidth - 12;
-
-      if (latestWidth >= fullWidthThreshold) {
-        Transforms.setNodes<TableElement>(
-          editor,
-          {
-            maxWidth: null,
-            fullWidth: true,
-          } as Partial<TableElement>,
-          { at: tablePath },
-        );
-        return;
-      }
-
-      Transforms.setNodes<TableElement>(
-        editor,
-        {
-          maxWidth: Math.round(latestWidth),
-          fullWidth: false,
-        } as Partial<TableElement>,
-        { at: tablePath },
-      );
-    };
-
-    document.addEventListener('mousemove', onMove);
-    document.addEventListener('mouseup', onUp);
-  };
-
   const mergedRef = React.useCallback(
     (elementNode: HTMLDivElement | null) => {
       wrapRef.current = elementNode;
@@ -208,36 +123,6 @@ export function TableEditorAdapter(
     />
   );
 
-  const resizeHandle = (
-    <div
-      contentEditable={false}
-      aria-hidden
-      onMouseDown={onResizeMouseDown}
-      style={{
-        position: 'absolute',
-        right: -6,
-        top: '50%',
-        transform: 'translateY(-50%)',
-        width: 12,
-        height: 40,
-        display: 'flex',
-        alignItems: 'center',
-        justifyContent: 'center',
-        cursor: 'col-resize',
-        zIndex: 4,
-      }}
-    >
-      <div
-        style={{
-          width: 3,
-          height: '70%',
-          borderRadius: 999,
-          background: '#cbd5e1',
-        }}
-      />
-    </div>
-  );
-
   const tableNode = (
     <table
       className="slate-table"
@@ -258,15 +143,13 @@ export function TableEditorAdapter(
         } as React.HTMLAttributes<HTMLDivElement>
       }
       containerRef={mergedRef}
-      containerStyle={getTableContainerStyle({
-        liveWidth: liveWidth ?? widthFromNode,
-        maxWidth: widthFromNode,
-        fullWidth: table.fullWidth,
-        align: table.align,
-      })}
+      containerStyle={{
+        position: 'relative',
+        width: '100%',
+        maxWidth: '100%',
+      }}
       table={tableNode}
       overlay={overlayNode}
-      editControls={resizeHandle}
     />
   );
 }

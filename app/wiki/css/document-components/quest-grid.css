@@ -1,0 +1,1722 @@
+/* =============================================
+ * File:
+ * app/wiki/css/document-components/quest-grid.css
+ *
+ * 전체 코드
+ *
+ * 담당 범위
+ * - 퀘스트 목록 그리드
+ * - 퀘스트 카드
+ * - 퀘스트 태그
+ * - 퀘스트 목록 페이지 이동
+ * ============================================= */
+
+.npc-grid-wrap[
+  data-wiki-grid='quest'
+] {
+  --quest-grid-text:
+    var(
+      --wiki-chrome-text,
+      var(--foreground)
+    );
+  --quest-grid-muted:
+    var(
+      --wiki-chrome-muted,
+      var(--muted)
+    );
+  --quest-grid-panel:
+    var(
+      --wiki-chrome-panel,
+      var(--surface-elevated)
+    );
+  --quest-grid-panel-soft:
+    var(
+      --wiki-chrome-panel-soft,
+      var(--surface-soft)
+    );
+  --quest-grid-border:
+    var(
+      --wiki-chrome-border,
+      var(--border)
+    );
+  --quest-grid-accent:
+    var(
+      --wiki-chrome-accent,
+      #4d9b5c
+    );
+  --quest-grid-accent-strong:
+    var(
+      --wiki-chrome-accent-strong,
+      #327b42
+    );
+  --quest-grid-hover:
+    var(
+      --wiki-chrome-hover,
+      #f0f8ed
+    );
+  --quest-grid-active:
+    var(
+      --wiki-chrome-active,
+      #e9f5e4
+    );
+
+  --quest-village-border:
+    #79a987;
+  --quest-village-border-soft:
+    rgba(121, 169, 135, 0.28);
+  --quest-village-glow:
+    rgba(83, 157, 99, 0.16);
+  --quest-village-surface-a:
+    rgba(233, 246, 231, 0.94);
+  --quest-village-surface-b:
+    rgba(245, 249, 242, 0.82);
+  --quest-village-detail:
+    rgba(69, 130, 82, 0.16);
+
+  width: 100%;
+  box-sizing: border-box;
+}
+
+/* ===== 그리드 ===== */
+
+.npc-grid {
+  display: grid;
+  width: 100%;
+  grid-template-columns:
+    repeat(
+      7,
+      minmax(
+        104px,
+        118px
+      )
+    );
+  align-items: stretch;
+  justify-content: start;
+  gap: 16px;
+  box-sizing: border-box;
+  margin: 16px 0 20px;
+  padding: 2px 4px;
+}
+
+/* ===== 카드 ===== */
+
+.npc-card {
+  position: relative;
+  isolation: isolate;
+  display: block;
+  width: 100%;
+  min-width: 0;
+  height: 124px;
+  box-sizing: border-box;
+  padding: 0;
+  overflow: hidden;
+  color:
+    var(
+      --quest-grid-text
+    );
+  font-family: inherit;
+  text-align: inherit;
+  cursor: pointer;
+  background:
+    radial-gradient(
+      circle at 50% 24%,
+      color-mix(
+        in srgb,
+        var(
+          --quest-village-surface-a
+        ) 54%,
+        transparent
+      ),
+      transparent 62%
+    ),
+    linear-gradient(
+      160deg,
+      color-mix(
+        in srgb,
+        var(
+          --quest-grid-panel
+        ) 98%,
+        white
+      ),
+      color-mix(
+        in srgb,
+        var(
+          --quest-village-surface-b
+        ) 16%,
+        var(
+          --quest-grid-panel
+        )
+      )
+    );
+  border:
+    1.5px solid
+    color-mix(
+      in srgb,
+      var(
+        --quest-village-border
+      ) 46%,
+      var(
+        --quest-grid-border
+      )
+    );
+  border-radius: 14px;
+  box-shadow:
+    0 0 0 1px
+    color-mix(
+      in srgb,
+      var(
+        --quest-village-border
+      ) 9%,
+      transparent
+    ),
+    0 1px 2px
+    rgba(31, 55, 36, 0.03),
+    0 7px 16px
+    rgba(31, 55, 36, 0.055),
+    0 5px 15px
+    var(
+      --quest-village-glow
+    );
+  appearance: none;
+  -webkit-tap-highlight-color:
+    transparent;
+  transition:
+    border-color 0.15s ease,
+    box-shadow 0.15s ease,
+    transform 0.15s ease,
+    background-color 0.15s ease;
+}
+
+.npc-card::before {
+  content: '';
+  position: absolute;
+  inset: 3px;
+  z-index: 0;
+  pointer-events: none;
+  background:
+    radial-gradient(
+      circle at 50% 34%,
+      color-mix(
+        in srgb,
+        var(
+          --quest-village-border
+        ) 7%,
+        transparent
+      ),
+      transparent 58%
+    );
+  border:
+    1px solid
+    color-mix(
+      in srgb,
+      var(
+        --quest-village-border
+      ) 16%,
+      transparent
+    );
+  border-radius: 10px;
+  opacity: 0.9;
+}
+
+.npc-card::after {
+  content: '';
+  position: absolute;
+  right: 20%;
+  bottom: -1px;
+  left: 20%;
+  z-index: 2;
+  height: 3px;
+  pointer-events: none;
+  background:
+    color-mix(
+      in srgb,
+      var(
+        --quest-village-border
+      ) 78%,
+      transparent
+    );
+  border-radius:
+    999px
+    999px
+    0
+    0;
+  opacity: 0.88;
+}
+
+.npc-card:hover {
+  border-color:
+    color-mix(
+      in srgb,
+      var(
+        --quest-village-border
+      ) 74%,
+      var(
+        --quest-grid-border
+      )
+    );
+  background:
+    radial-gradient(
+      circle at 50% 24%,
+      color-mix(
+        in srgb,
+        var(
+          --quest-village-surface-a
+        ) 68%,
+        transparent
+      ),
+      transparent 64%
+    ),
+    linear-gradient(
+      160deg,
+      color-mix(
+        in srgb,
+        var(
+          --quest-grid-hover
+        ) 54%,
+        var(
+          --quest-grid-panel
+        )
+      ),
+      color-mix(
+        in srgb,
+        var(
+          --quest-village-surface-b
+        ) 18%,
+        var(
+          --quest-grid-panel
+        )
+      )
+    );
+  box-shadow:
+    0 0 0 2px
+    color-mix(
+      in srgb,
+      var(
+        --quest-village-border
+      ) 10%,
+      transparent
+    ),
+    0 3px 7px
+    rgba(31, 55, 36, 0.045),
+    0 12px 24px
+    rgba(31, 55, 36, 0.08),
+    0 8px 20px
+    var(
+      --quest-village-glow
+    );
+  transform:
+    translateY(-2px);
+}
+
+.npc-card:focus-visible {
+  outline:
+    3px solid
+    color-mix(
+      in srgb,
+      var(
+        --quest-grid-accent
+      ) 22%,
+      transparent
+    );
+  outline-offset: 3px;
+}
+
+.npc-card.is-selected,
+.npc-card[
+  data-selected='true'
+] {
+  background:
+    radial-gradient(
+      circle at 50% 24%,
+      color-mix(
+        in srgb,
+        var(
+          --quest-village-surface-a
+        ) 72%,
+        transparent
+      ),
+      transparent 64%
+    ),
+    linear-gradient(
+      160deg,
+      color-mix(
+        in srgb,
+        var(
+          --quest-village-border
+        ) 10%,
+        var(
+          --quest-grid-panel
+        )
+      ),
+      var(
+        --quest-grid-panel
+      )
+    );
+  border-color:
+    color-mix(
+      in srgb,
+      var(
+        --quest-village-border
+      ) 82%,
+      var(
+        --quest-grid-border
+      )
+    );
+  box-shadow:
+    0 0 0 2px
+    color-mix(
+      in srgb,
+      var(
+        --quest-village-border
+      ) 14%,
+      transparent
+    ),
+    0 9px 20px
+    rgba(31, 55, 36, 0.07),
+    0 7px 18px
+    var(
+      --quest-village-glow
+    );
+}
+
+/* ===== 카드 내부 ===== */
+
+.npc-card-inner {
+  position: relative;
+  z-index: 1;
+  display: flex;
+  width: 100%;
+  height: 100%;
+  min-width: 0;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  box-sizing: border-box;
+  padding: 9px 7px 8px;
+}
+
+.npc-card[
+  data-has-tag='true'
+]
+.npc-card-inner {
+  padding-top: 15px;
+}
+
+.npc-icon-wrap {
+  display: grid;
+  width: 58px;
+  height: 58px;
+  flex: 0 0 58px;
+  place-items: center;
+  margin-bottom: 7px;
+}
+
+.npc-icon-surface {
+  position: relative;
+  isolation: isolate;
+  display: grid;
+  width: 58px;
+  height: 58px;
+  place-items: center;
+  box-sizing: border-box;
+  overflow: hidden;
+  background:
+    radial-gradient(
+      circle at 50% 35%,
+      var(
+        --quest-village-surface-a
+      ),
+      var(
+        --quest-village-surface-b
+      ) 76%
+    );
+  border:
+    2px solid
+    var(
+      --quest-village-border
+    );
+  border-radius: 13px;
+  box-shadow:
+    0 0 0 1px
+    var(
+      --quest-village-border-soft
+    ),
+    0 4px 10px
+    var(
+      --quest-village-glow
+    );
+  transition:
+    border-color 0.15s ease,
+    box-shadow 0.15s ease,
+    transform 0.15s ease;
+}
+
+.npc-icon-surface::before {
+  display: none;
+}
+
+.npc-icon-surface::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+  pointer-events: none;
+  background:
+    radial-gradient(
+      circle at 22% 24%,
+      var(
+        --quest-village-detail
+      ) 0 1px,
+      transparent 1.7px
+    ),
+    radial-gradient(
+      circle at 76% 72%,
+      var(
+        --quest-village-detail
+      ) 0 1px,
+      transparent 1.8px
+    );
+  opacity: 0.8;
+}
+
+.npc-card:hover
+.npc-icon-surface {
+  border-color:
+    color-mix(
+      in srgb,
+      var(
+        --quest-village-border
+      ) 86%,
+      var(
+        --quest-grid-border
+      )
+    );
+  box-shadow:
+    0 0 0 1px
+    var(
+      --quest-village-border-soft
+    ),
+    0 6px 14px
+    var(
+      --quest-village-glow
+    );
+  transform:
+    translateY(-1px);
+}
+
+.npc-icon-img {
+  position: relative;
+  z-index: 2;
+  display: block;
+  width: 50px;
+  height: 50px;
+  object-fit: contain;
+  image-rendering: auto;
+  filter:
+    drop-shadow(
+      0 3px 4px
+      rgba(28, 45, 31, 0.1)
+    );
+  transition:
+    transform 0.15s ease;
+}
+
+.npc-card:hover
+.npc-icon-img {
+  transform:
+    scale(1.04);
+}
+
+.npc-emoji {
+  position: relative;
+  z-index: 2;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 39px;
+  line-height: 1;
+}
+
+
+/* =============================================
+ * 마을별 아이콘 프레임
+ * 카드 전체가 아니라 NPC 아이콘의 테두리와 안쪽 질감만 바꾼다.
+ * ============================================= */
+
+/* 슬라임 빌리지: 밝은 숲, 이끼, 시작 마을 */
+.npc-grid-wrap[
+  data-village-theme='slime'
+] {
+  --quest-village-border:
+    #59a868;
+  --quest-village-border-soft:
+    rgba(86, 166, 103, 0.3);
+  --quest-village-glow:
+    rgba(65, 145, 82, 0.16);
+  --quest-village-surface-a:
+    rgba(224, 244, 218, 0.98);
+  --quest-village-surface-b:
+    rgba(242, 249, 235, 0.9);
+  --quest-village-detail:
+    rgba(55, 128, 70, 0.2);
+}
+
+.npc-grid-wrap[
+  data-village-theme='slime'
+]
+.npc-icon-surface::after {
+  background:
+    radial-gradient(
+      ellipse at 18% 88%,
+      rgba(56, 132, 70, 0.18) 0 4px,
+      transparent 5px
+    ),
+    radial-gradient(
+      ellipse at 82% 16%,
+      rgba(99, 178, 89, 0.16) 0 5px,
+      transparent 6px
+    ),
+    radial-gradient(
+      circle at 28% 25%,
+      rgba(69, 143, 75, 0.22) 0 1px,
+      transparent 1.8px
+    );
+}
+
+/* 데저트 빌리지: 모래, 사암, 햇빛 */
+.npc-grid-wrap[
+  data-village-theme='desert'
+] {
+  --quest-village-border:
+    #d6a84c;
+  --quest-village-border-soft:
+    rgba(214, 168, 76, 0.3);
+  --quest-village-glow:
+    rgba(211, 151, 48, 0.17);
+  --quest-village-surface-a:
+    rgba(255, 238, 190, 0.98);
+  --quest-village-surface-b:
+    rgba(248, 222, 163, 0.9);
+  --quest-village-detail:
+    rgba(166, 113, 32, 0.2);
+}
+
+.npc-grid-wrap[
+  data-village-theme='desert'
+]
+.npc-icon-surface::after {
+  background:
+    radial-gradient(
+      circle at 78% 20%,
+      rgba(255, 247, 205, 0.9) 0 4px,
+      rgba(225, 172, 63, 0.15) 5px,
+      transparent 10px
+    ),
+    radial-gradient(
+      ellipse at 12% 105%,
+      transparent 0 24px,
+      rgba(177, 121, 36, 0.14) 25px 27px,
+      transparent 28px
+    ),
+    radial-gradient(
+      ellipse at 78% 108%,
+      transparent 0 29px,
+      rgba(177, 121, 36, 0.12) 30px 32px,
+      transparent 33px
+    );
+}
+
+/* 프로스트 타운: 눈 결정, 얼음 테두리 */
+.npc-grid-wrap[
+  data-village-theme='frost'
+] {
+  --quest-village-border:
+    #78c9e8;
+  --quest-village-border-soft:
+    rgba(116, 201, 232, 0.32);
+  --quest-village-glow:
+    rgba(74, 174, 218, 0.2);
+  --quest-village-surface-a:
+    rgba(235, 251, 255, 0.99);
+  --quest-village-surface-b:
+    rgba(210, 239, 250, 0.91);
+  --quest-village-detail:
+    rgba(64, 154, 197, 0.2);
+}
+
+.npc-grid-wrap[
+  data-village-theme='frost'
+]
+.npc-icon-surface::after {
+  background:
+    linear-gradient(
+      135deg,
+      transparent 0 30%,
+      rgba(255, 255, 255, 0.7) 31% 33%,
+      transparent 34% 64%,
+      rgba(95, 190, 224, 0.13) 65% 67%,
+      transparent 68%
+    ),
+    radial-gradient(
+      circle at 20% 22%,
+      rgba(255, 255, 255, 0.95) 0 1.2px,
+      transparent 1.8px
+    ),
+    radial-gradient(
+      circle at 78% 76%,
+      rgba(58, 157, 203, 0.28) 0 1px,
+      transparent 1.7px
+    );
+}
+
+/* 언더 빌리지: 암석, 동굴, 광물 */
+.npc-grid-wrap[
+  data-village-theme='under'
+] {
+  --quest-village-border:
+    #737b86;
+  --quest-village-border-soft:
+    rgba(93, 103, 116, 0.34);
+  --quest-village-glow:
+    rgba(43, 52, 61, 0.18);
+  --quest-village-surface-a:
+    rgba(218, 222, 224, 0.96);
+  --quest-village-surface-b:
+    rgba(190, 198, 202, 0.9);
+  --quest-village-detail:
+    rgba(55, 66, 75, 0.21);
+}
+
+.npc-grid-wrap[
+  data-village-theme='under'
+]
+.npc-icon-surface::after {
+  background:
+    repeating-linear-gradient(
+      145deg,
+      rgba(63, 72, 81, 0.08) 0 1px,
+      transparent 1px 9px
+    ),
+    radial-gradient(
+      circle at 24% 70%,
+      rgba(110, 231, 255, 0.3) 0 1.4px,
+      transparent 2px
+    ),
+    radial-gradient(
+      circle at 78% 28%,
+      rgba(184, 132, 255, 0.22) 0 1.3px,
+      transparent 2px
+    );
+}
+
+/* 셀로테레인: 열대 숲, 미지의 초록빛 */
+.npc-grid-wrap[
+  data-village-theme='seloterain'
+] {
+  --quest-village-border:
+    #27a987;
+  --quest-village-border-soft:
+    rgba(38, 169, 135, 0.3);
+  --quest-village-glow:
+    rgba(22, 136, 108, 0.2);
+  --quest-village-surface-a:
+    rgba(214, 246, 224, 0.98);
+  --quest-village-surface-b:
+    rgba(197, 234, 218, 0.91);
+  --quest-village-detail:
+    rgba(15, 117, 87, 0.2);
+}
+
+.npc-grid-wrap[
+  data-village-theme='seloterain'
+]
+.npc-icon-surface::after {
+  background:
+    radial-gradient(
+      ellipse at 12% 22%,
+      rgba(18, 139, 85, 0.2) 0 6px,
+      transparent 7px
+    ),
+    radial-gradient(
+      ellipse at 88% 82%,
+      rgba(13, 148, 136, 0.17) 0 7px,
+      transparent 8px
+    ),
+    linear-gradient(
+      120deg,
+      transparent 0 44%,
+      rgba(255, 231, 112, 0.13) 45% 47%,
+      transparent 48%
+    );
+}
+
+/* 아틀란티스: 물결, 기포, 바닷빛 */
+.npc-grid-wrap[
+  data-village-theme='atlantis'
+] {
+  --quest-village-border:
+    #2ba8d8;
+  --quest-village-border-soft:
+    rgba(42, 168, 216, 0.33);
+  --quest-village-glow:
+    rgba(27, 136, 190, 0.2);
+  --quest-village-surface-a:
+    rgba(216, 248, 255, 0.98);
+  --quest-village-surface-b:
+    rgba(185, 229, 245, 0.92);
+  --quest-village-detail:
+    rgba(14, 130, 183, 0.22);
+}
+
+.npc-grid-wrap[
+  data-village-theme='atlantis'
+]
+.npc-icon-surface::after {
+  background:
+    radial-gradient(
+      circle at 22% 28%,
+      transparent 0 3px,
+      rgba(20, 140, 190, 0.2) 3.5px 4.5px,
+      transparent 5px
+    ),
+    radial-gradient(
+      circle at 76% 20%,
+      transparent 0 2px,
+      rgba(20, 140, 190, 0.22) 2.5px 3.5px,
+      transparent 4px
+    ),
+    repeating-radial-gradient(
+      ellipse at 50% 112%,
+      transparent 0 11px,
+      rgba(16, 126, 181, 0.1) 12px 13px,
+      transparent 14px 21px
+    );
+}
+
+/* 크레토라: 붉은 사막 + 외계 문양 */
+.npc-grid-wrap[
+  data-village-theme='cretora'
+] {
+  --quest-village-border:
+    #d95a43;
+  --quest-village-border-soft:
+    rgba(217, 90, 67, 0.34);
+  --quest-village-glow:
+    rgba(184, 54, 35, 0.2);
+  --quest-village-surface-a:
+    rgba(255, 221, 197, 0.98);
+  --quest-village-surface-b:
+    rgba(232, 177, 145, 0.91);
+  --quest-village-detail:
+    rgba(131, 44, 32, 0.2);
+}
+
+.npc-grid-wrap[
+  data-village-theme='cretora'
+]
+.npc-icon-surface::after {
+  background:
+    linear-gradient(
+      120deg,
+      transparent 0 30%,
+      rgba(84, 255, 199, 0.24) 31% 33%,
+      transparent 34% 64%,
+      rgba(69, 193, 255, 0.18) 65% 67%,
+      transparent 68%
+    ),
+    radial-gradient(
+      circle at 18% 80%,
+      rgba(132, 43, 30, 0.22) 0 1.2px,
+      transparent 1.8px
+    ),
+    radial-gradient(
+      circle at 82% 18%,
+      rgba(255, 245, 190, 0.72) 0 1.2px,
+      transparent 2px
+    );
+}
+
+/* 헬 스토니아: 용암, 불꽃, 균열 */
+.npc-grid-wrap[
+  data-village-theme='hell'
+] {
+  --quest-village-border:
+    #e14b26;
+  --quest-village-border-soft:
+    rgba(225, 75, 38, 0.35);
+  --quest-village-glow:
+    rgba(224, 61, 23, 0.24);
+  --quest-village-surface-a:
+    rgba(255, 216, 166, 0.98);
+  --quest-village-surface-b:
+    rgba(232, 142, 91, 0.92);
+  --quest-village-detail:
+    rgba(139, 35, 18, 0.24);
+}
+
+.npc-grid-wrap[
+  data-village-theme='hell'
+]
+.npc-icon-surface::after {
+  background:
+    linear-gradient(
+      65deg,
+      transparent 0 36%,
+      rgba(255, 69, 20, 0.25) 37% 40%,
+      transparent 41% 66%,
+      rgba(255, 190, 38, 0.22) 67% 69%,
+      transparent 70%
+    ),
+    linear-gradient(
+      -58deg,
+      transparent 0 45%,
+      rgba(124, 24, 12, 0.18) 46% 48%,
+      transparent 49%
+    ),
+    radial-gradient(
+      circle at 78% 24%,
+      rgba(255, 240, 177, 0.75) 0 1.2px,
+      transparent 2px
+    );
+}
+
+/* 피날리스: 엔더 공허, 보라색 입자 */
+.npc-grid-wrap[
+  data-village-theme='finalis'
+] {
+  --quest-village-border:
+    #8d5bd7;
+  --quest-village-border-soft:
+    rgba(141, 91, 215, 0.35);
+  --quest-village-glow:
+    rgba(109, 58, 185, 0.23);
+  --quest-village-surface-a:
+    rgba(232, 220, 251, 0.98);
+  --quest-village-surface-b:
+    rgba(204, 183, 237, 0.91);
+  --quest-village-detail:
+    rgba(93, 44, 168, 0.23);
+}
+
+.npc-grid-wrap[
+  data-village-theme='finalis'
+]
+.npc-icon-surface::after {
+  background:
+    radial-gradient(
+      circle at 18% 24%,
+      rgba(99, 38, 174, 0.38) 0 1px,
+      transparent 1.8px
+    ),
+    radial-gradient(
+      circle at 78% 22%,
+      rgba(221, 177, 255, 0.8) 0 1.2px,
+      transparent 2px
+    ),
+    radial-gradient(
+      circle at 72% 78%,
+      rgba(126, 58, 210, 0.32) 0 1.2px,
+      transparent 2px
+    ),
+    linear-gradient(
+      135deg,
+      transparent 0 43%,
+      rgba(119, 63, 185, 0.1) 44% 46%,
+      transparent 47%
+    );
+}
+
+/* ===== 이름 ===== */
+
+.npc-name {
+  position: relative;
+  display: block;
+  width:
+    calc(
+      100% - 12px
+    );
+  min-width: 0;
+  min-height: 29px;
+  box-sizing: border-box;
+  padding: 5px 7px 4px;
+  overflow: hidden;
+  color:
+    color-mix(
+      in srgb,
+      var(
+        --quest-village-border
+      ) 28%,
+      var(
+        --quest-grid-text
+      )
+    );
+  font-family:
+    'NanumSquareNeo',
+    'NanumSquareRound',
+    Pretendard,
+    'Malgun Gothic',
+    system-ui,
+    sans-serif !important;
+  font-size: 15px;
+  font-weight: 900 !important;
+  font-synthesis: none;
+  line-height: 19px;
+  text-shadow:
+    0 1px 0
+    rgba(255, 255, 255, 0.52);
+  letter-spacing: -0.025em;
+  text-align: center;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  word-break: keep-all;
+  overflow-wrap: normal;
+  background:
+    linear-gradient(
+      180deg,
+      color-mix(
+        in srgb,
+        var(
+          --quest-village-surface-a
+        ) 42%,
+        var(
+          --quest-grid-panel
+        )
+      ),
+      color-mix(
+        in srgb,
+        var(
+          --quest-village-surface-b
+        ) 22%,
+        var(
+          --quest-grid-panel
+        )
+      )
+    );
+  border:
+    1px solid
+    color-mix(
+      in srgb,
+      var(
+        --quest-village-border
+      ) 24%,
+      var(
+        --quest-grid-border
+      )
+    );
+  border-radius: 8px;
+  box-shadow:
+    0 2px 6px
+    color-mix(
+      in srgb,
+      var(
+        --quest-village-glow
+      ) 54%,
+      transparent
+    );
+  transition:
+    color 0.15s ease,
+    border-color 0.15s ease,
+    background-color 0.15s ease;
+}
+
+.npc-card:hover
+.npc-name,
+.npc-card.is-selected
+.npc-name {
+  color:
+    color-mix(
+      in srgb,
+      var(
+        --quest-village-border
+      ) 50%,
+      var(
+        --quest-grid-text
+      )
+    );
+  border-color:
+    color-mix(
+      in srgb,
+      var(
+        --quest-village-border
+      ) 44%,
+      var(
+        --quest-grid-border
+      )
+    );
+}
+
+.npc-grid-wrap
+.npc-name.is-long {
+  font-size: 12.5px !important;
+  letter-spacing: -0.035em !important;
+}
+
+.npc-grid-wrap
+.npc-name.is-longer {
+  font-size: 11px !important;
+  letter-spacing: -0.045em !important;
+}
+
+.npc-grid-wrap
+.npc-name.is-xlong {
+  font-size: 9.5px !important;
+  letter-spacing: -0.055em !important;
+}
+
+.npc-card-open-indicator {
+  display: none;
+}
+
+/*
+ * NpcGrid.tsx에 남아 있는 styled-jsx는 해시 속성이 붙어
+ * 일반 외부 CSS보다 선택자 우선순위가 높다.
+ * 이름 타이포그래피는 여기서 명시적으로 고정한다.
+ */
+.npc-grid-wrap
+.npc-name {
+  font-family:
+    'NanumSquareNeo',
+    'NanumSquareRound',
+    Pretendard,
+    'Malgun Gothic',
+    system-ui,
+    sans-serif !important;
+  font-weight: 900 !important;
+  font-synthesis: none;
+}
+
+/* ===== 태그 ===== */
+
+.npc-tag-badge {
+  --quest-tag-color:
+    #64748b;
+
+  position: absolute;
+  top: 6px;
+  right: 6px;
+  z-index: 3;
+  display: inline-flex;
+  max-width:
+    calc(
+      100% - 12px
+    );
+  min-width: 34px;
+  height: 24px;
+  align-items: center;
+  justify-content: center;
+  box-sizing: border-box;
+  padding: 0 9px;
+  overflow: hidden;
+  color:
+    color-mix(
+      in srgb,
+      var(
+        --quest-tag-color
+      ) 86%,
+      #172019
+    );
+  font-size: 11px;
+  font-weight: 850;
+  line-height: 1;
+  letter-spacing: -0.01em;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  background:
+    color-mix(
+      in srgb,
+      var(
+        --quest-tag-color
+      ) 11%,
+      var(
+        --quest-grid-panel
+      )
+    );
+  border:
+    1px solid
+    color-mix(
+      in srgb,
+      var(
+        --quest-tag-color
+      ) 32%,
+      var(
+        --quest-grid-border
+      )
+    );
+  border-radius: 999px;
+  box-shadow:
+    0 3px 8px
+    rgba(31, 55, 36, 0.06);
+}
+
+.npc-tag-badge[
+  data-quest-tag='추천'
+] {
+  --quest-tag-color:
+    #16a34a;
+}
+
+.npc-tag-badge[
+  data-quest-tag='필수'
+] {
+  --quest-tag-color:
+    #ca8a04;
+}
+
+.npc-tag-badge[
+  data-quest-tag='완정'
+] {
+  --quest-tag-color:
+    #2563eb;
+}
+
+.npc-tag-badge[
+  data-quest-tag='타임어택'
+] {
+  --quest-tag-color:
+    #ea580c;
+}
+
+.npc-tag-badge[
+  data-quest-tag='기사단'
+] {
+  --quest-tag-color:
+    #7c3aed;
+}
+
+.npc-tag-badge[
+  data-quest-tag='극난퀘'
+],
+.npc-tag-badge[
+  data-quest-tag='보스'
+] {
+  --quest-tag-color:
+    #dc2626;
+}
+
+.npc-tag-badge[
+  data-quest-tag='혼의 시련'
+],
+.npc-tag-badge[
+  data-quest-tag='6차'
+] {
+  --quest-tag-color:
+    #0284c7;
+}
+
+/* ===== 빈 목록 ===== */
+
+.npc-grid-empty {
+  display: flex;
+  min-height: 150px;
+  align-items: center;
+  justify-content: center;
+  gap: 9px;
+  box-sizing: border-box;
+  margin: 16px 0;
+  color:
+    var(
+      --quest-grid-muted
+    );
+  font-size: 14px;
+  font-weight: 650;
+  background:
+    color-mix(
+      in srgb,
+      var(
+        --quest-grid-panel-soft
+      ) 54%,
+      transparent
+    );
+  border:
+    1px dashed
+    var(
+      --quest-grid-border
+    );
+  border-radius: 13px;
+}
+
+.npc-grid-empty__icon {
+  display: inline-flex;
+  width: 28px;
+  height: 28px;
+  align-items: center;
+  justify-content: center;
+  color:
+    var(
+      --quest-grid-accent
+    );
+}
+
+.npc-grid-empty__icon svg {
+  display: block;
+  width: 22px;
+  height: 22px;
+}
+
+/* ===== 페이지 이동 ===== */
+
+.npc-pager-wrap {
+  display: flex;
+  justify-content: center;
+  margin: 12px 0 0;
+}
+
+.npc-pager {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  min-height: 36px;
+  padding: 4px;
+  color:
+    var(
+      --quest-grid-text
+    );
+  background:
+    color-mix(
+      in srgb,
+      var(
+        --quest-grid-panel
+      ) 96%,
+      transparent
+    );
+  border:
+    1px solid
+    var(
+      --quest-grid-border
+    );
+  border-radius: 999px;
+  box-shadow:
+    0 5px 14px
+    rgba(31, 55, 36, 0.045);
+}
+
+.npc-pg-btn {
+  display: inline-grid;
+  width: 30px;
+  height: 30px;
+  padding: 0;
+  place-items: center;
+  color:
+    var(
+      --quest-grid-muted
+    );
+  cursor: pointer;
+  background:
+    transparent;
+  border: 0;
+  border-radius: 999px;
+  transition:
+    color 0.14s ease,
+    background-color 0.14s ease;
+}
+
+.npc-pg-btn svg {
+  display: block;
+  width: 17px;
+  height: 17px;
+}
+
+.npc-pg-btn:hover:not(
+  :disabled
+) {
+  color:
+    var(
+      --quest-grid-accent-strong
+    );
+  background:
+    var(
+      --quest-grid-hover
+    );
+}
+
+.npc-pg-btn:focus-visible {
+  outline:
+    3px solid
+    color-mix(
+      in srgb,
+      var(
+        --quest-grid-accent
+      ) 20%,
+      transparent
+    );
+  outline-offset: 1px;
+}
+
+.npc-pg-btn:disabled {
+  color:
+    color-mix(
+      in srgb,
+      var(
+        --quest-grid-muted
+      ) 48%,
+      transparent
+    );
+  cursor: default;
+}
+
+.npc-pg-text {
+  display: inline-flex;
+  min-width: 62px;
+  align-items: center;
+  justify-content: center;
+  gap: 5px;
+  color:
+    var(
+      --quest-grid-muted
+    );
+  font-size: 12px;
+  font-weight: 680;
+  line-height: 1;
+  font-variant-numeric:
+    tabular-nums;
+}
+
+.npc-pg-text strong {
+  color:
+    var(
+      --quest-grid-accent-strong
+    );
+  font-size: 14px;
+  font-weight: 820;
+}
+
+/* ===== 다크 모드 ===== */
+
+:root[
+  data-theme='dark'
+]
+.npc-card,
+.dark
+.npc-card {
+  background:
+    radial-gradient(
+      circle at 50% 24%,
+      color-mix(
+        in srgb,
+        var(
+          --quest-village-border
+        ) 10%,
+        transparent
+      ),
+      transparent 62%
+    ),
+    linear-gradient(
+      160deg,
+      color-mix(
+        in srgb,
+        var(
+          --quest-grid-panel
+        ) 94%,
+        black
+      ),
+      color-mix(
+        in srgb,
+        var(
+          --quest-village-border
+        ) 5%,
+        var(
+          --quest-grid-panel
+        )
+      )
+    );
+  box-shadow:
+    0 0 0 1px
+    color-mix(
+      in srgb,
+      var(
+        --quest-village-border
+      ) 8%,
+      transparent
+    ),
+    0 1px 2px
+    rgba(0, 0, 0, 0.12),
+    0 7px 17px
+    rgba(0, 0, 0, 0.13),
+    0 5px 14px
+    color-mix(
+      in srgb,
+      var(
+        --quest-village-glow
+      ) 52%,
+      transparent
+    );
+}
+
+:root[
+  data-theme='dark'
+]
+.npc-name,
+.dark
+.npc-name {
+  color:
+    color-mix(
+      in srgb,
+      var(
+        --quest-village-border
+      ) 24%,
+      var(
+        --quest-grid-text
+      )
+    );
+  text-shadow:
+    0 1px 1px
+    rgba(0, 0, 0, 0.38);
+  background:
+    linear-gradient(
+      180deg,
+      color-mix(
+        in srgb,
+        var(
+          --quest-village-border
+        ) 10%,
+        var(
+          --quest-grid-panel
+        )
+      ),
+      color-mix(
+        in srgb,
+        var(
+          --quest-village-border
+        ) 5%,
+        color-mix(
+          in srgb,
+          var(
+            --quest-grid-panel
+          ) 94%,
+          black
+        )
+      )
+    );
+  border-color:
+    color-mix(
+      in srgb,
+      var(
+        --quest-village-border
+      ) 31%,
+      var(
+        --quest-grid-border
+      )
+    );
+  box-shadow:
+    0 2px 7px
+    rgba(0, 0, 0, 0.2);
+}
+
+:root[
+  data-theme='dark'
+]
+.npc-card:hover
+.npc-name,
+:root[
+  data-theme='dark'
+]
+.npc-card.is-selected
+.npc-name,
+.dark
+.npc-card:hover
+.npc-name,
+.dark
+.npc-card.is-selected
+.npc-name {
+  color:
+    color-mix(
+      in srgb,
+      var(
+        --quest-village-border
+      ) 38%,
+      var(
+        --quest-grid-text
+      )
+    );
+  border-color:
+    color-mix(
+      in srgb,
+      var(
+        --quest-village-border
+      ) 48%,
+      var(
+        --quest-grid-border
+      )
+    );
+}
+
+/* ===== 반응형 ===== */
+
+@media (
+  max-width: 1040px
+) {
+  .npc-grid {
+    grid-template-columns:
+      repeat(
+        6,
+        minmax(
+          104px,
+          118px
+        )
+      );
+  }
+}
+
+@media (
+  max-width: 900px
+) {
+  .npc-grid {
+    grid-template-columns:
+      repeat(
+        5,
+        minmax(
+          104px,
+          118px
+        )
+      );
+  }
+}
+
+@media (
+  max-width: 768px
+) {
+  .npc-grid {
+    grid-template-columns:
+      repeat(
+        3,
+        minmax(
+          0,
+          1fr
+        )
+      );
+    gap: 9px;
+    width: 100%;
+    margin: 12px auto 0;
+    padding: 0;
+  }
+
+  .npc-card {
+    height: 116px;
+    border-radius: 12px;
+  }
+
+  .npc-card-inner {
+    padding:
+      9px
+      5px
+      7px;
+  }
+
+  .npc-card[
+    data-has-tag='true'
+  ]
+  .npc-card-inner {
+    padding-top: 14px;
+  }
+
+  .npc-icon-wrap,
+  .npc-icon-surface {
+    width: 52px;
+    height: 52px;
+  }
+
+  .npc-icon-wrap {
+    flex-basis: 52px;
+    margin-bottom: 5px;
+  }
+
+  .npc-icon-surface {
+    border-radius: 11px;
+  }
+
+  .npc-icon-surface::before {
+    inset: 3px;
+    border-radius: 7px;
+  }
+
+  .npc-icon-img {
+    width: 46px;
+    height: 46px;
+  }
+
+  .npc-name {
+    width:
+      calc(
+        100% - 8px
+      );
+    min-height: 26px;
+    padding: 4px 5px 3px;
+    font-size: 11.5px !important;
+    line-height: 17px;
+    white-space: nowrap;
+    border-radius: 7px;
+  }
+
+  .npc-grid-wrap
+  .npc-name.is-long {
+    font-size: 10.5px !important;
+  }
+
+  .npc-grid-wrap
+  .npc-name.is-longer {
+    font-size: 9.5px !important;
+  }
+
+  .npc-grid-wrap
+  .npc-name.is-xlong {
+    font-size: 8.5px !important;
+  }
+
+  .npc-tag-badge {
+    top: 4px;
+    right: 4px;
+    min-width: 30px;
+    height: 21px;
+    padding: 0 7px;
+    font-size: 10px;
+    font-weight: 850;
+  }
+}
+
+@media (
+  max-width: 390px
+) {
+  .npc-grid {
+    gap: 7px;
+  }
+
+  .npc-card {
+    height: 111px;
+  }
+
+  .npc-icon-wrap,
+  .npc-icon-surface {
+    width: 48px;
+    height: 48px;
+  }
+
+  .npc-icon-wrap {
+    flex-basis: 48px;
+  }
+
+  .npc-icon-img {
+    width: 43px;
+    height: 43px;
+  }
+
+  .npc-name,
+  .npc-name.is-long,
+  .npc-name.is-longer,
+  .npc-name.is-xlong {
+    font-size: 11px;
+  }
+}
+
+/* ===== 모션 감소 ===== */
+
+@media (
+  prefers-reduced-motion:
+    reduce
+) {
+  .npc-card,
+  .npc-icon-surface,
+  .npc-icon-img,
+  .npc-pg-btn {
+    transition: none;
+  }
+}

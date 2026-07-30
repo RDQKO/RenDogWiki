@@ -6,6 +6,7 @@ export type WeaponMetaLike = {
   label?: string;
   border?: string;
   headerBg?: string;
+  badgeBg?: string;
 };
 
 export type WeaponStatLevelLike =
@@ -29,11 +30,12 @@ export type WeaponStatLike = {
   unit?: string | null;
   enabled?: boolean;
   value?: string | number | null;
-  values?: Array<string | number | null | undefined>;
+  values?: Array<
+    string | number | null | undefined
+  >;
 
   // 중요: 실제 WeaponStatDetail[]도 받을 수 있어야 함
   levels?: WeaponStatLevelLike[];
-
   levelLabels?: string[];
   [key: string]: any;
 };
@@ -57,34 +59,45 @@ export type WeaponImageRenderArgs = {
 
 export type WeaponCardRendererProps = {
   mode: WeaponRenderMode;
-
   weapon: WeaponCardData;
   meta: WeaponMetaLike;
-
   stats: WeaponStatLike[];
-
   imageSrc?: string;
   videoSrc?: string;
   supportsVideo?: boolean;
-
   isDarkMode?: boolean;
   isMobile?: boolean;
-
   selectedLevelIndex?: number | null;
   levelLabels?: string[];
   onLevelChange?: (index: number) => void;
-
-  onTypeClick?: (event: React.MouseEvent) => void;
-  onNameClick?: (event: React.MouseEvent) => void;
-  onImageClick?: (event: React.MouseEvent) => void;
-  onStatClick?: (stat: WeaponStatLike, event: React.MouseEvent) => void;
-  onVideoClick?: (event: React.MouseEvent) => void;
-  onVideoSettingClick?: (event: React.MouseEvent) => void;
-  onStatSettingClick?: (event: React.MouseEvent) => void;
-  onContextMenu?: (event: React.MouseEvent) => void;
-
-  renderImage?: (args: WeaponImageRenderArgs) => React.ReactNode;
-
+  onTypeClick?: (
+    event: React.MouseEvent,
+  ) => void;
+  onNameClick?: (
+    event: React.MouseEvent,
+  ) => void;
+  onImageClick?: (
+    event: React.MouseEvent,
+  ) => void;
+  onStatClick?: (
+    stat: WeaponStatLike,
+    event: React.MouseEvent,
+  ) => void;
+  onVideoClick?: (
+    event: React.MouseEvent,
+  ) => void;
+  onVideoSettingClick?: (
+    event: React.MouseEvent,
+  ) => void;
+  onStatSettingClick?: (
+    event: React.MouseEvent,
+  ) => void;
+  onContextMenu?: (
+    event: React.MouseEvent,
+  ) => void;
+  renderImage?: (
+    args: WeaponImageRenderArgs,
+  ) => React.ReactNode;
   renderExtraControls?: () => React.ReactNode;
   children?: React.ReactNode;
 };

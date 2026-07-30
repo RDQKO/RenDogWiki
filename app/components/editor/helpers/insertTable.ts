@@ -18,8 +18,6 @@ import type {
 export type InsertTableOptions = {
   rows?: number;
   cols?: number;
-  align?: TableElement['align'];
-  maxWidth?: number;
 };
 
 /**
@@ -28,7 +26,7 @@ export type InsertTableOptions = {
  * 2) 그 뒤에 빈 단락을 붙여서 삽입한다.
  *
  * - insertTable(editor, 3, 4)
- * - insertTable(editor, { rows: 3, cols: 4, maxWidth: 800 })
+ * - insertTable(editor, { rows: 3, cols: 4 })
  * 둘 다 지원.
  */
 export function insertTable(
@@ -48,8 +46,6 @@ export function insertTable(
   // ---- 옵션 파싱 ----
   let rows = 3;
   let cols = 3;
-  let align: TableElement['align'] | undefined;
-  let maxWidth: number | undefined;
 
   if (typeof rowsOrOptions === 'number') {
     rows = rowsOrOptions;
@@ -57,8 +53,6 @@ export function insertTable(
   } else if (rowsOrOptions && typeof rowsOrOptions === 'object') {
     rows = rowsOrOptions.rows ?? rows;
     cols = rowsOrOptions.cols ?? cols;
-    align = rowsOrOptions.align;
-    maxWidth = rowsOrOptions.maxWidth;
   }
 
   const safeRows = Math.max(1, rows | 0);
@@ -67,9 +61,6 @@ export function insertTable(
   // ---- 1) 표 노드 생성 ----
   const table: TableElement = {
     type: 'table',
-    align,
-    maxWidth: maxWidth ?? undefined,
-    fullWidth: false,
     children: Array.from({ length: safeRows }, () => {
       const row: TableRowElement = {
         type: 'table-row',

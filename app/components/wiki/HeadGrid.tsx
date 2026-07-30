@@ -1,11 +1,16 @@
-// =============================================
-// File: components/wiki/HeadGrid.tsx
-// (전체 코드)
-// =============================================
 "use client";
 
-import React, { useEffect, useState } from "react";
+import React, {
+  useEffect,
+  useLayoutEffect,
+  useMemo,
+  useRef,
+  useState,
+} from "react";
+
 import { toProxyUrl } from "@lib/cdn";
+
+import "../../wiki/css/document-components/head-grid.css";
 
 export type Head = {
   id: number;
@@ -18,280 +23,567 @@ export type Head = {
 
 type Props = {
   heads: Head[];
-  onClick?: (head: Head) => void;
-  selectedHeadId?: number | null;
-  headIcon?: string | null;
+  onClick?: (
+    head: Head,
+  ) => void;
+  selectedHeadId?:
+    number | null;
+  headIcon?:
+    string | null;
+  villageName?:
+    string | null;
 };
+
+type VillageTheme =
+  | "slime"
+  | "desert"
+  | "frost"
+  | "under"
+  | "seloterain"
+  | "atlantis"
+  | "cretora"
+  | "hell"
+  | "finalis"
+  | "default";
+
+function normalizeVillageName(
+  value?: string | null,
+) {
+  return String(value ?? "")
+    .normalize("NFKC")
+    .toLowerCase()
+    .replace(
+      /[\s_\-·ㆍ.,()[\]{}]+/g,
+      "",
+    );
+}
+
+function resolveVillageTheme(
+  value?: string | null,
+): VillageTheme {
+  const village =
+    normalizeVillageName(value);
+
+  if (!village) {
+    return "default";
+  }
+
+  if (
+    village.includes(
+      "슬라임빌리지",
+    ) ||
+    village === "슬라임"
+  ) {
+    return "slime";
+  }
+
+  if (
+    village.includes(
+      "데저트빌리지",
+    ) ||
+    village.includes("데저트") ||
+    village.includes("사막")
+  ) {
+    return "desert";
+  }
+
+  if (
+    village.includes(
+      "프로스트타운",
+    ) ||
+    village.includes("프로스트") ||
+    village.includes("설원")
+  ) {
+    return "frost";
+  }
+
+  if (
+    village.includes(
+      "언더빌리지",
+    ) ||
+    village.includes("언더") ||
+    village.includes("지하")
+  ) {
+    return "under";
+  }
+
+  if (
+    village.includes(
+      "셀로테레인",
+    ) ||
+    village.includes(
+      "셀로테라인",
+    )
+  ) {
+    return "seloterain";
+  }
+
+  if (
+    village.includes(
+      "아틀란티스",
+    )
+  ) {
+    return "atlantis";
+  }
+
+  if (
+    village.includes(
+      "크레토라",
+    )
+  ) {
+    return "cretora";
+  }
+
+  if (
+    village.includes(
+      "헬스토니아",
+    )
+  ) {
+    return "hell";
+  }
+
+  if (
+    village.includes(
+      "피날리스",
+    ) ||
+    village.includes("공허")
+  ) {
+    return "finalis";
+  }
+
+  return "default";
+}
+
+function readVillageNameFromPage() {
+  if (
+    typeof window ===
+    "undefined"
+  ) {
+    return "";
+  }
+
+  const search =
+    new URLSearchParams(
+      window.location.search,
+    );
+
+  const titleParam =
+    search.get("title");
+
+  if (titleParam) {
+    return titleParam.replace(
+      /_/g,
+      " ",
+    );
+  }
+
+  const titleElement =
+    document.querySelector(
+      ".wiki-content-title",
+    );
+
+  return String(
+    titleElement?.textContent ??
+      "",
+  ).trim();
+}
+
+function isImageSource(
+  value?: string | null,
+) {
+  return (
+    typeof value ===
+      "string" &&
+    value.trim().length > 0
+  );
+}
+
+function HeadCoordinate({
+  value,
+}: {
+  value: string;
+}) {
+  const coordinateRef =
+    useRef<HTMLSpanElement | null>(
+      null,
+    );
+
+  const [
+    fittedFontSize,
+    setFittedFontSize,
+  ] = useState<number | null>(
+    null,
+  );
+
+  useLayoutEffect(() => {
+    const element =
+      coordinateRef.current;
+
+    if (!element) {
+      return;
+    }
+
+    let animationFrame = 0;
+
+    const fitCoordinate = () => {
+      cancelAnimationFrame(
+        animationFrame,
+      );
+
+      animationFrame =
+        requestAnimationFrame(() => {
+          const target =
+            coordinateRef.current;
+
+          if (!target) {
+            return;
+          }
+
+          /*
+           * 먼저 CSS 기본 크기로 되돌린 뒤 실제 너비를 측정한다.
+           * 넉넉한 좌표는 12px을 유지하고,
+           * 카드 폭을 넘는 좌표만 필요한 만큼 축소한다.
+           */
+          target.style.fontSize = "";
+
+          const computed =
+            window.getComputedStyle(
+              target,
+            );
+
+          const baseFontSize =
+            Number.parseFloat(
+              computed.fontSize,
+            ) || 12;
+
+          const availableWidth =
+            target.clientWidth;
+
+          const requiredWidth =
+            target.scrollWidth;
+
+          if (
+            availableWidth <= 0 ||
+            requiredWidth <=
+              availableWidth + 0.5
+          ) {
+            setFittedFontSize(
+              null,
+            );
+            return;
+          }
+
+          const ratio =
+            availableWidth /
+            requiredWidth;
+
+          const nextSize =
+            Math.max(
+              10,
+              Math.floor(
+                baseFontSize *
+                  ratio *
+                  100,
+              ) / 100,
+            );
+
+          setFittedFontSize(
+            nextSize,
+          );
+        });
+    };
+
+    fitCoordinate();
+
+    const resizeObserver =
+      typeof ResizeObserver !==
+      "undefined"
+        ? new ResizeObserver(
+            fitCoordinate,
+          )
+        : null;
+
+    resizeObserver?.observe(
+      element,
+    );
+
+    if (element.parentElement) {
+      resizeObserver?.observe(
+        element.parentElement,
+      );
+    }
+
+    window.addEventListener(
+      "resize",
+      fitCoordinate,
+    );
+
+    void document.fonts?.ready
+      ?.then(fitCoordinate)
+      .catch(() => undefined);
+
+    return () => {
+      cancelAnimationFrame(
+        animationFrame,
+      );
+
+      resizeObserver?.disconnect();
+
+      window.removeEventListener(
+        "resize",
+        fitCoordinate,
+      );
+    };
+  }, [value]);
+
+  return (
+    <span
+      ref={coordinateRef}
+      className="head-card__coordinate"
+      style={
+        fittedFontSize
+          ? {
+              fontSize:
+                `${fittedFontSize}px`,
+            }
+          : undefined
+      }
+      title={value}
+    >
+      {value}
+    </span>
+  );
+}
+
+function HeadCard({
+  head,
+  selected,
+  thumbnail,
+  onActivate,
+}: {
+  head: Head;
+  selected: boolean;
+  thumbnail:
+    string | null;
+  onActivate: () => void;
+}) {
+  const coordinateText =
+    [
+      head.location_x,
+      head.location_y,
+      head.location_z,
+    ].join(", ");
+
+  return (
+    <button
+      type="button"
+      className={[
+        "head-card",
+        selected
+          ? "is-selected"
+          : "",
+      ]
+        .filter(Boolean)
+        .join(" ")}
+      aria-pressed={selected}
+      aria-label={
+        `${head.order}번 머리, 좌표 ${coordinateText}`
+      }
+      title={
+        `${head.order}번 · (${coordinateText})`
+      }
+      data-selected={
+        selected
+          ? "true"
+          : "false"
+      }
+      onClick={onActivate}
+    >
+      <span
+        className="head-card__decor"
+        aria-hidden
+      />
+
+      <span
+        className="head-card__icon-wrap"
+        aria-hidden
+      >
+        <span className="head-card__icon-surface">
+          {isImageSource(
+            thumbnail,
+          ) ? (
+            <img
+              src={toProxyUrl(
+                thumbnail!,
+              )}
+              alt=""
+              loading="lazy"
+              decoding="async"
+              draggable={false}
+              className="head-card-img"
+            />
+          ) : (
+            <span className="head-card-emoji">
+              ?
+            </span>
+          )}
+        </span>
+      </span>
+
+      <span className="head-card__order">
+        <strong>
+          {head.order}
+        </strong>
+
+        <span>
+          번
+        </span>
+      </span>
+
+      <HeadCoordinate
+        value={coordinateText}
+      />
+    </button>
+  );
+}
 
 export default function HeadGrid({
   heads,
   onClick,
   selectedHeadId,
   headIcon,
+  villageName,
 }: Props) {
-  const [hoveredId, setHoveredId] = useState<number | null>(null);
-  const [isMobile, setIsMobile] = useState(false);
-  const [isDarkMode, setIsDarkMode] = useState(false);
+  const [
+    detectedVillageName,
+    setDetectedVillageName,
+  ] = useState(
+    villageName ?? "",
+  );
 
   useEffect(() => {
-    if (typeof window === "undefined") return;
-
-    const mq = window.matchMedia("(max-width: 768px)");
-
-    const apply = () => {
-      setIsMobile(mq.matches);
-    };
-
-    apply();
-
-    if (typeof mq.addEventListener === "function") {
-      mq.addEventListener("change", apply);
-      return () => mq.removeEventListener("change", apply);
-    }
-
-    mq.addListener(apply);
-    return () => mq.removeListener(apply);
-  }, []);
-
-  useEffect(() => {
-    if (typeof document === "undefined") return;
-
-    const apply = () => {
-      const html = document.documentElement;
-      const body = document.body;
-
-      setIsDarkMode(
-        html.dataset.theme === "dark" ||
-        body?.dataset?.theme === "dark" ||
-        html.classList.contains("dark") ||
-        body?.classList.contains("dark")
+    if (villageName) {
+      setDetectedVillageName(
+        villageName,
       );
-    };
-
-    apply();
-
-    const observer = new MutationObserver(apply);
-
-    observer.observe(document.documentElement, {
-      attributes: true,
-      attributeFilter: ["class", "data-theme"],
-    });
-
-    if (document.body) {
-      observer.observe(document.body, {
-        attributes: true,
-        attributeFilter: ["class", "data-theme"],
-      });
+      return;
     }
 
-    return () => observer.disconnect();
-  }, []);
+    setDetectedVillageName(
+      readVillageNameFromPage(),
+    );
+  }, [
+    heads,
+    villageName,
+  ]);
+
+  const villageTheme =
+    useMemo(
+      () =>
+        resolveVillageTheme(
+          villageName ??
+            detectedVillageName,
+        ),
+      [
+        detectedVillageName,
+        villageName,
+      ],
+    );
+
+  const villageIcon =
+    isImageSource(headIcon)
+      ? headIcon!.trim()
+      : null;
 
   return (
-    <div className="head-grid-wrap">
-      <div className="head-grid" role="grid" aria-label="머리 목록">
-        {heads.map((head) => {
-          const hovered = hoveredId === head.id;
+    <div
+      className="head-grid-wrap"
+      data-wiki-grid="head"
+      data-village-theme={
+        villageTheme
+      }
+      data-village-name={
+        villageName ??
+        detectedVillageName
+      }
+    >
+      {heads.length > 0 ? (
+        <div
+          className="head-grid"
+          role="grid"
+          aria-label="머리찾기 목록"
+        >
+          {heads.map(
+            (head) => {
+              const headPicture =
+                Array.isArray(
+                  head.pictures,
+                ) &&
+                head.pictures.length >
+                  0
+                  ? head.pictures[0]
+                  : null;
 
-          const villageIcon =
-            headIcon && headIcon.trim().length > 0 ? headIcon.trim() : null;
+              const thumbnail =
+                villageIcon ??
+                headPicture;
 
-          const headPicture =
-            Array.isArray(head.pictures) && head.pictures.length > 0
-              ? head.pictures[0]
-              : null;
-
-          const thumbSrc = villageIcon ?? headPicture;
-          const coordText = `(${head.location_x}, ${head.location_y}, ${head.location_z})`;
-
-          const BORDER = hovered
-            ? isDarkMode
-              ? "1.5px solid rgba(96, 165, 250, 0.95)"
-              : "1.5px solid #93c5fd"
-            : isDarkMode
-              ? "1.5px solid var(--border-strong)"
-              : "1.5px solid #d1d5db";
-
-          const SHADOW = hovered
-            ? isDarkMode
-              ? "0 14px 32px rgba(2, 6, 23, 0.44), 0 0 0 1px rgba(96, 165, 250, 0.18)"
-              : "0 12px 28px rgba(2, 132, 199, 0.16), 0 3px 8px rgba(15, 23, 42, 0.08)"
-            : isDarkMode
-              ? "0 12px 26px rgba(2, 6, 23, 0.34), 0 2px 6px rgba(2, 6, 23, 0.20)"
-              : "0 10px 24px rgba(15, 23, 42, 0.08), 0 2px 6px rgba(15, 23, 42, 0.05)";
-
-          const selected = selectedHeadId === head.id;
-
-          return (
-            <div
-              key={head.id}
-              role="button"
-              tabIndex={0}
-              aria-pressed={selected}
-              aria-label={`${head.order}번 머리`}
-              className={`head-card${selected ? " is-selected" : ""}`}
-              style={{
-                border: BORDER,
-                boxShadow: SHADOW,
-                transform:
-                  !isMobile && hovered ? "translateY(-2px)" : "translateY(0)",
-              }}
-              onMouseEnter={() => setHoveredId(head.id)}
-              onMouseLeave={() =>
-                setHoveredId((prev) => (prev === head.id ? null : prev))
-              }
-              onClick={() => onClick?.(head)}
-              onKeyDown={(e) => {
-                if (e.key === "Enter" || e.key === " ") {
-                  e.preventDefault();
-                  onClick?.(head);
-                }
-              }}
-            >
-              {thumbSrc ? (
-                <img
-                  src={toProxyUrl(thumbSrc)}
-                  alt={`${head.order}번 머리`}
-                  loading="lazy"
-                  decoding="async"
-                  draggable={false}
-                  className="head-card-img"
+              return (
+                <HeadCard
+                  key={head.id}
+                  head={head}
+                  selected={
+                    selectedHeadId ===
+                    head.id
+                  }
+                  thumbnail={
+                    thumbnail
+                  }
+                  onActivate={() =>
+                    onClick?.(
+                      head,
+                    )
+                  }
                 />
-              ) : (
-                <span className="head-card-emoji">🪖</span>
-              )}
+              );
+            },
+          )}
+        </div>
+      ) : (
+        <div
+          className="head-grid-empty"
+          role="status"
+        >
+          <span
+            className="head-grid-empty__icon"
+            aria-hidden
+          >
+            <svg
+              viewBox="0 0 24 24"
+              focusable="false"
+            >
+              <path
+                d="M7 5.5h10v13H7v-13Z"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="1.6"
+                strokeLinejoin="round"
+              />
+              <path
+                d="M9.2 10.2h.01M14.8 10.2h.01M9.5 14.2c.8.6 1.6.9 2.5.9s1.7-.3 2.5-.9"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="1.6"
+                strokeLinecap="round"
+              />
+            </svg>
+          </span>
 
-              <div className="head-card-order">{head.order}번</div>
-
-              <div className="head-card-coord">{coordText}</div>
-            </div>
-          );
-        })}
-      </div>
-
-      <style jsx>{`
-        .head-grid-wrap {
-          width: 100%;
-          container-type: inline-size;
-
-          --head-card-bg: var(--surface-elevated);
-          --head-card-selected-bg: #e7f6ff;
-          --head-title: #111;
-          --head-coord: #555;
-          --head-emoji: #bbb;
-        }
-
-        :global(:root[data-theme='dark']) .head-grid-wrap,
-        :global(body[data-theme='dark']) .head-grid-wrap,
-        :global(html.dark) .head-grid-wrap,
-        :global(body.dark) .head-grid-wrap {
-          --head-card-bg: var(--surface-elevated);
-          --head-card-selected-bg: color-mix(in oklab, var(--surface-elevated) 82%, #38bdf8 18%);
-          --head-title: var(--foreground);
-          --head-coord: var(--muted);
-          --head-emoji: var(--muted-2);
-        }
-
-        .head-grid {
-          display: grid;
-          grid-template-columns: repeat(6, minmax(0, 1fr));
-          gap: 20px;
-          margin: 20px 0;
-        }
-
-        .head-card {
-          display: flex;
-          flex-direction: column;
-          align-items: center;
-          justify-content: center;
-          min-height: 125px;
-          cursor: pointer;
-          background: var(--head-card-bg);
-          border-radius: 12px;
-          padding: 8px 6px;
-          text-align: center;
-          transition:
-            transform 140ms ease,
-            box-shadow 140ms ease,
-            border-color 140ms ease,
-            background 140ms ease;
-        }
-
-        .head-card.is-selected {
-          background: var(--head-card-selected-bg);
-        }
-
-        .head-card-img {
-          width: 46px;
-          height: 46px;
-          border-radius: 10px;
-          object-fit: cover;
-          background: var(--surface);
-          display: block;
-        }
-
-        .head-card-emoji {
-          font-size: 38px;
-          color: var(--head-emoji);
-          line-height: 1;
-        }
-
-        .head-card-order {
-          font-size: 18px;
-          font-weight: 900;
-          color: var(--head-title);
-          margin-top: 6px;
-          font-family: "Pretendard", "Malgun Gothic", sans-serif;
-          line-height: 1.1;
-        }
-
-        .head-card-coord {
-          font-size: 13px;
-          color: var(--head-coord);
-          margin-top: 4px;
-          line-height: 16px;
-          word-break: keep-all;
-          overflow-wrap: anywhere;
-          font-variant-numeric: tabular-nums;
-        }
-
-        @media (max-width: 768px) {
-          .head-grid {
-            grid-template-columns: repeat(3, minmax(0, 1fr));
-            column-gap: 10px;
-            row-gap: 12px;
-            width: calc(100% - 20px);
-            margin: 12px auto 0;
-          }
-
-          .head-card {
-            min-height: 96px;
-            border-radius: 10px;
-            padding: 6px 4px;
-          }
-
-          .head-card-img {
-            width: 34px;
-            height: 34px;
-            border-radius: 8px;
-          }
-
-          .head-card-emoji {
-            font-size: 28px;
-          }
-
-          .head-card-order {
-            font-size: 14px;
-            margin-top: 4px;
-          }
-
-          .head-card-coord {
-            font-size: 10px;
-            margin-top: 3px;
-            line-height: 1.2;
-          }
-        }
-      `}</style>
+          <span>
+            등록된 머리가 없습니다.
+          </span>
+        </div>
+      )}
     </div>
   );
 }

@@ -1,224 +1,996 @@
 // =============================================
 // File: app/mypage/page.tsx
+// 전체 코드
+//
+// - /api/auth/me 연동
+// - 마인크래프트 닉네임 변경
+// - 비밀번호 변경
+// - 로그아웃
 // =============================================
-/**
- * 마이페이지
- * - 내 정보 조회/비번변경/탈퇴
- * - Crafatar 아바타 표시(닉→UUID 조회)
- * - 공통 apiFetch/토스트/confirm 사용
- */
+
 'use client';
 
-import WikiHeader from '@/components/common/Header';
+import {
+  useEffect,
+  useMemo,
+  useState,
+  type FormEvent,
+} from 'react';
 import Link from 'next/link';
-import { useEffect, useMemo, useState } from 'react';
-import '@wiki/css/mypage.css';
-import { apiFetch, confirmDialog, toast } from '@/wiki/lib/fetcher';
+import {
+  useRouter,
+} from 'next/navigation';
 
-type UserInfo = {
+import WikiHeader from '@/components/common/Header';
+import '@/wiki/css/mypage.css';
+
+type User = {
   id: number;
   username: string;
-  email: string;
   minecraft_name: string;
+  email: string;
   role?: string;
 };
 
+type ModalKind =
+  | 'minecraft'
+  | 'password'
+  | null;
+
+type Notice = {
+  tone: 'success' | 'error';
+  text: string;
+} | null;
+
+function normalizeUser(
+  data: unknown,
+): User | null {
+  if (
+    !data ||
+    typeof data !== 'object'
+  ) {
+    return null;
+  }
+
+  const root =
+    data as Record<string, unknown>;
+
+  const source =
+    root.user &&
+    typeof root.user === 'object'
+      ? root.user as Record<string, unknown>
+      : root;
+
+  const id =
+    Number(source.id);
+
+  if (
+    !Number.isFinite(id)
+  ) {
+    return null;
+  }
+
+  return {
+    id,
+    username:
+      String(
+        source.username ??
+        '',
+      ),
+    minecraft_name:
+      String(
+        source.minecraft_name ??
+        source.minecraftName ??
+        '',
+      ),
+    email:
+      String(
+        source.email ??
+        '',
+      ),
+    role:
+      source.role == null
+        ? undefined
+        : String(source.role),
+  };
+}
+
+async function readError(
+  response: Response,
+  fallback: string,
+) {
+  const data =
+    await response
+      .json()
+      .catch(() => null);
+
+  return String(
+    data?.error ??
+    data?.message ??
+    fallback,
+  );
+}
+
+async function requestWithMethodFallback(
+  url: string,
+  methods: readonly string[],
+  body: Record<string, unknown>,
+) {
+  let lastResponse:
+    Response | null = null;
+
+  for (
+    const method of methods
+  ) {
+    const response = await fetch(
+      url,
+      {
+        method,
+        headers: {
+          'Content-Type':
+            'application/json',
+        },
+        credentials: 'include',
+        body: JSON.stringify(body),
+      },
+    );
+
+    lastResponse = response;
+
+    if (
+      response.status !== 405
+    ) {
+      return response;
+    }
+  }
+
+  return lastResponse ??
+    new Response(
+      null,
+      {
+        status: 500,
+      },
+    );
+}
+
+function roleLabel(
+  role?: string,
+) {
+  switch (
+    String(role ?? '')
+      .toLowerCase()
+  ) {
+    case 'admin':
+      return '관리자';
+    case 'manager':
+      return '매니저';
+    case 'writer':
+      return '작성자';
+    default:
+      return '일반 회원';
+  }
+}
+
 export default function MyPage() {
-  const [user, setUser] = useState<UserInfo | null>(null);
-  const [loading, setLoading] = useState(true);
+  const router =
+    useRouter();
 
-  // 폼 토글/상태
-  const [openNickForm, setOpenNickForm] = useState(false);
-  const [openPwForm, setOpenPwForm] = useState(false);
-  const [openDeleteForm, setOpenDeleteForm] = useState(false);
+  const [
+    user,
+    setUser,
+  ] = useState<User | null>(
+    null,
+  );
 
-  const [newNick, setNewNick] = useState('');
-  const [curPw, setCurPw] = useState('');
-  const [newPw, setNewPw] = useState('');
-  const [delPw, setDelPw] = useState('');
+  const [
+    loading,
+    setLoading,
+  ] = useState(true);
 
-  // Crafatar는 UUID 권장 → 없으면 닉네임으로 폴백
-  const [uuid, setUuid] = useState<string | null>(null);
-  const avatarUrl = useMemo(() => {
-    const base = 'https://crafthead.net/helm';
-    return `${base}/${uuid ?? user?.minecraft_name}/64`;
-  }, [uuid, user?.minecraft_name]);
+  const [
+    modal,
+    setModal,
+  ] = useState<ModalKind>(
+    null,
+  );
 
-  // 유저 로딩
-  const loadMe = async () => {
+  const [
+    notice,
+    setNotice,
+  ] = useState<Notice>(
+    null,
+  );
+
+  const [
+    avatarFailed,
+    setAvatarFailed,
+  ] = useState(false);
+
+  const loadUser = async () => {
     setLoading(true);
+
     try {
-      const data = await apiFetch<{ user: UserInfo | null }>('/api/auth/me');
-      setUser(data?.user ?? null);
+      const response = await fetch(
+        '/api/auth/me',
+        {
+          cache: 'no-store',
+          credentials: 'include',
+        },
+      );
+
+      if (!response.ok) {
+        router.replace('/login');
+        return;
+      }
+
+      const data =
+        await response.json();
+
+      const nextUser =
+        normalizeUser(data);
+
+      if (!nextUser) {
+        router.replace('/login');
+        return;
+      }
+
+      setUser(nextUser);
+      setAvatarFailed(false);
     } catch {
-      setUser(null);
+      setNotice({
+        tone: 'error',
+        text:
+          '회원 정보를 불러오지 못했습니다.',
+      });
     } finally {
       setLoading(false);
     }
   };
 
-  useEffect(() => { loadMe(); }, []);
-
-  // 닉네임 → UUID 조회
   useEffect(() => {
-    (async () => {
-      if (!user?.minecraft_name) return;
-      try {
-        const j = await apiFetch<{ uuid: string | null }>(
-          `/api/mojang/uuid?name=${encodeURIComponent(user.minecraft_name)}`,
-          { suppressErrorToast: true } // 실패해도 폴백
-        );
-        setUuid(j?.uuid ?? null);
-      } catch {
-        setUuid(null);
-      }
-    })();
-  }, [user?.minecraft_name]);
+    void loadUser();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
-  // ========== handlers ==========
-  const handleChangeNick = async () => {
-    if (!newNick.trim()) return toast.error('새 닉네임을 입력하세요.');
-    try {
-      await apiFetch('/api/profile/minecraft-name', {
-        method: 'PATCH',
-        body: { newName: newNick.trim() },
-      });
-      await loadMe(); // 서버가 새 JWT도 재발급
-      setNewNick('');
-      setOpenNickForm(false);
-      toast.success('닉네임이 변경되었습니다.');
-    } catch (e) {
-      // apiFetch가 에러 토스트 처리
-    }
-  };
+  const avatarUrl =
+    useMemo(
+      () => {
+        const name =
+          user?.minecraft_name
+            .trim();
 
-  const handleChangePassword = async () => {
-    if (!curPw || !newPw) return toast.error('현재/새 비밀번호를 입력하세요.');
-    if (newPw.length < 8) return toast.error('새 비밀번호는 8자 이상 권장합니다.');
-    try {
-      await apiFetch('/api/auth/password', {
-        method: 'PUT',
-        body: { currentPassword: curPw, newPassword: newPw },
-      });
-      setCurPw(''); setNewPw(''); setOpenPwForm(false);
-      toast.success('비밀번호가 변경되었습니다.');
-    } catch {
-      /* handled */
-    }
-  };
+        if (!name) return '';
 
-  const handleDelete = async () => {
-    if (!delPw) return toast.error('비밀번호를 입력하세요.');
-    const ok = await confirmDialog('정말 탈퇴하시겠습니까? 이 작업은 되돌릴 수 없습니다.');
-    if (!ok) return;
-    try {
-      await apiFetch('/api/auth/me', { method: 'DELETE', body: { password: delPw } });
-      toast.success('탈퇴 처리되었습니다.');
-      location.href = '/';
-    } catch {
-      /* handled */
-    }
-  };
-
-  // ========== render ==========
-  if (loading) {
-    return (
-      <div className="login-page-root">
-        <WikiHeader user={null} />
-        <main className="login-bg"><div>로딩 중...</div></main>
-      </div>
+        return `https://mc-heads.net/avatar/${encodeURIComponent(name)}/128`;
+      },
+      [user?.minecraft_name],
     );
-  }
 
-  if (!user) {
-    return (
-      <div className="login-page-root">
-        <WikiHeader user={null} />
-        <main className="login-bg"><div>로그인이 필요합니다.</div></main>
-      </div>
-    );
-  }
+  const logout = async () => {
+    try {
+      await fetch(
+        '/api/auth/logout',
+        {
+          method: 'POST',
+          credentials: 'include',
+        },
+      );
+    } finally {
+      router.push('/login');
+      router.refresh();
+    }
+  };
 
   return (
-    <div className="login-page-root">
-      <WikiHeader user={user} />
-      <main className="login-bg">
-        <section className="mypage-ui">
-          <h2 className="mypage-title">RDWIKI</h2>
+    <div className="mypage-root">
+      <WikiHeader
+        user={user}
+      />
 
-          {/* 프로필 */}
-          <div className="mypage-profile-box">
-            <div className="mypage-avatar">
-              <img src={avatarUrl} alt="마인크래프트 스킨" />
+      <main className="mypage-bg">
+        <section className="mypage-shell">
+          <header className="mypage-heading">
+            <div>
+              <span className="mypage-kicker">
+                MY RDWIKI
+              </span>
+              <h1>마이페이지</h1>
+              <p>
+                계정 정보와 보안 설정을 관리합니다.
+              </p>
             </div>
-            <div className="mypage-profile-info">
-              <div className="mypage-profile-field">
-                <span className="label">닉네임</span>
-                <span>{user.minecraft_name}</span>
-              </div>
-              <div className="mypage-profile-field">
-                <span className="label">이메일</span>
-                <span>{user.email}</span>
-              </div>
-              <div className="mypage-profile-field">
-                <span className="label">권한</span>
-                <span>{user.role || '없음'}</span>
-              </div>
-            </div>
-          </div>
-          <div className="mypage-btn-row">
-            <button className="mypage-btn" type="button"
-              onClick={() => { setOpenPwForm(v => !v); setOpenNickForm(false); setOpenDeleteForm(false); }}>
-              비밀번호 재설정
-            </button>
-            {openPwForm && (
-              <div className="mypage-form">
-                <div className="row">
-                  <label htmlFor="curPw">현재 비밀번호</label>
-                  <input id="curPw" type="password" value={curPw} onChange={e => setCurPw(e.target.value)} />
-                </div>
-                <div className="row">
-                  <label htmlFor="newPw">새 비밀번호</label>
-                  <input id="newPw" type="password" value={newPw} onChange={e => setNewPw(e.target.value)} />
-                </div>
-                <div className="actions">
-                  <button className="ghost" onClick={() => setOpenPwForm(false)}>취소</button>
-                  <button className="primary" onClick={handleChangePassword}>변경</button>
-                </div>
-              </div>
-            )}
 
-            <button className="mypage-btn" type="button"
-              onClick={() => { setOpenDeleteForm(v => !v); setOpenNickForm(false); setOpenPwForm(false); }}>
-              회원 탈퇴
-            </button>
-            {openDeleteForm && (
-              <div className="mypage-form">
-                <div className="row">
-                  <label htmlFor="delPw">비밀번호 확인</label>
-                  <input id="delPw" type="password" value={delPw} onChange={e => setDelPw(e.target.value)} />
+            <Link
+              href="/wiki"
+              className="mypage-wiki-link"
+            >
+              위키로 돌아가기
+            </Link>
+          </header>
+
+          {loading ? (
+            <div className="mypage-loading">
+              <span />
+              회원 정보를 불러오는 중입니다.
+            </div>
+          ) : user ? (
+            <div className="mypage-grid">
+              <aside className="mypage-profile-card">
+                <div className="mypage-avatar-frame">
+                  {avatarUrl &&
+                  !avatarFailed ? (
+                    <img
+                      src={avatarUrl}
+                      alt={`${user.minecraft_name} 스킨 얼굴`}
+                      onError={() =>
+                        setAvatarFailed(true)
+                      }
+                    />
+                  ) : (
+                    <span>
+                      {(
+                        user.minecraft_name ||
+                        user.username ||
+                        'R'
+                      )
+                        .slice(0, 1)
+                        .toUpperCase()}
+                    </span>
+                  )}
                 </div>
-                <div className="actions">
-                  <button className="ghost" onClick={() => setOpenDeleteForm(false)}>취소</button>
-                  <button className="primary" onClick={handleDelete}>탈퇴</button>
+
+                <span className="mypage-role-badge">
+                  {roleLabel(
+                    user.role,
+                  )}
+                </span>
+
+                <h2>
+                  {user.username}
+                </h2>
+
+                <p>
+                  {user.minecraft_name ||
+                    '마인크래프트 닉네임 미설정'}
+                </p>
+
+                <div className="mypage-profile-actions">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setNotice(null);
+                      setModal('minecraft');
+                    }}
+                  >
+                    프로필 수정
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setNotice(null);
+                      setModal('password');
+                    }}
+                  >
+                    비밀번호 변경
+                  </button>
                 </div>
-              </div>
-            )}
-          </div>
+              </aside>
+
+              <section className="mypage-info-card">
+                <div className="mypage-card-title">
+                  <span>
+                    계정 정보
+                  </span>
+                  <p>
+                    현재 계정에 연결된 정보입니다.
+                  </p>
+                </div>
+
+                <dl className="mypage-info-list">
+                  <div>
+                    <dt>아이디</dt>
+                    <dd>
+                      {user.username}
+                    </dd>
+                  </div>
+
+                  <div>
+                    <dt>이메일</dt>
+                    <dd>
+                      {user.email}
+                    </dd>
+                  </div>
+
+                  <div>
+                    <dt>
+                      마인크래프트 닉네임
+                    </dt>
+                    <dd>
+                      {user.minecraft_name ||
+                        '설정되지 않음'}
+                    </dd>
+                  </div>
+
+                  <div>
+                    <dt>권한</dt>
+                    <dd>
+                      {roleLabel(
+                        user.role,
+                      )}
+                    </dd>
+                  </div>
+                </dl>
+
+                <div className="mypage-security-box">
+                  <div>
+                    <span className="mypage-security-icon">
+                      <svg
+                        viewBox="0 0 24 24"
+                        fill="none"
+                        stroke="currentColor"
+                        strokeWidth="2"
+                      >
+                        <path
+                          d="M12 3 5 6v5c0 4.6 2.9 8.2 7 10 4.1-1.8 7-5.4 7-10V6Z"
+                          strokeLinejoin="round"
+                        />
+                        <path
+                          d="m9.5 12 1.7 1.7 3.5-4"
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                        />
+                      </svg>
+                    </span>
+
+                    <div>
+                      <strong>
+                        계정 보안
+                      </strong>
+                      <p>
+                        주기적으로 비밀번호를 변경해 계정을 보호하세요.
+                      </p>
+                    </div>
+                  </div>
+
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setNotice(null);
+                      setModal('password');
+                    }}
+                  >
+                    변경
+                  </button>
+                </div>
+
+                {notice && (
+                  <div
+                    className={`mypage-notice is-${notice.tone}`}
+                    aria-live="polite"
+                  >
+                    {notice.text}
+                  </div>
+                )}
+
+                <button
+                  type="button"
+                  className="mypage-logout"
+                  onClick={() =>
+                    void logout()
+                  }
+                >
+                  로그아웃
+                </button>
+              </section>
+            </div>
+          ) : (
+            <div className="mypage-loading is-error">
+              회원 정보를 확인할 수 없습니다.
+            </div>
+          )}
         </section>
       </main>
 
-      {/* 메시지 줄바꿈 보장 및 에러 스타일 */}
-      <style jsx global>{`
-        .login-message { white-space: pre-line; }
-        .input-error {
-          margin-top: 6px;
-          font-size: 12px;
-          color: #e11d48;
-          font-weight: 600;
+      {user &&
+      modal === 'minecraft' && (
+        <MinecraftNameModal
+          currentName={
+            user.minecraft_name
+          }
+          onClose={() =>
+            setModal(null)
+          }
+          onSaved={async (
+            minecraftName,
+          ) => {
+            setModal(null);
+            setUser((current) =>
+              current
+                ? {
+                    ...current,
+                    minecraft_name:
+                      minecraftName,
+                  }
+                : current,
+            );
+            setAvatarFailed(false);
+            setNotice({
+              tone: 'success',
+              text:
+                '마인크래프트 닉네임을 변경했습니다.',
+            });
+          }}
+        />
+      )}
+
+      {modal === 'password' && (
+        <PasswordModal
+          onClose={() =>
+            setModal(null)
+          }
+          onSaved={() => {
+            setModal(null);
+            setNotice({
+              tone: 'success',
+              text:
+                '비밀번호를 변경했습니다.',
+            });
+          }}
+        />
+      )}
+    </div>
+  );
+}
+
+function MinecraftNameModal({
+  currentName,
+  onClose,
+  onSaved,
+}: {
+  currentName: string;
+  onClose: () => void;
+  onSaved: (
+    minecraftName: string,
+  ) => void;
+}) {
+  const [
+    value,
+    setValue,
+  ] = useState(
+    currentName,
+  );
+
+  const [
+    saving,
+    setSaving,
+  ] = useState(false);
+
+  const [
+    error,
+    setError,
+  ] = useState('');
+
+  const submit = async (
+    event: FormEvent<HTMLFormElement>,
+  ) => {
+    event.preventDefault();
+
+    const minecraftName =
+      value.trim();
+
+    if (
+      !/^[A-Za-z0-9_]{3,16}$/.test(
+        minecraftName,
+      )
+    ) {
+      setError(
+        '영문, 숫자, 밑줄로 3~16자 입력해주세요.',
+      );
+      return;
+    }
+
+    setSaving(true);
+    setError('');
+
+    try {
+      const response =
+        await requestWithMethodFallback(
+          '/api/profile/minecraft-name',
+          [
+            'PATCH',
+            'POST',
+            'PUT',
+          ],
+          {
+            minecraft_name:
+              minecraftName,
+            minecraftName,
+            newMinecraftName:
+              minecraftName,
+          },
+        );
+
+      if (!response.ok) {
+        throw new Error(
+          await readError(
+            response,
+            '닉네임 변경에 실패했습니다.',
+          ),
+        );
+      }
+
+      onSaved(
+        minecraftName,
+      );
+    } catch (saveError) {
+      setError(
+        saveError instanceof Error
+          ? saveError.message
+          : '닉네임 변경에 실패했습니다.',
+      );
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  return (
+    <SettingsModal
+      title="프로필 수정"
+      description="위키에서 사용할 마인크래프트 닉네임을 변경합니다."
+      onClose={onClose}
+      saving={saving}
+    >
+      <form
+        className="mypage-modal-form"
+        onSubmit={submit}
+      >
+        <label>
+          <span>
+            마인크래프트 닉네임
+          </span>
+          <input
+            value={value}
+            onChange={(event) => {
+              setValue(
+                event.target.value
+                  .replace(
+                    /[^A-Za-z0-9_]/g,
+                    '',
+                  )
+                  .slice(0, 16),
+              );
+              setError('');
+            }}
+            autoFocus
+            autoComplete="off"
+            placeholder="Minecraft nickname"
+            disabled={saving}
+          />
+          <small>
+            영문, 숫자, 밑줄 조합 3~16자
+          </small>
+        </label>
+
+        {error && (
+          <p className="mypage-modal-error">
+            {error}
+          </p>
+        )}
+
+        <div className="mypage-modal-actions">
+          <button
+            type="button"
+            onClick={onClose}
+            disabled={saving}
+          >
+            취소
+          </button>
+
+          <button
+            type="submit"
+            className="is-primary"
+            disabled={saving}
+          >
+            {saving
+              ? '저장 중'
+              : '변경 사항 저장'}
+          </button>
+        </div>
+      </form>
+    </SettingsModal>
+  );
+}
+
+function PasswordModal({
+  onClose,
+  onSaved,
+}: {
+  onClose: () => void;
+  onSaved: () => void;
+}) {
+  const [
+    currentPassword,
+    setCurrentPassword,
+  ] = useState('');
+
+  const [
+    newPassword,
+    setNewPassword,
+  ] = useState('');
+
+  const [
+    confirmPassword,
+    setConfirmPassword,
+  ] = useState('');
+
+  const [
+    saving,
+    setSaving,
+  ] = useState(false);
+
+  const [
+    error,
+    setError,
+  ] = useState('');
+
+  const submit = async (
+    event: FormEvent<HTMLFormElement>,
+  ) => {
+    event.preventDefault();
+
+    if (
+      newPassword.length < 8
+    ) {
+      setError(
+        '새 비밀번호는 8자 이상 입력해주세요.',
+      );
+      return;
+    }
+
+    if (
+      newPassword !==
+      confirmPassword
+    ) {
+      setError(
+        '새 비밀번호 확인이 일치하지 않습니다.',
+      );
+      return;
+    }
+
+    setSaving(true);
+    setError('');
+
+    try {
+      const response =
+        await requestWithMethodFallback(
+          '/api/auth/password',
+          [
+            'PATCH',
+            'POST',
+            'PUT',
+          ],
+          {
+            currentPassword,
+            oldPassword:
+              currentPassword,
+            current_password:
+              currentPassword,
+            old_password:
+              currentPassword,
+            password:
+              currentPassword,
+            newPassword,
+            new_password:
+              newPassword,
+            confirmPassword:
+              newPassword,
+          },
+        );
+
+      if (!response.ok) {
+        throw new Error(
+          await readError(
+            response,
+            '비밀번호 변경에 실패했습니다.',
+          ),
+        );
+      }
+
+      onSaved();
+    } catch (saveError) {
+      setError(
+        saveError instanceof Error
+          ? saveError.message
+          : '비밀번호 변경에 실패했습니다.',
+      );
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  return (
+    <SettingsModal
+      title="비밀번호 변경"
+      description="현재 비밀번호 확인 후 새 비밀번호를 설정합니다."
+      onClose={onClose}
+      saving={saving}
+    >
+      <form
+        className="mypage-modal-form"
+        onSubmit={submit}
+      >
+        <label>
+          <span>현재 비밀번호</span>
+          <input
+            type="password"
+            value={currentPassword}
+            onChange={(event) => {
+              setCurrentPassword(
+                event.target.value,
+              );
+              setError('');
+            }}
+            autoFocus
+            autoComplete="current-password"
+            disabled={saving}
+          />
+        </label>
+
+        <label>
+          <span>새 비밀번호</span>
+          <input
+            type="password"
+            value={newPassword}
+            onChange={(event) => {
+              setNewPassword(
+                event.target.value,
+              );
+              setError('');
+            }}
+            autoComplete="new-password"
+            disabled={saving}
+          />
+          <small>
+            8자 이상 입력해주세요.
+          </small>
+        </label>
+
+        <label>
+          <span>
+            새 비밀번호 확인
+          </span>
+          <input
+            type="password"
+            value={confirmPassword}
+            onChange={(event) => {
+              setConfirmPassword(
+                event.target.value,
+              );
+              setError('');
+            }}
+            autoComplete="new-password"
+            disabled={saving}
+          />
+        </label>
+
+        {error && (
+          <p className="mypage-modal-error">
+            {error}
+          </p>
+        )}
+
+        <div className="mypage-modal-actions">
+          <button
+            type="button"
+            onClick={onClose}
+            disabled={saving}
+          >
+            취소
+          </button>
+
+          <button
+            type="submit"
+            className="is-primary"
+            disabled={saving}
+          >
+            {saving
+              ? '변경 중'
+              : '비밀번호 변경'}
+          </button>
+        </div>
+      </form>
+    </SettingsModal>
+  );
+}
+
+function SettingsModal({
+  title,
+  description,
+  onClose,
+  saving,
+  children,
+}: {
+  title: string;
+  description: string;
+  onClose: () => void;
+  saving: boolean;
+  children: React.ReactNode;
+}) {
+  useEffect(() => {
+    const previousOverflow =
+      document.body.style.overflow;
+
+    document.body.style.overflow =
+      'hidden';
+
+    const onKeyDown = (
+      event: KeyboardEvent,
+    ) => {
+      if (
+        event.key === 'Escape' &&
+        !saving
+      ) {
+        onClose();
+      }
+    };
+
+    window.addEventListener(
+      'keydown',
+      onKeyDown,
+    );
+
+    return () => {
+      window.removeEventListener(
+        'keydown',
+        onKeyDown,
+      );
+      document.body.style.overflow =
+        previousOverflow;
+    };
+  }, [
+    onClose,
+    saving,
+  ]);
+
+  return (
+    <div
+      className="mypage-modal-backdrop"
+      role="presentation"
+      onMouseDown={(event) => {
+        if (
+          event.target ===
+          event.currentTarget &&
+          !saving
+        ) {
+          onClose();
         }
-        [aria-invalid="true"] ~ .login-underline { background: #fecaca; }
-      `}</style>
+      }}
+    >
+      <section
+        className="mypage-modal"
+        role="dialog"
+        aria-modal="true"
+      >
+        <header>
+          <div>
+            <span>계정 설정</span>
+            <h2>{title}</h2>
+            <p>{description}</p>
+          </div>
+
+          <button
+            type="button"
+            onClick={onClose}
+            disabled={saving}
+            aria-label="설정 모달 닫기"
+          >
+            ×
+          </button>
+        </header>
+
+        {children}
+      </section>
     </div>
   );
 }

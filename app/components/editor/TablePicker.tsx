@@ -129,10 +129,10 @@ export default function TablePicker({
         left: pos.left,
         // 전체 스케일이 커졌으니 살짝 여유 padding
         padding: PAD,
-        background: '#fff',
+        background: 'var(--editor-panel-elevated)',
         borderRadius: 10,
-        boxShadow: '0 10px 32px rgba(15,23,42,0.22)',
-        border: '1px solid #e5e7eb',
+        boxShadow: 'var(--editor-shadow)',
+        border: '1px solid var(--editor-border)',
         zIndex: 99999,
       }}
       role="dialog"
@@ -169,8 +169,12 @@ export default function TablePicker({
                     width: CELL,
                     height: CELL,
                     borderRadius: 4,
-                    border: sel ? '2px solid #2563eb' : '1px solid #d4d4d8',
-                    background: sel ? '#e0edff' : '#f9fafb',
+                    border: sel
+                      ? '2px solid var(--editor-accent)'
+                      : '1px solid var(--editor-border)',
+                    background: sel
+                      ? 'var(--editor-accent-soft)'
+                      : 'var(--editor-panel-soft)',
                     padding: 0,
                     cursor: 'pointer',
                   }}
@@ -186,7 +190,7 @@ export default function TablePicker({
           marginTop: 10,
           textAlign: 'center',
           fontSize: 13,
-          color: '#4b5563',
+          color: 'var(--editor-muted)',
           fontWeight: 500,
         }}
       >

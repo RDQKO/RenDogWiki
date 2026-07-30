@@ -6,6 +6,9 @@
 /* - 모바일 다크모드에서 wiki-container 하단 여백 배경 보강
 /* ============================================= */
 
+@import './document-components/document-title.css';
+@import './document-components/faq.css';
+
 /* ===== 공통 변수 ===== */
 :root {
   --wiki-max-width: 1580px;

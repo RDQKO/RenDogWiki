@@ -1,0 +1,3311 @@
+/* =============================================
+   File: app/wiki/css/manage-entity-refresh.css
+   전체 코드 - 새 파일
+
+   적용 대상:
+   - /manage/quest
+   - /manage/npc
+   - /manage/head
+
+   기존 기능 클래스는 유지하고 시각 디자인만 덮어쓴다.
+   ============================================= */
+
+body[data-manage-entity] {
+  --entity-accent: #54a95e;
+  --entity-accent-strong: #347f43;
+  --entity-accent-soft: #edf8eb;
+  --entity-mint: #e7f5e8;
+  --entity-cream: #fbfdf8;
+  --entity-panel: rgba(255, 255, 255, 0.94);
+  --entity-panel-soft: #f7fbf5;
+  --entity-border: #dce9da;
+  --entity-border-strong: #c6ddc3;
+  --entity-text: #17231a;
+  --entity-muted: #748177;
+  --entity-danger: #dc4545;
+  --entity-danger-soft: #fff1f1;
+  --entity-shadow:
+    0 18px 44px rgba(41, 75, 45, 0.08),
+    0 3px 10px rgba(41, 75, 45, 0.04);
+  --entity-shadow-soft:
+    0 8px 22px rgba(41, 75, 45, 0.065);
+
+  background:
+    radial-gradient(
+      circle at 0 0,
+      rgba(203, 236, 197, 0.35),
+      transparent 30%
+    ),
+    linear-gradient(
+      180deg,
+      #fbfdf9,
+      #f5faf4
+    );
+}
+
+body[data-manage-entity='quest'] {
+  --entity-accent: #55aa5d;
+  --entity-accent-strong: #347d40;
+}
+
+body[data-manage-entity='npc'] {
+  --entity-accent: #4da777;
+  --entity-accent-strong: #2f7d58;
+  --entity-accent-soft: #eaf8f0;
+  --entity-mint: #e3f5ec;
+}
+
+body[data-manage-entity='head'] {
+  --entity-accent: #4c9fa0;
+  --entity-accent-strong: #2d7577;
+  --entity-accent-soft: #eaf7f5;
+  --entity-mint: #e2f3f1;
+}
+
+/* ===== 전체 3단 관리 레이아웃 ===== */
+
+body[data-manage-entity] .mgr-container {
+  display: grid !important;
+  grid-template-columns:
+    minmax(220px, 0.78fr)
+    minmax(285px, 0.96fr)
+    minmax(460px, 2.1fr) !important;
+  gap: 16px !important;
+  width: 100% !important;
+  height: calc(100dvh - 70px) !important;
+  min-height: 620px;
+  box-sizing: border-box;
+  padding: 18px !important;
+  overflow: hidden !important;
+  color: var(--entity-text);
+  background: transparent !important;
+}
+
+body[data-manage-entity] :is(
+  .mgr-sidebar,
+  .mgr-list-area,
+  .mgr-detail-area
+) {
+  position: relative;
+  min-width: 0;
+  min-height: 0;
+  box-sizing: border-box;
+  padding: 18px !important;
+  overflow: auto;
+  background:
+    linear-gradient(
+      180deg,
+      rgba(255, 255, 255, 0.98),
+      rgba(251, 253, 249, 0.95)
+    ) !important;
+  border:
+    1px solid
+    var(--entity-border) !important;
+  border-radius: 20px !important;
+  box-shadow:
+    var(--entity-shadow) !important;
+  scrollbar-width: thin;
+  scrollbar-color:
+    color-mix(
+      in srgb,
+      var(--entity-accent) 42%,
+      transparent
+    )
+    transparent;
+}
+
+body[data-manage-entity] :is(
+  .mgr-sidebar,
+  .mgr-list-area,
+  .mgr-detail-area
+)::before {
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+  pointer-events: none;
+  content: '';
+  background:
+    radial-gradient(
+      circle at 100% 0,
+      color-mix(
+        in srgb,
+        var(--entity-mint) 56%,
+        transparent
+      ),
+      transparent 34%
+    );
+  border-radius: inherit;
+}
+
+body[data-manage-entity] :is(
+  .mgr-sidebar,
+  .mgr-list-area,
+  .mgr-detail-area
+) > * {
+  position: relative;
+  z-index: 1;
+}
+
+body[data-manage-entity] :is(
+  .mgr-sidebar,
+  .mgr-list-area,
+  .mgr-detail-area
+)::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+body[data-manage-entity] :is(
+  .mgr-sidebar,
+  .mgr-list-area,
+  .mgr-detail-area
+)::-webkit-scrollbar-thumb {
+  background:
+    color-mix(
+      in srgb,
+      var(--entity-accent) 36%,
+      transparent
+    );
+  border: 2px solid transparent;
+  border-radius: 999px;
+  background-clip: padding-box;
+}
+
+body[data-manage-entity] :is(
+  .mgr-sidebar,
+  .mgr-list-area,
+  .mgr-detail-area
+)::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+/* ===== 영역 제목 ===== */
+
+body[data-manage-entity] :is(
+  .mgr-section-header,
+  .section-header,
+  .mgr-detail-header,
+  .mgr-list-header,
+  .mgr-sidebar-header
+) {
+  display: flex;
+  min-height: 54px;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  box-sizing: border-box;
+  margin: -2px 0 14px !important;
+  padding: 0 2px 14px !important;
+  border-bottom:
+    1px solid
+    var(--entity-border) !important;
+}
+
+body[data-manage-entity] :is(
+  .mgr-section-title,
+  .section-title,
+  .mgr-title,
+  .mgr-detail-title
+) {
+  margin: 0;
+  color: var(--entity-text) !important;
+  font-family:
+    'NanumSquareNeo',
+    'NanumSquareRound',
+    system-ui,
+    sans-serif;
+  font-size: 20px !important;
+  font-weight: 850 !important;
+  line-height: 1.2;
+  letter-spacing: -0.035em;
+}
+
+body[data-manage-entity] .mgr-detail-area h1,
+body[data-manage-entity] .mgr-detail-area h2,
+body[data-manage-entity] .mgr-detail-area h3 {
+  color: var(--entity-text);
+  font-family:
+    'NanumSquareNeo',
+    'NanumSquareRound',
+    system-ui,
+    sans-serif;
+  letter-spacing: -0.035em;
+}
+
+/* ===== 마을/목록 ===== */
+
+body[data-manage-entity] .npc-village-list,
+body[data-manage-entity] .mgr-list {
+  display: flex !important;
+  flex-direction: column;
+  gap: 7px !important;
+  margin: 0 !important;
+  padding: 0 !important;
+}
+
+body[data-manage-entity] :is(
+  .npc-village-item,
+  .mgr-list-item
+) {
+  position: relative;
+  display: flex;
+  width: 100%;
+  min-height: 48px;
+  align-items: center;
+  gap: 10px;
+  box-sizing: border-box;
+  margin: 0 !important;
+  padding: 9px 10px !important;
+  color: var(--entity-text) !important;
+  cursor: pointer;
+  background:
+    rgba(255, 255, 255, 0.7) !important;
+  border:
+    1px solid
+    transparent !important;
+  border-radius: 13px !important;
+  box-shadow: none !important;
+  transition:
+    transform 0.15s ease,
+    background-color 0.15s ease,
+    border-color 0.15s ease,
+    box-shadow 0.15s ease;
+}
+
+body[data-manage-entity] :is(
+  .npc-village-item,
+  .mgr-list-item
+):hover {
+  transform: translateY(-1px);
+  background:
+    color-mix(
+      in srgb,
+      var(--entity-accent-soft) 74%,
+      white
+    ) !important;
+  border-color:
+    var(--entity-border-strong) !important;
+  box-shadow:
+    0 7px 16px
+    rgba(44, 91, 49, 0.07) !important;
+}
+
+body[data-manage-entity] :is(
+  .npc-village-item.active,
+  .npc-village-item.selected,
+  .npc-village-item.is-selected,
+  .mgr-list-item.active,
+  .mgr-list-item.selected,
+  .mgr-list-item.is-selected,
+  .mgr-list-item[aria-selected='true']
+) {
+  color:
+    var(--entity-accent-strong) !important;
+  background:
+    linear-gradient(
+      135deg,
+      color-mix(
+        in srgb,
+        var(--entity-accent-soft) 88%,
+        white
+      ),
+      white
+    ) !important;
+  border-color:
+    color-mix(
+      in srgb,
+      var(--entity-accent) 46%,
+      var(--entity-border)
+    ) !important;
+  box-shadow:
+    inset 4px 0 0
+    var(--entity-accent),
+    0 8px 18px
+    rgba(44, 91, 49, 0.08) !important;
+}
+
+body[data-manage-entity] .npc-village-icon,
+body[data-manage-entity] .mgr-icon-cell {
+  display: grid;
+  width: 34px !important;
+  height: 34px !important;
+  flex: 0 0 34px;
+  place-items: center;
+  overflow: hidden;
+  background:
+    var(--entity-panel-soft);
+  border:
+    1px solid
+    var(--entity-border);
+  border-radius: 10px !important;
+}
+
+body[data-manage-entity] :is(
+  .npc-village-icon,
+  .mgr-icon-cell
+) img {
+  width: 24px !important;
+  height: 24px !important;
+  object-fit: contain;
+  image-rendering: pixelated;
+}
+
+body[data-manage-entity] .mgr-order {
+  display: grid;
+  width: 24px;
+  height: 24px;
+  flex: 0 0 24px;
+  place-items: center;
+  color: var(--entity-muted);
+  font-size: 11px;
+  font-weight: 800;
+  background: var(--entity-panel-soft);
+  border:
+    1px solid
+    var(--entity-border);
+  border-radius: 8px;
+}
+
+body[data-manage-entity] :is(
+  .mgr-name,
+  .npc-village-name
+) {
+  min-width: 0;
+  flex: 1 1 auto;
+  overflow: hidden;
+  color: inherit !important;
+  font-size: 14px !important;
+  font-weight: 760 !important;
+  line-height: 1.35;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+body[data-manage-entity] .mgr-village-menu-btn {
+  display: grid;
+  width: 32px;
+  height: 32px;
+  flex: 0 0 32px;
+  place-items: center;
+  color: var(--entity-muted);
+  cursor: pointer;
+  background: transparent;
+  border: 0;
+  border-radius: 9px;
+  transition:
+    color 0.15s ease,
+    background-color 0.15s ease;
+}
+
+body[data-manage-entity] .mgr-village-menu-btn:hover {
+  color: var(--entity-accent-strong);
+  background: var(--entity-accent-soft);
+}
+
+/* ===== 추가/상단 액션 버튼 ===== */
+
+body[data-manage-entity] .mgr-add-btn {
+  display: inline-flex;
+  min-height: 42px;
+  align-items: center;
+  justify-content: center;
+  gap: 7px;
+  box-sizing: border-box;
+  margin-top: 12px !important;
+  padding: 0 14px !important;
+  color: white !important;
+  font-size: 13px;
+  font-weight: 800;
+  cursor: pointer;
+  background:
+    linear-gradient(
+      180deg,
+      color-mix(
+        in srgb,
+        var(--entity-accent) 90%,
+        white
+      ),
+      var(--entity-accent)
+    ) !important;
+  border:
+    1px solid
+    color-mix(
+      in srgb,
+      var(--entity-accent-strong) 44%,
+      var(--entity-accent)
+    ) !important;
+  border-radius: 12px !important;
+  box-shadow:
+    0 8px 18px
+    color-mix(
+      in srgb,
+      var(--entity-accent) 22%,
+      transparent
+    ) !important;
+  transition:
+    transform 0.15s ease,
+    filter 0.15s ease,
+    box-shadow 0.15s ease;
+}
+
+body[data-manage-entity] .mgr-add-btn:hover {
+  transform: translateY(-1px);
+  filter: brightness(1.03);
+  box-shadow:
+    0 11px 22px
+    color-mix(
+      in srgb,
+      var(--entity-accent) 28%,
+      transparent
+    ) !important;
+}
+
+body[data-manage-entity] :is(
+  .toolbar-seg,
+  .seg-group
+) {
+  display: inline-flex;
+  align-items: stretch;
+  overflow: hidden;
+  background: white;
+  border:
+    1px solid
+    var(--entity-border);
+  border-radius: 12px !important;
+  box-shadow:
+    0 5px 14px
+    rgba(41, 75, 45, 0.05);
+}
+
+body[data-manage-entity] .seg-btn {
+  min-height: 40px;
+  padding: 0 13px !important;
+  color: var(--entity-text);
+  font-size: 13px;
+  font-weight: 780;
+  cursor: pointer;
+  background: transparent !important;
+  border: 0 !important;
+  border-right:
+    1px solid
+    var(--entity-border) !important;
+  border-radius: 0 !important;
+  transition:
+    color 0.15s ease,
+    background-color 0.15s ease;
+}
+
+body[data-manage-entity] .seg-btn:last-child {
+  border-right: 0 !important;
+}
+
+body[data-manage-entity] .seg-btn:hover:not(:disabled) {
+  color: var(--entity-accent-strong);
+  background:
+    var(--entity-accent-soft) !important;
+}
+
+body[data-manage-entity] :is(
+  .seg-btn.danger,
+  .rd-btn.danger
+) {
+  color:
+    var(--entity-danger) !important;
+}
+
+body[data-manage-entity] :is(
+  .seg-btn.danger,
+  .rd-btn.danger
+):hover:not(:disabled) {
+  color: #bd2f2f !important;
+  background:
+    var(--entity-danger-soft) !important;
+}
+
+/* ===== 상세 정보 ===== */
+
+body[data-manage-entity] .mgr-detail-area {
+  padding: 22px !important;
+}
+
+body[data-manage-entity] .mgr-detail-empty,
+body[data-manage-entity] .mgr-empty,
+body[data-manage-entity] .empty-state {
+  display: grid;
+  min-height: 240px;
+  place-items: center;
+  box-sizing: border-box;
+  padding: 28px;
+  color: var(--entity-muted);
+  font-size: 14px;
+  font-weight: 700;
+  text-align: center;
+  background:
+    color-mix(
+      in srgb,
+      var(--entity-panel-soft) 78%,
+      transparent
+    );
+  border:
+    1px dashed
+    var(--entity-border-strong);
+  border-radius: 16px;
+}
+
+body[data-manage-entity] .mgr-pill-row {
+  display: grid !important;
+  grid-template-columns:
+    minmax(104px, 0.32fr)
+    minmax(0, 1fr);
+  min-height: 46px;
+  align-items: stretch;
+  box-sizing: border-box;
+  margin: 0 0 9px !important;
+  overflow: hidden;
+  background:
+    rgba(255, 255, 255, 0.82) !important;
+  border:
+    1px solid
+    var(--entity-border) !important;
+  border-radius: 12px !important;
+  box-shadow:
+    0 4px 12px
+    rgba(41, 75, 45, 0.035);
+}
+
+body[data-manage-entity] .mgr-pill-label {
+  display: flex;
+  align-items: center;
+  padding: 10px 12px !important;
+  color:
+    var(--entity-accent-strong) !important;
+  font-size: 12px !important;
+  font-weight: 820 !important;
+  background:
+    color-mix(
+      in srgb,
+      var(--entity-accent-soft) 72%,
+      white
+    ) !important;
+  border-right:
+    1px solid
+    var(--entity-border);
+}
+
+body[data-manage-entity] .mgr-pill-value {
+  min-width: 0;
+  padding: 10px 13px !important;
+  color: var(--entity-text) !important;
+  font-size: 13px !important;
+  font-weight: 650;
+  line-height: 1.55;
+  background: transparent !important;
+}
+
+body[data-manage-entity] :is(
+  .tag-seg,
+  .seg-choice
+) {
+  display: inline-flex;
+  min-height: 30px;
+  align-items: center;
+  gap: 5px;
+  box-sizing: border-box;
+  padding: 0 10px !important;
+  color: var(--entity-muted);
+  font-size: 12px;
+  font-weight: 760;
+  cursor: pointer;
+  background: white !important;
+  border:
+    1px solid
+    var(--entity-border) !important;
+  border-radius: 999px !important;
+  transition:
+    color 0.15s ease,
+    background-color 0.15s ease,
+    border-color 0.15s ease;
+}
+
+body[data-manage-entity] :is(
+  .tag-seg,
+  .seg-choice
+):hover,
+body[data-manage-entity] :is(
+  .tag-seg.active,
+  .tag-seg.selected,
+  .seg-choice.active,
+  .seg-choice.selected
+) {
+  color: var(--entity-accent-strong) !important;
+  background:
+    var(--entity-accent-soft) !important;
+  border-color:
+    color-mix(
+      in srgb,
+      var(--entity-accent) 45%,
+      var(--entity-border)
+    ) !important;
+}
+
+/* ===== 기존 연결 모달 ===== */
+
+body[data-manage-entity] :is(
+  .rd-modal-backdrop,
+  .modal-backdrop,
+  .image-select-backdrop,
+  .image-modal-backdrop
+) {
+  background:
+    rgba(18, 31, 20, 0.42) !important;
+  backdrop-filter: blur(5px);
+  -webkit-backdrop-filter: blur(5px);
+}
+
+body[data-manage-entity] :is(
+  [role='dialog'],
+  .rd-modal-card,
+  .rd-modal-panel,
+  .rd-modal,
+  .modal-content,
+  .image-select-modal,
+  .image-modal-card
+) {
+  color: var(--entity-text);
+}
+
+body[data-manage-entity] :is(
+  [role='dialog'].rd-modal-card,
+  [role='dialog'].rd-modal,
+  .rd-modal-card,
+  .rd-modal-panel,
+  .modal-content,
+  .image-select-modal,
+  .image-modal-card
+) {
+  overflow: hidden;
+  background:
+    linear-gradient(
+      180deg,
+      #ffffff,
+      #fbfdf9
+    ) !important;
+  border:
+    1px solid
+    var(--entity-border-strong) !important;
+  border-radius: 20px !important;
+  box-shadow:
+    0 30px 80px
+    rgba(25, 48, 29, 0.22),
+    0 8px 24px
+    rgba(25, 48, 29, 0.1) !important;
+}
+
+body[data-manage-entity] :is(
+  .rd-modal-header,
+  .modal-header,
+  .image-modal-header
+) {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  box-sizing: border-box;
+  padding: 18px 20px !important;
+  background:
+    linear-gradient(
+      135deg,
+      color-mix(
+        in srgb,
+        var(--entity-accent-soft) 86%,
+        white
+      ),
+      white
+    ) !important;
+  border-bottom:
+    1px solid
+    var(--entity-border) !important;
+}
+
+body[data-manage-entity] :is(
+  .rd-modal-title,
+  .modal-title,
+  .image-modal-title
+) {
+  margin: 0 !important;
+  color: var(--entity-text) !important;
+  font-family:
+    'NanumSquareNeo',
+    'NanumSquareRound',
+    system-ui,
+    sans-serif;
+  font-size: 20px !important;
+  font-weight: 850 !important;
+  letter-spacing: -0.035em;
+}
+
+body[data-manage-entity] :is(
+  .rd-modal-body,
+  .modal-body,
+  .image-modal-body
+) {
+  box-sizing: border-box;
+  padding: 20px !important;
+}
+
+body[data-manage-entity] :is(
+  .rd-modal-footer,
+  .rd-modal-actions,
+  .modal-footer,
+  .modal-actions
+) {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 9px;
+  box-sizing: border-box;
+  padding: 15px 20px 19px !important;
+  background:
+    color-mix(
+      in srgb,
+      var(--entity-panel-soft) 72%,
+      white
+    ) !important;
+  border-top:
+    1px solid
+    var(--entity-border) !important;
+}
+
+body[data-manage-entity] .rd-field {
+  display: grid;
+  gap: 7px;
+  margin-bottom: 14px !important;
+}
+
+body[data-manage-entity] .rd-label {
+  color: var(--entity-text) !important;
+  font-size: 12px !important;
+  font-weight: 820 !important;
+}
+
+body[data-manage-entity] :is(
+  .rd-input,
+  .rd-textarea,
+  .rw-input,
+  .rd-num
+) {
+  width: 100%;
+  box-sizing: border-box;
+  color: var(--entity-text) !important;
+  font: inherit;
+  background:
+    rgba(255, 255, 255, 0.96) !important;
+  border:
+    1px solid
+    var(--entity-border-strong) !important;
+  border-radius: 11px !important;
+  outline: none;
+  box-shadow:
+    inset 0 1px 2px
+    rgba(30, 58, 34, 0.025);
+  transition:
+    border-color 0.15s ease,
+    box-shadow 0.15s ease,
+    background-color 0.15s ease;
+}
+
+body[data-manage-entity] .rd-input,
+body[data-manage-entity] .rw-input,
+body[data-manage-entity] .rd-num {
+  min-height: 42px;
+  padding: 9px 11px !important;
+}
+
+body[data-manage-entity] .rd-textarea {
+  min-height: 112px;
+  padding: 11px 12px !important;
+  resize: vertical;
+}
+
+body[data-manage-entity] :is(
+  .rd-input,
+  .rd-textarea,
+  .rw-input,
+  .rd-num
+):focus {
+  background: white !important;
+  border-color:
+    var(--entity-accent) !important;
+  box-shadow:
+    0 0 0 3px
+    color-mix(
+      in srgb,
+      var(--entity-accent) 16%,
+      transparent
+    ) !important;
+}
+
+body[data-manage-entity] .rd-btn {
+  display: inline-flex;
+  min-height: 40px;
+  align-items: center;
+  justify-content: center;
+  gap: 7px;
+  box-sizing: border-box;
+  padding: 0 14px !important;
+  color: var(--entity-text);
+  font-size: 13px;
+  font-weight: 800;
+  cursor: pointer;
+  background: white !important;
+  border:
+    1px solid
+    var(--entity-border-strong) !important;
+  border-radius: 11px !important;
+  box-shadow:
+    0 4px 12px
+    rgba(41, 75, 45, 0.045);
+  transition:
+    transform 0.15s ease,
+    color 0.15s ease,
+    background-color 0.15s ease,
+    border-color 0.15s ease;
+}
+
+body[data-manage-entity] .rd-btn:hover:not(:disabled) {
+  transform: translateY(-1px);
+  color: var(--entity-accent-strong);
+  background:
+    var(--entity-accent-soft) !important;
+  border-color:
+    color-mix(
+      in srgb,
+      var(--entity-accent) 42%,
+      var(--entity-border)
+    ) !important;
+}
+
+body[data-manage-entity] .rd-btn.primary {
+  color: white !important;
+  background:
+    var(--entity-accent) !important;
+  border-color:
+    var(--entity-accent) !important;
+}
+
+body[data-manage-entity] .rd-btn.primary:hover:not(:disabled) {
+  color: white !important;
+  background:
+    var(--entity-accent-strong) !important;
+  border-color:
+    var(--entity-accent-strong) !important;
+}
+
+body[data-manage-entity] :is(
+  .mgr-icon-field,
+  .mgr-icon-inputs,
+  .rd-coord-row,
+  .rw-row
+) {
+  gap: 10px !important;
+}
+
+body[data-manage-entity] :is(
+  .mgr-icon-preview,
+  .rd-preview
+) {
+  overflow: hidden;
+  background:
+    var(--entity-panel-soft) !important;
+  border:
+    1px solid
+    var(--entity-border) !important;
+  border-radius: 12px !important;
+}
+
+body[data-manage-entity] .rd-coord-item {
+  min-width: 0;
+  padding: 10px !important;
+  background:
+    var(--entity-panel-soft) !important;
+  border:
+    1px solid
+    var(--entity-border) !important;
+  border-radius: 12px !important;
+}
+
+body[data-manage-entity] .rd-thumb-grid {
+  gap: 10px !important;
+}
+
+body[data-manage-entity] .rd-thumb {
+  overflow: hidden;
+  background:
+    var(--entity-panel-soft) !important;
+  border:
+    1px solid
+    var(--entity-border) !important;
+  border-radius: 12px !important;
+  box-shadow:
+    0 5px 14px
+    rgba(41, 75, 45, 0.05);
+}
+
+body[data-manage-entity] .rd-thumb-x,
+body[data-manage-entity] .rw-del-btn {
+  color: var(--entity-danger) !important;
+  background:
+    rgba(255, 255, 255, 0.92) !important;
+  border:
+    1px solid
+    #f1caca !important;
+  border-radius: 9px !important;
+}
+
+body[data-manage-entity] .rw-list {
+  display: grid;
+  gap: 9px;
+}
+
+body[data-manage-entity] .rw-row {
+  align-items: center;
+  box-sizing: border-box;
+  padding: 10px !important;
+  background:
+    var(--entity-panel-soft) !important;
+  border:
+    1px solid
+    var(--entity-border) !important;
+  border-radius: 12px !important;
+}
+
+body[data-manage-entity] .rw-add-btn {
+  min-height: 40px;
+  color: var(--entity-accent-strong) !important;
+  font-weight: 800;
+  background:
+    var(--entity-accent-soft) !important;
+  border:
+    1px dashed
+    color-mix(
+      in srgb,
+      var(--entity-accent) 52%,
+      var(--entity-border)
+    ) !important;
+  border-radius: 11px !important;
+}
+
+/* ===== 삭제 비밀번호 모달 ===== */
+
+.manage-delete-guard-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 2147483000;
+  display: grid;
+  place-items: center;
+  box-sizing: border-box;
+  padding: 18px;
+  background:
+    rgba(18, 28, 20, 0.52);
+  backdrop-filter: blur(7px);
+  -webkit-backdrop-filter: blur(7px);
+  animation:
+    manage-delete-backdrop-in
+    0.16s ease both;
+}
+
+.manage-delete-guard-dialog {
+  width: min(430px, 100%);
+  box-sizing: border-box;
+  padding: 24px;
+  color: #18211a;
+  background:
+    radial-gradient(
+      circle at 100% 0,
+      rgba(255, 226, 226, 0.62),
+      transparent 38%
+    ),
+    linear-gradient(
+      180deg,
+      #ffffff,
+      #fdfbf9
+    );
+  border:
+    1px solid
+    #ead7d7;
+  border-radius: 22px;
+  box-shadow:
+    0 34px 92px
+    rgba(31, 25, 25, 0.28),
+    0 9px 28px
+    rgba(31, 25, 25, 0.13);
+  animation:
+    manage-delete-dialog-in
+    0.18s cubic-bezier(
+      0.2,
+      0.8,
+      0.2,
+      1
+    ) both;
+}
+
+.manage-delete-guard-icon {
+  display: grid;
+  width: 52px;
+  height: 52px;
+  margin-bottom: 16px;
+  place-items: center;
+  color: #d74242;
+  background: #fff0f0;
+  border:
+    1px solid
+    #f3caca;
+  border-radius: 16px;
+  box-shadow:
+    0 8px 20px
+    rgba(215, 66, 66, 0.1);
+}
+
+.manage-delete-guard-icon svg {
+  width: 27px;
+  height: 27px;
+}
+
+.manage-delete-guard-heading {
+  margin-bottom: 18px;
+}
+
+.manage-delete-guard-eyebrow {
+  display: inline-flex;
+  margin-bottom: 7px;
+  color: #c33a3a;
+  font-size: 11px;
+  font-weight: 850;
+  letter-spacing: 0.08em;
+}
+
+.manage-delete-guard-heading h2 {
+  margin: 0 0 8px;
+  color: #1f2420;
+  font-family:
+    'NanumSquareNeo',
+    'NanumSquareRound',
+    system-ui,
+    sans-serif;
+  font-size: 21px;
+  font-weight: 900;
+  line-height: 1.3;
+  letter-spacing: -0.04em;
+}
+
+.manage-delete-guard-heading p {
+  margin: 0;
+  color: #727974;
+  font-size: 13px;
+  font-weight: 620;
+  line-height: 1.6;
+}
+
+.manage-delete-guard-form {
+  display: grid;
+  gap: 8px;
+}
+
+.manage-delete-guard-label {
+  color: #2f3731;
+  font-size: 12px;
+  font-weight: 830;
+}
+
+.manage-delete-guard-input {
+  width: 100%;
+  min-height: 46px;
+  box-sizing: border-box;
+  padding: 10px 12px;
+  color: #18211a;
+  font: inherit;
+  font-size: 15px;
+  font-weight: 720;
+  background: #fff;
+  border:
+    1px solid
+    #d9dfda;
+  border-radius: 12px;
+  outline: none;
+  box-shadow:
+    inset 0 1px 2px
+    rgba(34, 45, 36, 0.035);
+  transition:
+    border-color 0.15s ease,
+    box-shadow 0.15s ease;
+}
+
+.manage-delete-guard-input:focus {
+  border-color: #df5b5b;
+  box-shadow:
+    0 0 0 3px
+    rgba(223, 91, 91, 0.13);
+}
+
+.manage-delete-guard-input.is-error {
+  border-color: #dc4545;
+  box-shadow:
+    0 0 0 3px
+    rgba(220, 69, 69, 0.12);
+}
+
+.manage-delete-guard-message {
+  min-height: 18px;
+  color: #8a918b;
+  font-size: 11px;
+  font-weight: 680;
+  line-height: 1.5;
+}
+
+.manage-delete-guard-input.is-error +
+.manage-delete-guard-message {
+  color: #cf3e3e;
+}
+
+.manage-delete-guard-actions {
+  display: grid;
+  grid-template-columns:
+    1fr
+    1.25fr;
+  gap: 9px;
+  margin-top: 8px;
+}
+
+.manage-delete-guard-button {
+  min-height: 43px;
+  box-sizing: border-box;
+  padding: 0 14px;
+  font-size: 13px;
+  font-weight: 830;
+  cursor: pointer;
+  border-radius: 12px;
+  transition:
+    transform 0.15s ease,
+    background-color 0.15s ease,
+    border-color 0.15s ease,
+    opacity 0.15s ease;
+}
+
+.manage-delete-guard-button:hover:not(:disabled) {
+  transform: translateY(-1px);
+}
+
+.manage-delete-guard-button.is-cancel {
+  color: #58605a;
+  background: #fff;
+  border:
+    1px solid
+    #dce2dc;
+}
+
+.manage-delete-guard-button.is-cancel:hover {
+  background: #f5f7f5;
+  border-color: #cbd4cc;
+}
+
+.manage-delete-guard-button.is-delete {
+  color: white;
+  background:
+    linear-gradient(
+      180deg,
+      #e75656,
+      #d64040
+    );
+  border:
+    1px solid
+    #ca3838;
+  box-shadow:
+    0 8px 18px
+    rgba(215, 64, 64, 0.2);
+}
+
+.manage-delete-guard-button.is-delete:hover:not(:disabled) {
+  background:
+    linear-gradient(
+      180deg,
+      #df4a4a,
+      #c93636
+    );
+}
+
+.manage-delete-guard-button:disabled {
+  cursor: not-allowed;
+  opacity: 0.46;
+  box-shadow: none;
+}
+
+@keyframes manage-delete-backdrop-in {
+  from {
+    opacity: 0;
+  }
+
+  to {
+    opacity: 1;
+  }
+}
+
+@keyframes manage-delete-dialog-in {
+  from {
+    opacity: 0;
+    transform:
+      translateY(8px)
+      scale(0.985);
+  }
+
+  to {
+    opacity: 1;
+    transform:
+      translateY(0)
+      scale(1);
+  }
+}
+
+/* ===== 반응형 ===== */
+
+@media (max-width: 1250px) {
+  body[data-manage-entity] .mgr-container {
+    grid-template-columns:
+      minmax(205px, 0.75fr)
+      minmax(270px, 0.95fr)
+      minmax(380px, 1.7fr) !important;
+    gap: 12px !important;
+    padding: 13px !important;
+  }
+
+  body[data-manage-entity] :is(
+    .mgr-sidebar,
+    .mgr-list-area,
+    .mgr-detail-area
+  ) {
+    padding: 14px !important;
+    border-radius: 17px !important;
+  }
+}
+
+@media (max-width: 980px) {
+  body[data-manage-entity] .mgr-container {
+    grid-template-columns:
+      minmax(220px, 0.8fr)
+      minmax(0, 1.4fr) !important;
+    grid-template-rows:
+      minmax(300px, 0.9fr)
+      minmax(360px, 1.1fr);
+    height: auto !important;
+    min-height:
+      calc(100dvh - 70px);
+    overflow: visible !important;
+  }
+
+  body[data-manage-entity] .mgr-detail-area {
+    grid-column: 1 / -1;
+  }
+}
+
+@media (max-width: 720px) {
+  body[data-manage-entity] .mgr-container {
+    display: flex !important;
+    width: 100% !important;
+    min-height:
+      calc(100dvh - 64px);
+    flex-direction: column;
+    gap: 11px !important;
+    padding: 10px !important;
+  }
+
+  body[data-manage-entity] :is(
+    .mgr-sidebar,
+    .mgr-list-area,
+    .mgr-detail-area
+  ) {
+    width: 100%;
+    max-height: none;
+    padding: 13px !important;
+    overflow: visible;
+    border-radius: 16px !important;
+  }
+
+  body[data-manage-entity] .mgr-sidebar {
+    max-height: 330px;
+    overflow: auto;
+  }
+
+  body[data-manage-entity] .mgr-list-area {
+    max-height: 390px;
+    overflow: auto;
+  }
+
+  body[data-manage-entity] .mgr-pill-row {
+    grid-template-columns: 1fr;
+  }
+
+  body[data-manage-entity] .mgr-pill-label {
+    padding-bottom: 7px !important;
+    border-right: 0;
+    border-bottom:
+      1px solid
+      var(--entity-border);
+  }
+
+  .manage-delete-guard-dialog {
+    padding: 20px;
+    border-radius: 18px;
+  }
+
+  .manage-delete-guard-actions {
+    grid-template-columns: 1fr;
+  }
+}
+
+/* ===== 다크모드 ===== */
+
+:is(
+  html[data-theme='dark'],
+  body[data-theme='dark'],
+  html.dark,
+  body.dark
+) body[data-manage-entity],
+:is(
+  html[data-theme='dark'],
+  body[data-theme='dark'],
+  html.dark,
+  body.dark
+)[data-manage-entity] {
+  --entity-panel:
+    rgba(20, 29, 22, 0.96);
+  --entity-panel-soft:
+    #18231a;
+  --entity-border:
+    #2c3d2f;
+  --entity-border-strong:
+    #3a5140;
+  --entity-text:
+    #edf5ed;
+  --entity-muted:
+    #9aab9d;
+  --entity-accent-soft:
+    #1d3422;
+  --entity-cream:
+    #121a14;
+
+  background:
+    radial-gradient(
+      circle at 0 0,
+      rgba(72, 125, 79, 0.18),
+      transparent 32%
+    ),
+    #101712;
+}
+
+:is(
+  html[data-theme='dark'],
+  body[data-theme='dark'],
+  html.dark,
+  body.dark
+) body[data-manage-entity] :is(
+  .mgr-sidebar,
+  .mgr-list-area,
+  .mgr-detail-area
+),
+:is(
+  html[data-theme='dark'],
+  body[data-theme='dark'],
+  html.dark,
+  body.dark
+)[data-manage-entity] :is(
+  .mgr-sidebar,
+  .mgr-list-area,
+  .mgr-detail-area
+) {
+  background:
+    linear-gradient(
+      180deg,
+      rgba(22, 32, 24, 0.98),
+      rgba(16, 25, 18, 0.98)
+    ) !important;
+}
+
+:is(
+  html[data-theme='dark'],
+  body[data-theme='dark'],
+  html.dark,
+  body.dark
+) body[data-manage-entity] :is(
+  .npc-village-item,
+  .mgr-list-item,
+  .mgr-pill-row,
+  .toolbar-seg,
+  .seg-group,
+  .rd-btn,
+  .rd-input,
+  .rd-textarea,
+  .rw-input,
+  .rd-num
+),
+:is(
+  html[data-theme='dark'],
+  body[data-theme='dark'],
+  html.dark,
+  body.dark
+)[data-manage-entity] :is(
+  .npc-village-item,
+  .mgr-list-item,
+  .mgr-pill-row,
+  .toolbar-seg,
+  .seg-group,
+  .rd-btn,
+  .rd-input,
+  .rd-textarea,
+  .rw-input,
+  .rd-num
+) {
+  color: var(--entity-text) !important;
+  background:
+    rgba(19, 28, 21, 0.94) !important;
+}
+
+/* =============================================
+   2026-07-26 밀도·간격·삭제 버튼 보정
+
+   기존 색상과 카드 디자인은 유지하면서:
+   - 3개 패널 사이의 불필요한 빈 간격 제거
+   - 목록/상세 요소의 높이와 내부 여백 정리
+   - 상세 제목 크기 보정
+   - 우측 상단 삭제 버튼 줄바꿈 및 배치 수정
+   ============================================= */
+
+body[data-manage-entity] .mgr-container {
+  grid-template-columns:
+    minmax(240px, 280px)
+    minmax(310px, 350px)
+    minmax(0, 1fr) !important;
+  gap: 12px !important;
+  padding: 14px !important;
+}
+
+body[data-manage-entity] :is(
+  .mgr-sidebar,
+  .mgr-list-area,
+  .mgr-detail-area
+) {
+  width: 100% !important;
+  max-width: none !important;
+  padding: 16px !important;
+  border-radius: 18px !important;
+}
+
+/* 각 패널 상단 제목과 추가 버튼을 같은 기준선에 배치 */
+body[data-manage-entity] :is(
+  .mgr-section-header,
+  .section-header,
+  .mgr-detail-header,
+  .mgr-list-header,
+  .mgr-sidebar-header
+) {
+  min-height: 48px;
+  gap: 10px;
+  margin: 0 0 11px !important;
+  padding: 0 0 11px !important;
+}
+
+body[data-manage-entity] :is(
+  .mgr-section-title,
+  .section-title,
+  .mgr-title
+) {
+  font-size: 18px !important;
+  line-height: 1.25 !important;
+}
+
+body[data-manage-entity] :is(
+  .mgr-section-header,
+  .section-header,
+  .mgr-detail-header,
+  .mgr-list-header,
+  .mgr-sidebar-header
+) .mgr-add-btn {
+  min-height: 40px !important;
+  margin-top: 0 !important;
+  padding: 0 13px !important;
+  white-space: nowrap;
+}
+
+/* 좌측 마을 목록과 가운데 개체 목록의 행 높이 통일 */
+body[data-manage-entity] .npc-village-list,
+body[data-manage-entity] .mgr-list {
+  gap: 5px !important;
+}
+
+body[data-manage-entity] :is(
+  .npc-village-item,
+  .mgr-list-item
+) {
+  height: auto !important;
+  min-height: 50px !important;
+  gap: 8px !important;
+  padding: 7px 9px !important;
+  border-radius: 12px !important;
+}
+
+body[data-manage-entity] :is(
+  .npc-village-icon,
+  .mgr-icon-cell
+) {
+  width: 32px !important;
+  height: 32px !important;
+  flex-basis: 32px !important;
+  border-radius: 9px !important;
+}
+
+body[data-manage-entity] :is(
+  .npc-village-icon,
+  .mgr-icon-cell
+) img {
+  width: 23px !important;
+  height: 23px !important;
+}
+
+body[data-manage-entity] .mgr-order {
+  width: 28px;
+  height: 28px;
+  flex-basis: 28px;
+  border-radius: 9px;
+}
+
+body[data-manage-entity] :is(
+  .mgr-name,
+  .npc-village-name
+) {
+  font-size: 14px !important;
+  line-height: 1.3 !important;
+}
+
+body[data-manage-entity] .mgr-village-menu-btn {
+  width: 30px;
+  height: 30px;
+  flex-basis: 30px;
+}
+
+/* 상세 영역 제목이 지나치게 크거나 삭제 버튼과 겹치지 않게 보정 */
+body[data-manage-entity] .mgr-detail-area {
+  padding: 18px !important;
+}
+
+body[data-manage-entity] .mgr-detail-header {
+  min-height: 52px;
+  align-items: center;
+  padding-right: 0 !important;
+}
+
+body[data-manage-entity] .mgr-detail-header > :first-child {
+  min-width: 0;
+  flex: 1 1 auto;
+}
+
+body[data-manage-entity] .mgr-detail-area :is(
+  .mgr-detail-title,
+  h1
+) {
+  margin: 0 !important;
+  font-size: clamp(24px, 2vw, 30px) !important;
+  line-height: 1.18 !important;
+}
+
+body[data-manage-entity] .mgr-detail-area :is(
+  h2,
+  h3
+) {
+  line-height: 1.25 !important;
+}
+
+/* 상세 정보 행의 라벨 폭과 세로 여백을 줄여 밀도를 맞춤 */
+body[data-manage-entity] .mgr-pill-row {
+  grid-template-columns:
+    minmax(118px, 150px)
+    minmax(0, 1fr);
+  min-height: 54px;
+  margin-bottom: 8px !important;
+  border-radius: 11px !important;
+}
+
+body[data-manage-entity] .mgr-pill-label {
+  justify-content: center;
+  padding: 9px 11px !important;
+  text-align: center;
+}
+
+body[data-manage-entity] .mgr-pill-value {
+  display: flex;
+  min-height: 52px;
+  align-items: center;
+  box-sizing: border-box;
+  padding: 9px 13px !important;
+  line-height: 1.45 !important;
+}
+
+/* ===== 우측 상단 삭제 버튼 ===== */
+
+body[data-manage-entity] .mgr-detail-header :is(
+  .toolbar-seg,
+  .seg-group
+) {
+  min-width: max-content;
+  flex: 0 0 auto;
+  margin-left: auto;
+  overflow: visible;
+}
+
+body[data-manage-entity] .mgr-detail-header :is(
+  .seg-btn.danger,
+  .rd-btn.danger
+),
+body[data-manage-entity] .mgr-detail-area > :is(
+  .seg-btn.danger,
+  .rd-btn.danger
+) {
+  display: inline-flex !important;
+  width: auto !important;
+  min-width: 76px !important;
+  height: 40px !important;
+  min-height: 40px !important;
+  flex: 0 0 auto !important;
+  align-items: center !important;
+  justify-content: center !important;
+  gap: 6px !important;
+  box-sizing: border-box;
+  padding: 0 13px !important;
+  color: var(--entity-danger) !important;
+  font-size: 13px !important;
+  font-weight: 820 !important;
+  line-height: 1 !important;
+  letter-spacing: -0.01em !important;
+  white-space: nowrap !important;
+  word-break: keep-all !important;
+  writing-mode: horizontal-tb !important;
+  background: #fffafa !important;
+  border: 1px solid #efcccc !important;
+  border-radius: 11px !important;
+  box-shadow:
+    0 4px 12px
+    rgba(190, 56, 56, 0.06) !important;
+}
+
+body[data-manage-entity] .mgr-detail-header :is(
+  .seg-btn.danger,
+  .rd-btn.danger
+) > *,
+body[data-manage-entity] .mgr-detail-area > :is(
+  .seg-btn.danger,
+  .rd-btn.danger
+) > * {
+  flex: 0 0 auto;
+  white-space: nowrap !important;
+  word-break: keep-all !important;
+}
+
+body[data-manage-entity] .mgr-detail-header :is(
+  .seg-btn.danger,
+  .rd-btn.danger
+):hover:not(:disabled),
+body[data-manage-entity] .mgr-detail-area > :is(
+  .seg-btn.danger,
+  .rd-btn.danger
+):hover:not(:disabled) {
+  color: #bd3030 !important;
+  background: #fff0f0 !important;
+  border-color: #e8b4b4 !important;
+  transform: translateY(-1px);
+}
+
+/*
+ * 일부 페이지에서는 삭제 도구 모음이 상세 헤더 바깥의
+ * 직접 자식으로 배치되어 있다. 이 경우 카드 우측 상단에 고정한다.
+ */
+body[data-manage-entity] .mgr-detail-area > :is(
+  .toolbar-seg,
+  .seg-group
+):has(.danger) {
+  position: absolute;
+  top: 18px;
+  right: 18px;
+  z-index: 5;
+  min-width: max-content;
+  overflow: visible;
+}
+
+body[data-manage-entity] .mgr-detail-area > :is(
+  h1,
+  h2,
+  h3,
+  .mgr-detail-title
+):first-child {
+  box-sizing: border-box;
+  padding-right: 104px;
+}
+
+/* 기존 툴바 버튼도 세로 크기를 삭제 버튼과 통일 */
+body[data-manage-entity] .seg-btn {
+  display: inline-flex;
+  min-height: 40px;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  line-height: 1;
+  white-space: nowrap;
+  word-break: keep-all;
+}
+
+/* 중간 화면에서도 패널이 트랙을 가득 채우게 유지 */
+@media (max-width: 1250px) {
+  body[data-manage-entity] .mgr-container {
+    grid-template-columns:
+      minmax(220px, 260px)
+      minmax(285px, 330px)
+      minmax(0, 1fr) !important;
+    gap: 10px !important;
+    padding: 11px !important;
+  }
+
+  body[data-manage-entity] :is(
+    .mgr-sidebar,
+    .mgr-list-area,
+    .mgr-detail-area
+  ) {
+    padding: 14px !important;
+    border-radius: 16px !important;
+  }
+
+  body[data-manage-entity] .mgr-detail-area > :is(
+    .toolbar-seg,
+    .seg-group
+  ):has(.danger) {
+    top: 14px;
+    right: 14px;
+  }
+}
+
+@media (max-width: 980px) {
+  body[data-manage-entity] .mgr-container {
+    grid-template-columns:
+      minmax(220px, 0.8fr)
+      minmax(0, 1.4fr) !important;
+  }
+
+  body[data-manage-entity] .mgr-detail-area > :is(
+    h1,
+    h2,
+    h3,
+    .mgr-detail-title
+  ):first-child {
+    padding-right: 94px;
+  }
+}
+
+@media (max-width: 720px) {
+  body[data-manage-entity] .mgr-detail-area :is(
+    .mgr-detail-title,
+    h1
+  ) {
+    font-size: 23px !important;
+  }
+
+  body[data-manage-entity] .mgr-detail-header {
+    flex-wrap: wrap;
+  }
+
+  body[data-manage-entity] .mgr-detail-header :is(
+    .toolbar-seg,
+    .seg-group
+  ) {
+    margin-left: 0;
+  }
+
+  body[data-manage-entity] .mgr-detail-area > :is(
+    .toolbar-seg,
+    .seg-group
+  ):has(.danger) {
+    position: static;
+    width: fit-content;
+    margin: 0 0 10px auto;
+  }
+
+  body[data-manage-entity] .mgr-detail-area > :is(
+    h1,
+    h2,
+    h3,
+    .mgr-detail-title
+  ):first-child {
+    padding-right: 0;
+  }
+
+  body[data-manage-entity] .mgr-pill-row {
+    grid-template-columns: 1fr;
+  }
+
+  body[data-manage-entity] .mgr-pill-label {
+    justify-content: flex-start;
+    text-align: left;
+  }
+}
+
+/* =============================================
+   NPC·퀘스트·머리찾기 관리 페이지 다크모드 최종 보정
+
+   적용 범위:
+   - /manage/npc
+   - /manage/quest
+   - /manage/head
+   - 각 페이지에서 여는 기존 연결 모달 및 삭제 확인 모달
+
+   크기·배치·기능은 변경하지 않고 색상만 보정한다.
+   ============================================= */
+
+:where(
+  :root[data-theme='dark'],
+  :root.dark
+) body[data-manage-entity],
+body[data-theme='dark'][data-manage-entity],
+body.dark[data-manage-entity] {
+  --entity-panel: rgba(18, 30, 22, 0.98);
+  --entity-panel-soft: #15241a;
+  --entity-border: rgba(137, 190, 147, 0.2);
+  --entity-border-strong: rgba(144, 205, 156, 0.34);
+  --entity-text: #eef6ef;
+  --entity-muted: #a7b8ad;
+  --entity-accent-soft: rgba(65, 119, 75, 0.35);
+  --entity-cream: #101b14;
+  --entity-danger: #ff7d83;
+  --entity-danger-soft: rgba(131, 40, 47, 0.27);
+  --entity-shadow:
+    0 20px 48px rgba(0, 0, 0, 0.3);
+  --entity-shadow-soft:
+    0 9px 24px rgba(0, 0, 0, 0.24);
+
+  color: var(--entity-text);
+  background:
+    radial-gradient(
+      circle at 0 0,
+      rgba(72, 126, 80, 0.17),
+      transparent 32%
+    ),
+    linear-gradient(
+      180deg,
+      #101b14,
+      #0b140e
+    );
+}
+
+:where(
+  :root[data-theme='dark'],
+  :root.dark
+) body[data-manage-entity] :is(
+  .mgr-sidebar,
+  .mgr-list-area,
+  .mgr-detail-area
+),
+body[data-theme='dark'][data-manage-entity] :is(
+  .mgr-sidebar,
+  .mgr-list-area,
+  .mgr-detail-area
+),
+body.dark[data-manage-entity] :is(
+  .mgr-sidebar,
+  .mgr-list-area,
+  .mgr-detail-area
+) {
+  color: var(--entity-text);
+  background:
+    linear-gradient(
+      180deg,
+      rgba(20, 34, 25, 0.99),
+      rgba(13, 23, 17, 0.99)
+    ) !important;
+  border-color: var(--entity-border) !important;
+  box-shadow: var(--entity-shadow) !important;
+}
+
+:where(
+  :root[data-theme='dark'],
+  :root.dark
+) body[data-manage-entity] :is(
+  .mgr-sidebar,
+  .mgr-list-area,
+  .mgr-detail-area
+)::before,
+body[data-theme='dark'][data-manage-entity] :is(
+  .mgr-sidebar,
+  .mgr-list-area,
+  .mgr-detail-area
+)::before,
+body.dark[data-manage-entity] :is(
+  .mgr-sidebar,
+  .mgr-list-area,
+  .mgr-detail-area
+)::before {
+  background:
+    radial-gradient(
+      circle at 100% 0,
+      rgba(67, 116, 76, 0.14),
+      transparent 36%
+    );
+}
+
+:where(
+  :root[data-theme='dark'],
+  :root.dark
+) body[data-manage-entity] :is(
+  .mgr-section-header,
+  .section-header,
+  .mgr-detail-header,
+  .mgr-list-header,
+  .mgr-sidebar-header
+),
+body[data-theme='dark'][data-manage-entity] :is(
+  .mgr-section-header,
+  .section-header,
+  .mgr-detail-header,
+  .mgr-list-header,
+  .mgr-sidebar-header
+),
+body.dark[data-manage-entity] :is(
+  .mgr-section-header,
+  .section-header,
+  .mgr-detail-header,
+  .mgr-list-header,
+  .mgr-sidebar-header
+) {
+  border-bottom-color: var(--entity-border) !important;
+}
+
+:where(
+  :root[data-theme='dark'],
+  :root.dark
+) body[data-manage-entity] :is(
+  .mgr-section-title,
+  .section-title,
+  .mgr-title,
+  .mgr-detail-title,
+  .mgr-detail-area h1,
+  .mgr-detail-area h2,
+  .mgr-detail-area h3,
+  .mgr-name,
+  .npc-village-name
+),
+body[data-theme='dark'][data-manage-entity] :is(
+  .mgr-section-title,
+  .section-title,
+  .mgr-title,
+  .mgr-detail-title,
+  .mgr-detail-area h1,
+  .mgr-detail-area h2,
+  .mgr-detail-area h3,
+  .mgr-name,
+  .npc-village-name
+),
+body.dark[data-manage-entity] :is(
+  .mgr-section-title,
+  .section-title,
+  .mgr-title,
+  .mgr-detail-title,
+  .mgr-detail-area h1,
+  .mgr-detail-area h2,
+  .mgr-detail-area h3,
+  .mgr-name,
+  .npc-village-name
+) {
+  color: var(--entity-text) !important;
+}
+
+:where(
+  :root[data-theme='dark'],
+  :root.dark
+) body[data-manage-entity] :is(
+  .npc-village-item,
+  .mgr-list-item
+),
+body[data-theme='dark'][data-manage-entity] :is(
+  .npc-village-item,
+  .mgr-list-item
+),
+body.dark[data-manage-entity] :is(
+  .npc-village-item,
+  .mgr-list-item
+) {
+  color: var(--entity-text) !important;
+  background: rgba(18, 31, 23, 0.82) !important;
+  border-color: transparent !important;
+  box-shadow: none !important;
+}
+
+:where(
+  :root[data-theme='dark'],
+  :root.dark
+) body[data-manage-entity] :is(
+  .npc-village-item,
+  .mgr-list-item
+):hover,
+body[data-theme='dark'][data-manage-entity] :is(
+  .npc-village-item,
+  .mgr-list-item
+):hover,
+body.dark[data-manage-entity] :is(
+  .npc-village-item,
+  .mgr-list-item
+):hover {
+  color: #eff8f1 !important;
+  background: rgba(42, 74, 50, 0.52) !important;
+  border-color: rgba(137, 198, 149, 0.23) !important;
+  box-shadow:
+    0 7px 18px rgba(0, 0, 0, 0.16) !important;
+}
+
+:where(
+  :root[data-theme='dark'],
+  :root.dark
+) body[data-manage-entity] :is(
+  .npc-village-item.active,
+  .npc-village-item.selected,
+  .npc-village-item.is-selected,
+  .mgr-list-item.active,
+  .mgr-list-item.selected,
+  .mgr-list-item.is-selected,
+  .mgr-list-item[aria-selected='true']
+),
+body[data-theme='dark'][data-manage-entity] :is(
+  .npc-village-item.active,
+  .npc-village-item.selected,
+  .npc-village-item.is-selected,
+  .mgr-list-item.active,
+  .mgr-list-item.selected,
+  .mgr-list-item.is-selected,
+  .mgr-list-item[aria-selected='true']
+),
+body.dark[data-manage-entity] :is(
+  .npc-village-item.active,
+  .npc-village-item.selected,
+  .npc-village-item.is-selected,
+  .mgr-list-item.active,
+  .mgr-list-item.selected,
+  .mgr-list-item.is-selected,
+  .mgr-list-item[aria-selected='true']
+) {
+  color: #b8ebc0 !important;
+  background:
+    linear-gradient(
+      135deg,
+      rgba(53, 99, 63, 0.66),
+      rgba(23, 43, 28, 0.76)
+    ) !important;
+  border-color: rgba(143, 210, 156, 0.4) !important;
+  box-shadow:
+    inset 4px 0 0 #78ca84,
+    0 8px 20px rgba(0, 0, 0, 0.17) !important;
+}
+
+:where(
+  :root[data-theme='dark'],
+  :root.dark
+) body[data-manage-entity] :is(
+  .npc-village-icon,
+  .mgr-icon-cell,
+  .mgr-order,
+  .mgr-icon-preview,
+  .rd-preview,
+  .rd-coord-item,
+  .rd-thumb,
+  .rw-row
+),
+body[data-theme='dark'][data-manage-entity] :is(
+  .npc-village-icon,
+  .mgr-icon-cell,
+  .mgr-order,
+  .mgr-icon-preview,
+  .rd-preview,
+  .rd-coord-item,
+  .rd-thumb,
+  .rw-row
+),
+body.dark[data-manage-entity] :is(
+  .npc-village-icon,
+  .mgr-icon-cell,
+  .mgr-order,
+  .mgr-icon-preview,
+  .rd-preview,
+  .rd-coord-item,
+  .rd-thumb,
+  .rw-row
+) {
+  color: var(--entity-text-soft, var(--entity-muted)) !important;
+  background: #16261c !important;
+  border-color: var(--entity-border) !important;
+}
+
+:where(
+  :root[data-theme='dark'],
+  :root.dark
+) body[data-manage-entity] :is(
+  .mgr-village-menu-btn,
+  .mgr-order
+),
+body[data-theme='dark'][data-manage-entity] :is(
+  .mgr-village-menu-btn,
+  .mgr-order
+),
+body.dark[data-manage-entity] :is(
+  .mgr-village-menu-btn,
+  .mgr-order
+) {
+  color: #9dafA3 !important;
+}
+
+:where(
+  :root[data-theme='dark'],
+  :root.dark
+) body[data-manage-entity] .mgr-village-menu-btn:hover,
+body[data-theme='dark'][data-manage-entity] .mgr-village-menu-btn:hover,
+body.dark[data-manage-entity] .mgr-village-menu-btn:hover {
+  color: #a8e2b2 !important;
+  background: rgba(50, 91, 59, 0.4) !important;
+}
+
+:where(
+  :root[data-theme='dark'],
+  :root.dark
+) body[data-manage-entity] :is(
+  .mgr-pill-row,
+  .toolbar-seg,
+  .seg-group
+),
+body[data-theme='dark'][data-manage-entity] :is(
+  .mgr-pill-row,
+  .toolbar-seg,
+  .seg-group
+),
+body.dark[data-manage-entity] :is(
+  .mgr-pill-row,
+  .toolbar-seg,
+  .seg-group
+) {
+  color: var(--entity-text) !important;
+  background: rgba(17, 29, 21, 0.94) !important;
+  border-color: var(--entity-border) !important;
+  box-shadow: none !important;
+}
+
+:where(
+  :root[data-theme='dark'],
+  :root.dark
+) body[data-manage-entity] .mgr-pill-label,
+body[data-theme='dark'][data-manage-entity] .mgr-pill-label,
+body.dark[data-manage-entity] .mgr-pill-label {
+  color: #9adca5 !important;
+  background: rgba(52, 96, 61, 0.44) !important;
+  border-color: var(--entity-border) !important;
+}
+
+:where(
+  :root[data-theme='dark'],
+  :root.dark
+) body[data-manage-entity] .mgr-pill-value,
+body[data-theme='dark'][data-manage-entity] .mgr-pill-value,
+body.dark[data-manage-entity] .mgr-pill-value {
+  color: #eef6ef !important;
+  background: transparent !important;
+}
+
+:where(
+  :root[data-theme='dark'],
+  :root.dark
+) body[data-manage-entity] :is(
+  .tag-seg,
+  .seg-choice
+),
+body[data-theme='dark'][data-manage-entity] :is(
+  .tag-seg,
+  .seg-choice
+),
+body.dark[data-manage-entity] :is(
+  .tag-seg,
+  .seg-choice
+) {
+  color: #b0c0b5 !important;
+  background: #17271d !important;
+  border-color: var(--entity-border) !important;
+}
+
+:where(
+  :root[data-theme='dark'],
+  :root.dark
+) body[data-manage-entity] :is(
+  .tag-seg,
+  .seg-choice
+):hover,
+:where(
+  :root[data-theme='dark'],
+  :root.dark
+) body[data-manage-entity] :is(
+  .tag-seg.active,
+  .tag-seg.selected,
+  .seg-choice.active,
+  .seg-choice.selected
+),
+body[data-theme='dark'][data-manage-entity] :is(
+  .tag-seg,
+  .seg-choice
+):hover,
+body[data-theme='dark'][data-manage-entity] :is(
+  .tag-seg.active,
+  .tag-seg.selected,
+  .seg-choice.active,
+  .seg-choice.selected
+),
+body.dark[data-manage-entity] :is(
+  .tag-seg,
+  .seg-choice
+):hover,
+body.dark[data-manage-entity] :is(
+  .tag-seg.active,
+  .tag-seg.selected,
+  .seg-choice.active,
+  .seg-choice.selected
+) {
+  color: #a6e1b0 !important;
+  background: rgba(53, 98, 62, 0.45) !important;
+  border-color: rgba(141, 207, 154, 0.36) !important;
+}
+
+:where(
+  :root[data-theme='dark'],
+  :root.dark
+) body[data-manage-entity] :is(
+  .seg-btn,
+  .rd-btn
+),
+body[data-theme='dark'][data-manage-entity] :is(
+  .seg-btn,
+  .rd-btn
+),
+body.dark[data-manage-entity] :is(
+  .seg-btn,
+  .rd-btn
+) {
+  color: #dce9df !important;
+  background: #18291e !important;
+  border-color: var(--entity-border) !important;
+  box-shadow: none !important;
+}
+
+:where(
+  :root[data-theme='dark'],
+  :root.dark
+) body[data-manage-entity] :is(
+  .seg-btn,
+  .rd-btn
+):hover:not(:disabled),
+body[data-theme='dark'][data-manage-entity] :is(
+  .seg-btn,
+  .rd-btn
+):hover:not(:disabled),
+body.dark[data-manage-entity] :is(
+  .seg-btn,
+  .rd-btn
+):hover:not(:disabled) {
+  color: #aae4b4 !important;
+  background: rgba(55, 99, 64, 0.45) !important;
+  border-color: var(--entity-border-strong) !important;
+}
+
+:where(
+  :root[data-theme='dark'],
+  :root.dark
+) body[data-manage-entity] :is(
+  .mgr-add-btn,
+  .rd-btn.primary
+),
+body[data-theme='dark'][data-manage-entity] :is(
+  .mgr-add-btn,
+  .rd-btn.primary
+),
+body.dark[data-manage-entity] :is(
+  .mgr-add-btn,
+  .rd-btn.primary
+) {
+  color: #f8fff9 !important;
+  background:
+    linear-gradient(
+      180deg,
+      #4b9f56,
+      #397f44
+    ) !important;
+  border-color: #559e5e !important;
+  box-shadow:
+    0 8px 18px rgba(37, 108, 49, 0.22) !important;
+}
+
+:where(
+  :root[data-theme='dark'],
+  :root.dark
+) body[data-manage-entity] :is(
+  .seg-btn.danger,
+  .rd-btn.danger
+),
+body[data-theme='dark'][data-manage-entity] :is(
+  .seg-btn.danger,
+  .rd-btn.danger
+),
+body.dark[data-manage-entity] :is(
+  .seg-btn.danger,
+  .rd-btn.danger
+) {
+  color: #ff858b !important;
+  background: rgba(91, 30, 36, 0.26) !important;
+  border-color: rgba(230, 97, 104, 0.3) !important;
+  box-shadow: none !important;
+}
+
+:where(
+  :root[data-theme='dark'],
+  :root.dark
+) body[data-manage-entity] :is(
+  .seg-btn.danger,
+  .rd-btn.danger
+):hover:not(:disabled),
+body[data-theme='dark'][data-manage-entity] :is(
+  .seg-btn.danger,
+  .rd-btn.danger
+):hover:not(:disabled),
+body.dark[data-manage-entity] :is(
+  .seg-btn.danger,
+  .rd-btn.danger
+):hover:not(:disabled) {
+  color: #ff9aa0 !important;
+  background: rgba(128, 39, 47, 0.34) !important;
+  border-color: rgba(241, 112, 119, 0.4) !important;
+}
+
+:where(
+  :root[data-theme='dark'],
+  :root.dark
+) body[data-manage-entity] :is(
+  .mgr-detail-empty,
+  .mgr-empty,
+  .empty-state
+),
+body[data-theme='dark'][data-manage-entity] :is(
+  .mgr-detail-empty,
+  .mgr-empty,
+  .empty-state
+),
+body.dark[data-manage-entity] :is(
+  .mgr-detail-empty,
+  .mgr-empty,
+  .empty-state
+) {
+  color: #9eafa4 !important;
+  background: rgba(18, 31, 23, 0.52) !important;
+  border-color: rgba(139, 192, 149, 0.26) !important;
+}
+
+:where(
+  :root[data-theme='dark'],
+  :root.dark
+) body[data-manage-entity] :is(
+  .rd-modal-backdrop,
+  .modal-backdrop,
+  .image-select-backdrop,
+  .image-modal-backdrop
+),
+body[data-theme='dark'][data-manage-entity] :is(
+  .rd-modal-backdrop,
+  .modal-backdrop,
+  .image-select-backdrop,
+  .image-modal-backdrop
+),
+body.dark[data-manage-entity] :is(
+  .rd-modal-backdrop,
+  .modal-backdrop,
+  .image-select-backdrop,
+  .image-modal-backdrop
+) {
+  background: rgba(3, 9, 5, 0.72) !important;
+}
+
+:where(
+  :root[data-theme='dark'],
+  :root.dark
+) body[data-manage-entity] :is(
+  [role='dialog'].rd-modal-card,
+  [role='dialog'].rd-modal,
+  .rd-modal-card,
+  .rd-modal-panel,
+  .modal-content,
+  .image-select-modal,
+  .image-modal-card
+),
+body[data-theme='dark'][data-manage-entity] :is(
+  [role='dialog'].rd-modal-card,
+  [role='dialog'].rd-modal,
+  .rd-modal-card,
+  .rd-modal-panel,
+  .modal-content,
+  .image-select-modal,
+  .image-modal-card
+),
+body.dark[data-manage-entity] :is(
+  [role='dialog'].rd-modal-card,
+  [role='dialog'].rd-modal,
+  .rd-modal-card,
+  .rd-modal-panel,
+  .modal-content,
+  .image-select-modal,
+  .image-modal-card
+) {
+  color: #eef6ef !important;
+  background:
+    linear-gradient(
+      180deg,
+      #192a1f,
+      #101b14
+    ) !important;
+  border-color: rgba(143, 199, 154, 0.26) !important;
+  box-shadow:
+    0 32px 84px rgba(0, 0, 0, 0.5) !important;
+}
+
+:where(
+  :root[data-theme='dark'],
+  :root.dark
+) body[data-manage-entity] :is(
+  .rd-modal-header,
+  .modal-header,
+  .image-modal-header
+),
+body[data-theme='dark'][data-manage-entity] :is(
+  .rd-modal-header,
+  .modal-header,
+  .image-modal-header
+),
+body.dark[data-manage-entity] :is(
+  .rd-modal-header,
+  .modal-header,
+  .image-modal-header
+) {
+  background:
+    linear-gradient(
+      135deg,
+      rgba(51, 93, 60, 0.48),
+      rgba(20, 35, 25, 0.74)
+    ) !important;
+  border-bottom-color: var(--entity-border) !important;
+}
+
+:where(
+  :root[data-theme='dark'],
+  :root.dark
+) body[data-manage-entity] :is(
+  .rd-modal-title,
+  .modal-title,
+  .image-modal-title,
+  .rd-label,
+  .rd-field,
+  .rd-modal-body,
+  .modal-body,
+  .image-modal-body
+),
+body[data-theme='dark'][data-manage-entity] :is(
+  .rd-modal-title,
+  .modal-title,
+  .image-modal-title,
+  .rd-label,
+  .rd-field,
+  .rd-modal-body,
+  .modal-body,
+  .image-modal-body
+),
+body.dark[data-manage-entity] :is(
+  .rd-modal-title,
+  .modal-title,
+  .image-modal-title,
+  .rd-label,
+  .rd-field,
+  .rd-modal-body,
+  .modal-body,
+  .image-modal-body
+) {
+  color: #eef6ef !important;
+}
+
+:where(
+  :root[data-theme='dark'],
+  :root.dark
+) body[data-manage-entity] :is(
+  .rd-modal-footer,
+  .rd-modal-actions,
+  .modal-footer,
+  .modal-actions
+),
+body[data-theme='dark'][data-manage-entity] :is(
+  .rd-modal-footer,
+  .rd-modal-actions,
+  .modal-footer,
+  .modal-actions
+),
+body.dark[data-manage-entity] :is(
+  .rd-modal-footer,
+  .rd-modal-actions,
+  .modal-footer,
+  .modal-actions
+) {
+  background: #132219 !important;
+  border-top-color: var(--entity-border) !important;
+}
+
+:where(
+  :root[data-theme='dark'],
+  :root.dark
+) body[data-manage-entity] :is(
+  .rd-input,
+  .rd-textarea,
+  .rw-input,
+  .rd-num
+),
+body[data-theme='dark'][data-manage-entity] :is(
+  .rd-input,
+  .rd-textarea,
+  .rw-input,
+  .rd-num
+),
+body.dark[data-manage-entity] :is(
+  .rd-input,
+  .rd-textarea,
+  .rw-input,
+  .rd-num
+) {
+  color: #edf6ef !important;
+  background: #132219 !important;
+  border-color: var(--entity-border) !important;
+  caret-color: #9bdda6;
+}
+
+:where(
+  :root[data-theme='dark'],
+  :root.dark
+) body[data-manage-entity] :is(
+  .rd-input,
+  .rd-textarea,
+  .rw-input,
+  .rd-num
+):focus,
+body[data-theme='dark'][data-manage-entity] :is(
+  .rd-input,
+  .rd-textarea,
+  .rw-input,
+  .rd-num
+):focus,
+body.dark[data-manage-entity] :is(
+  .rd-input,
+  .rd-textarea,
+  .rw-input,
+  .rd-num
+):focus {
+  color: #f5fff6 !important;
+  background: #172a1e !important;
+  border-color: rgba(128, 210, 143, 0.58) !important;
+  box-shadow:
+    0 0 0 3px rgba(94, 177, 109, 0.13) !important;
+}
+
+:where(
+  :root[data-theme='dark'],
+  :root.dark
+) body[data-manage-entity] .rw-add-btn,
+body[data-theme='dark'][data-manage-entity] .rw-add-btn,
+body.dark[data-manage-entity] .rw-add-btn {
+  color: #a7e2b1 !important;
+  background: rgba(51, 95, 60, 0.4) !important;
+  border-color: rgba(138, 205, 151, 0.36) !important;
+}
+
+/* 삭제 비밀번호 모달 */
+:where(
+  :root[data-theme='dark'],
+  :root.dark
+) body[data-manage-entity] .manage-delete-guard-backdrop,
+body[data-theme='dark'][data-manage-entity] .manage-delete-guard-backdrop,
+body.dark[data-manage-entity] .manage-delete-guard-backdrop {
+  background: rgba(3, 8, 5, 0.74);
+}
+
+:where(
+  :root[data-theme='dark'],
+  :root.dark
+) body[data-manage-entity] .manage-delete-guard-dialog,
+body[data-theme='dark'][data-manage-entity] .manage-delete-guard-dialog,
+body.dark[data-manage-entity] .manage-delete-guard-dialog {
+  color: #eef6ef;
+  background:
+    radial-gradient(
+      circle at 100% 0,
+      rgba(120, 45, 51, 0.22),
+      transparent 40%
+    ),
+    linear-gradient(
+      180deg,
+      #19281e,
+      #101a14
+    );
+  border-color: rgba(220, 104, 111, 0.28);
+  box-shadow:
+    0 34px 92px rgba(0, 0, 0, 0.54);
+}
+
+:where(
+  :root[data-theme='dark'],
+  :root.dark
+) body[data-manage-entity] .manage-delete-guard-heading h2,
+body[data-theme='dark'][data-manage-entity] .manage-delete-guard-heading h2,
+body.dark[data-manage-entity] .manage-delete-guard-heading h2 {
+  color: #f3f8f4;
+}
+
+:where(
+  :root[data-theme='dark'],
+  :root.dark
+) body[data-manage-entity] :is(
+  .manage-delete-guard-heading p,
+  .manage-delete-guard-message
+),
+body[data-theme='dark'][data-manage-entity] :is(
+  .manage-delete-guard-heading p,
+  .manage-delete-guard-message
+),
+body.dark[data-manage-entity] :is(
+  .manage-delete-guard-heading p,
+  .manage-delete-guard-message
+) {
+  color: #a5b5aa;
+}
+
+:where(
+  :root[data-theme='dark'],
+  :root.dark
+) body[data-manage-entity] .manage-delete-guard-label,
+body[data-theme='dark'][data-manage-entity] .manage-delete-guard-label,
+body.dark[data-manage-entity] .manage-delete-guard-label {
+  color: #e8f1ea;
+}
+
+:where(
+  :root[data-theme='dark'],
+  :root.dark
+) body[data-manage-entity] .manage-delete-guard-input,
+body[data-theme='dark'][data-manage-entity] .manage-delete-guard-input,
+body.dark[data-manage-entity] .manage-delete-guard-input {
+  color: #f0f7f1;
+  background: #132119;
+  border-color: rgba(144, 195, 153, 0.26);
+}
+
+:where(
+  :root[data-theme='dark'],
+  :root.dark
+) body[data-manage-entity] .manage-delete-guard-button.is-cancel,
+body[data-theme='dark'][data-manage-entity]
+.manage-delete-guard-button.is-cancel,
+body.dark[data-manage-entity]
+.manage-delete-guard-button.is-cancel {
+  color: #d9e6dc;
+  background: #192a1f;
+  border-color: rgba(141, 194, 151, 0.24);
+}
+
+/* =============================================
+   관리 상세 수정 모달·퀘스트 보상 다크모드 보정
+
+   적용 범위:
+   - /manage/quest 상세 보상 표시
+   - /manage/quest, /manage/npc, /manage/head에서 여는 ModalCard
+   - 보상 편집, 좌표 편집, 사진 관리 등 ModalCard 내부 요소
+
+   크기·배치·동작은 변경하지 않고 색상만 보정한다.
+   ============================================= */
+
+/* ===== ModalCard 실제 클래스: rd-overlay / rd-card ===== */
+
+:where(
+  :root[data-theme='dark'],
+  :root.dark
+) body[data-manage-entity] .rd-overlay,
+body[data-theme='dark'][data-manage-entity] .rd-overlay,
+body.dark[data-manage-entity] .rd-overlay {
+  background: rgba(3, 9, 5, 0.76) !important;
+  backdrop-filter: blur(6px) !important;
+  -webkit-backdrop-filter: blur(6px) !important;
+}
+
+:where(
+  :root[data-theme='dark'],
+  :root.dark
+) body[data-manage-entity] .rd-card,
+body[data-theme='dark'][data-manage-entity] .rd-card,
+body.dark[data-manage-entity] .rd-card {
+  color: #edf6ef !important;
+  background:
+    radial-gradient(
+      circle at 100% 0,
+      rgba(66, 118, 75, 0.14),
+      transparent 36%
+    ),
+    linear-gradient(
+      180deg,
+      #192a1f 0%,
+      #101b14 100%
+    ) !important;
+  border-color: rgba(142, 200, 153, 0.27) !important;
+  box-shadow:
+    0 30px 78px rgba(0, 0, 0, 0.54),
+    0 8px 24px rgba(0, 0, 0, 0.24) !important;
+}
+
+:where(
+  :root[data-theme='dark'],
+  :root.dark
+) body[data-manage-entity] :is(
+  .rd-card-content,
+  .mgr-modal-body
+),
+body[data-theme='dark'][data-manage-entity] :is(
+  .rd-card-content,
+  .mgr-modal-body
+),
+body.dark[data-manage-entity] :is(
+  .rd-card-content,
+  .mgr-modal-body
+) {
+  color: #edf6ef !important;
+}
+
+:where(
+  :root[data-theme='dark'],
+  :root.dark
+) body[data-manage-entity] :is(
+  .rd-card-heading,
+  .mgr-modal-title
+),
+body[data-theme='dark'][data-manage-entity] :is(
+  .rd-card-heading,
+  .mgr-modal-title
+),
+body.dark[data-manage-entity] :is(
+  .rd-card-heading,
+  .mgr-modal-title
+) {
+  color: #b8e9c0 !important;
+}
+
+:where(
+  :root[data-theme='dark'],
+  :root.dark
+) body[data-manage-entity] :is(
+  .rd-card-description,
+  .rd-muted,
+  .mgr-icon-placeholder
+),
+body[data-theme='dark'][data-manage-entity] :is(
+  .rd-card-description,
+  .rd-muted,
+  .mgr-icon-placeholder
+),
+body.dark[data-manage-entity] :is(
+  .rd-card-description,
+  .rd-muted,
+  .mgr-icon-placeholder
+) {
+  color: #9eafa4 !important;
+}
+
+:where(
+  :root[data-theme='dark'],
+  :root.dark
+) body[data-manage-entity] .rd-exit-btn,
+body[data-theme='dark'][data-manage-entity] .rd-exit-btn,
+body.dark[data-manage-entity] .rd-exit-btn {
+  color: #a9b9ae !important;
+  background: transparent !important;
+}
+
+:where(
+  :root[data-theme='dark'],
+  :root.dark
+) body[data-manage-entity] .rd-exit-btn:hover,
+body[data-theme='dark'][data-manage-entity] .rd-exit-btn:hover,
+body.dark[data-manage-entity] .rd-exit-btn:hover {
+  color: #c5efd0 !important;
+  background: rgba(53, 96, 62, 0.42) !important;
+}
+
+:where(
+  :root[data-theme='dark'],
+  :root.dark
+) body[data-manage-entity] .rd-exit-btn svg,
+body[data-theme='dark'][data-manage-entity] .rd-exit-btn svg,
+body.dark[data-manage-entity] .rd-exit-btn svg {
+  fill: #a9b9ae !important;
+  stroke: #a9b9ae !important;
+}
+
+:where(
+  :root[data-theme='dark'],
+  :root.dark
+) body[data-manage-entity] .rd-exit-btn:hover svg,
+body[data-theme='dark'][data-manage-entity] .rd-exit-btn:hover svg,
+body.dark[data-manage-entity] .rd-exit-btn:hover svg {
+  fill: #c5efd0 !important;
+  stroke: #c5efd0 !important;
+}
+
+/* ===== 모달 입력 항목 ===== */
+
+:where(
+  :root[data-theme='dark'],
+  :root.dark
+) body[data-manage-entity] :is(
+  .rd-label,
+  .mgr-modal-label
+),
+body[data-theme='dark'][data-manage-entity] :is(
+  .rd-label,
+  .mgr-modal-label
+),
+body.dark[data-manage-entity] :is(
+  .rd-label,
+  .mgr-modal-label
+) {
+  color: #dce9df !important;
+}
+
+:where(
+  :root[data-theme='dark'],
+  :root.dark
+) body[data-manage-entity] :is(
+  .rd-input,
+  .rd-textarea,
+  .rd-num,
+  .mgr-input,
+  .rw-input
+),
+body[data-theme='dark'][data-manage-entity] :is(
+  .rd-input,
+  .rd-textarea,
+  .rd-num,
+  .mgr-input,
+  .rw-input
+),
+body.dark[data-manage-entity] :is(
+  .rd-input,
+  .rd-textarea,
+  .rd-num,
+  .mgr-input,
+  .rw-input
+) {
+  color: #f0f7f1 !important;
+  background: #111f17 !important;
+  border-color: rgba(143, 199, 154, 0.26) !important;
+  caret-color: #9bdda6 !important;
+  box-shadow:
+    inset 0 1px 2px rgba(0, 0, 0, 0.22) !important;
+}
+
+:where(
+  :root[data-theme='dark'],
+  :root.dark
+) body[data-manage-entity] :is(
+  .rd-input,
+  .rd-textarea,
+  .rd-num,
+  .mgr-input,
+  .rw-input
+)::placeholder,
+body[data-theme='dark'][data-manage-entity] :is(
+  .rd-input,
+  .rd-textarea,
+  .rd-num,
+  .mgr-input,
+  .rw-input
+)::placeholder,
+body.dark[data-manage-entity] :is(
+  .rd-input,
+  .rd-textarea,
+  .rd-num,
+  .mgr-input,
+  .rw-input
+)::placeholder {
+  color: #7f9286 !important;
+  opacity: 1 !important;
+}
+
+:where(
+  :root[data-theme='dark'],
+  :root.dark
+) body[data-manage-entity] :is(
+  .rd-input,
+  .rd-textarea,
+  .rd-num,
+  .mgr-input,
+  .rw-input
+):focus,
+body[data-theme='dark'][data-manage-entity] :is(
+  .rd-input,
+  .rd-textarea,
+  .rd-num,
+  .mgr-input,
+  .rw-input
+):focus,
+body.dark[data-manage-entity] :is(
+  .rd-input,
+  .rd-textarea,
+  .rd-num,
+  .mgr-input,
+  .rw-input
+):focus {
+  color: #f7fff8 !important;
+  background: #172a1e !important;
+  border-color: rgba(128, 210, 143, 0.6) !important;
+  box-shadow:
+    0 0 0 3px rgba(94, 177, 109, 0.14) !important;
+}
+
+/* 좌표 수정 모달 */
+
+:where(
+  :root[data-theme='dark'],
+  :root.dark
+) body[data-manage-entity] :is(
+  .rd-coord-row,
+  .rd-coord-item
+),
+body[data-theme='dark'][data-manage-entity] :is(
+  .rd-coord-row,
+  .rd-coord-item
+),
+body.dark[data-manage-entity] :is(
+  .rd-coord-row,
+  .rd-coord-item
+) {
+  color: #e9f3eb !important;
+  background: #14251a !important;
+  border-color: rgba(140, 198, 151, 0.23) !important;
+}
+
+:where(
+  :root[data-theme='dark'],
+  :root.dark
+) body[data-manage-entity] .rd-coord-item > span,
+body[data-theme='dark'][data-manage-entity] .rd-coord-item > span,
+body.dark[data-manage-entity] .rd-coord-item > span {
+  color: #9adca5 !important;
+  background: rgba(55, 101, 65, 0.4) !important;
+  border-color: rgba(141, 205, 154, 0.23) !important;
+}
+
+/* 사진 관리 모달 */
+
+:where(
+  :root[data-theme='dark'],
+  :root.dark
+) body[data-manage-entity] :is(
+  .rd-thumb,
+  .mgr-icon-preview,
+  .rd-preview
+),
+body[data-theme='dark'][data-manage-entity] :is(
+  .rd-thumb,
+  .mgr-icon-preview,
+  .rd-preview
+),
+body.dark[data-manage-entity] :is(
+  .rd-thumb,
+  .mgr-icon-preview,
+  .rd-preview
+) {
+  background: #14241a !important;
+  border-color: rgba(140, 197, 151, 0.23) !important;
+  box-shadow: none !important;
+}
+
+:where(
+  :root[data-theme='dark'],
+  :root.dark
+) body[data-manage-entity] :is(
+  .rd-thumb-x,
+  .rw-del-btn
+),
+body[data-theme='dark'][data-manage-entity] :is(
+  .rd-thumb-x,
+  .rw-del-btn
+),
+body.dark[data-manage-entity] :is(
+  .rd-thumb-x,
+  .rw-del-btn
+) {
+  color: #ff858b !important;
+  background: rgba(78, 26, 31, 0.82) !important;
+  border-color: rgba(229, 98, 105, 0.34) !important;
+}
+
+/* ===== 퀘스트 보상 편집 모달 ===== */
+
+:where(
+  :root[data-theme='dark'],
+  :root.dark
+) body[data-manage-entity] .rw-list,
+body[data-theme='dark'][data-manage-entity] .rw-list,
+body.dark[data-manage-entity] .rw-list {
+  color: #edf6ef !important;
+}
+
+:where(
+  :root[data-theme='dark'],
+  :root.dark
+) body[data-manage-entity] .rw-row,
+body[data-theme='dark'][data-manage-entity] .rw-row,
+body.dark[data-manage-entity] .rw-row {
+  color: #edf6ef !important;
+  background: #14251a !important;
+  border-color: rgba(140, 198, 151, 0.23) !important;
+  box-shadow: none !important;
+}
+
+:where(
+  :root[data-theme='dark'],
+  :root.dark
+) body[data-manage-entity] :is(
+  .rw-icon-btn,
+  .rw-icon-placeholder,
+  .rw-add-iconwrap
+),
+body[data-theme='dark'][data-manage-entity] :is(
+  .rw-icon-btn,
+  .rw-icon-placeholder,
+  .rw-add-iconwrap
+),
+body.dark[data-manage-entity] :is(
+  .rw-icon-btn,
+  .rw-icon-placeholder,
+  .rw-add-iconwrap
+) {
+  color: #a8dcb0 !important;
+  background: rgba(50, 91, 59, 0.4) !important;
+  border-color: rgba(139, 199, 151, 0.24) !important;
+}
+
+:where(
+  :root[data-theme='dark'],
+  :root.dark
+) body[data-manage-entity] .rw-icon-btn:hover,
+body[data-theme='dark'][data-manage-entity] .rw-icon-btn:hover,
+body.dark[data-manage-entity] .rw-icon-btn:hover {
+  color: #c2edc9 !important;
+  background: rgba(61, 112, 71, 0.52) !important;
+  border-color: rgba(146, 216, 160, 0.38) !important;
+}
+
+:where(
+  :root[data-theme='dark'],
+  :root.dark
+) body[data-manage-entity] .rw-add-btn,
+body[data-theme='dark'][data-manage-entity] .rw-add-btn,
+body.dark[data-manage-entity] .rw-add-btn {
+  color: #aae4b4 !important;
+  background: rgba(50, 94, 59, 0.42) !important;
+  border-color: rgba(139, 207, 152, 0.36) !important;
+}
+
+:where(
+  :root[data-theme='dark'],
+  :root.dark
+) body[data-manage-entity] .rw-add-btn:hover,
+body[data-theme='dark'][data-manage-entity] .rw-add-btn:hover,
+body.dark[data-manage-entity] .rw-add-btn:hover {
+  color: #c7f0ce !important;
+  background: rgba(61, 112, 71, 0.53) !important;
+  border-color: rgba(148, 219, 161, 0.44) !important;
+}
+
+:where(
+  :root[data-theme='dark'],
+  :root.dark
+) body[data-manage-entity] :is(
+  .mgr-btn,
+  .mgr-btn-secondary
+),
+body[data-theme='dark'][data-manage-entity] :is(
+  .mgr-btn,
+  .mgr-btn-secondary
+),
+body.dark[data-manage-entity] :is(
+  .mgr-btn,
+  .mgr-btn-secondary
+) {
+  color: #dce9df !important;
+  background: #18291e !important;
+  border-color: rgba(141, 194, 151, 0.25) !important;
+  box-shadow: none !important;
+}
+
+:where(
+  :root[data-theme='dark'],
+  :root.dark
+) body[data-manage-entity] .mgr-btn-primary,
+body[data-theme='dark'][data-manage-entity] .mgr-btn-primary,
+body.dark[data-manage-entity] .mgr-btn-primary {
+  color: #f8fff9 !important;
+  background:
+    linear-gradient(
+      180deg,
+      #4c9f57,
+      #397f44
+    ) !important;
+  border-color: #559f5f !important;
+  box-shadow:
+    0 8px 18px rgba(37, 108, 49, 0.2) !important;
+}
+
+/* ===== 상세 영역의 보상 칩 =====
+   행에는 page.tsx에서 title/aria-label="보상 수정"이 지정되어 있다. */
+
+:where(
+  :root[data-theme='dark'],
+  :root.dark
+) body[data-manage-entity]
+:is(
+  [title='보상 수정'],
+  [aria-label='보상 수정']
+)
+.mgr-pill-value
+> :is(span, div),
+body[data-theme='dark'][data-manage-entity]
+:is(
+  [title='보상 수정'],
+  [aria-label='보상 수정']
+)
+.mgr-pill-value
+> :is(span, div),
+body.dark[data-manage-entity]
+:is(
+  [title='보상 수정'],
+  [aria-label='보상 수정']
+)
+.mgr-pill-value
+> :is(span, div) {
+  color: #dff1e2 !important;
+  background: #182a1f !important;
+  border-color: rgba(141, 199, 152, 0.27) !important;
+  box-shadow: none !important;
+}
+
+:where(
+  :root[data-theme='dark'],
+  :root.dark
+) body[data-manage-entity]
+:is(
+  [title='보상 수정'],
+  [aria-label='보상 수정']
+)
+.mgr-pill-value
+> :is(span, div)
+:is(:hover, :focus-visible),
+body[data-theme='dark'][data-manage-entity]
+:is(
+  [title='보상 수정'],
+  [aria-label='보상 수정']
+)
+.mgr-pill-value
+> :is(span, div)
+:is(:hover, :focus-visible),
+body.dark[data-manage-entity]
+:is(
+  [title='보상 수정'],
+  [aria-label='보상 수정']
+)
+.mgr-pill-value
+> :is(span, div)
+:is(:hover, :focus-visible) {
+  color: #eff9f1 !important;
+  background: #203a29 !important;
+  border-color: rgba(146, 215, 159, 0.38) !important;
+}
+
+/* 보상 칩이 중간 래퍼 안에 놓인 경우까지 대응 */
+:where(
+  :root[data-theme='dark'],
+  :root.dark
+) body[data-manage-entity]
+:is(
+  [title='보상 수정'],
+  [aria-label='보상 수정']
+)
+.mgr-pill-value
+> div
+> span,
+body[data-theme='dark'][data-manage-entity]
+:is(
+  [title='보상 수정'],
+  [aria-label='보상 수정']
+)
+.mgr-pill-value
+> div
+> span,
+body.dark[data-manage-entity]
+:is(
+  [title='보상 수정'],
+  [aria-label='보상 수정']
+)
+.mgr-pill-value
+> div
+> span {
+  color: #dff1e2 !important;
+  background: #182a1f !important;
+  border-color: rgba(141, 199, 152, 0.27) !important;
+}
+
+/* ModalCard 하단 버튼 색상 보정 */
+
+:where(
+  :root[data-theme='dark'],
+  :root.dark
+) body[data-manage-entity] .rd-card-button-wrapper .rd-btn.secondary,
+body[data-theme='dark'][data-manage-entity]
+.rd-card-button-wrapper
+.rd-btn.secondary,
+body.dark[data-manage-entity]
+.rd-card-button-wrapper
+.rd-btn.secondary {
+  color: #dce9df !important;
+  background: #1a2b20 !important;
+  border-color: rgba(141, 194, 151, 0.25) !important;
+}
+
+:where(
+  :root[data-theme='dark'],
+  :root.dark
+) body[data-manage-entity] .rd-card-button-wrapper .rd-btn.primary,
+body[data-theme='dark'][data-manage-entity]
+.rd-card-button-wrapper
+.rd-btn.primary,
+body.dark[data-manage-entity]
+.rd-card-button-wrapper
+.rd-btn.primary {
+  color: #f8fff9 !important;
+  background:
+    linear-gradient(
+      180deg,
+      #4c9f57,
+      #397f44
+    ) !important;
+  border-color: #559f5f !important;
+}

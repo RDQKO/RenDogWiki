@@ -1,0 +1,441 @@
+/* =============================================
+ * File: app/wiki/css/document-components/heading.css
+ * 전체 코드
+ *
+ * 담당 범위:
+ * - 문서 본문의 Heading 1 / 2 / 3
+ * - Heading 아이콘
+ * - Heading 링크 복사 버튼
+ *
+ * 문서 최상단 제목과 오른쪽 목차에는 적용하지 않는다.
+ * ============================================= */
+
+.wiki-document-heading {
+  --heading-accent:
+    var(--wiki-chrome-accent, #4d9b5c);
+  --heading-accent-strong:
+    var(--wiki-chrome-accent-strong, #327b42);
+  --heading-text:
+    var(--wiki-chrome-text, var(--foreground));
+  --heading-muted:
+    var(--wiki-chrome-muted, var(--muted));
+  --heading-border:
+    var(--wiki-chrome-border, var(--border));
+  --heading-hover:
+    var(--wiki-chrome-hover, var(--surface-soft));
+  --heading-active:
+    var(--wiki-chrome-active, var(--accent-soft));
+
+  position: relative;
+  display: flex;
+  width: 100%;
+  max-width: 100%;
+  min-width: 0;
+  align-items: center;
+  justify-content: flex-start;
+  box-sizing: border-box;
+  color: var(--heading-text);
+  font-family:
+    'NanumSquareNeo',
+    Pretendard,
+    'Malgun Gothic',
+    system-ui,
+    sans-serif;
+  text-align: left;
+  scroll-margin-top: 96px;
+}
+
+.wiki-document-heading[data-heading-align='center'] {
+  justify-content: center;
+  text-align: center;
+}
+
+.wiki-document-heading[data-heading-align='right'] {
+  justify-content: flex-end;
+  text-align: right;
+}
+
+/* Slate leaf가 가진 개별 크기보다 Heading 단계가 우선한다. */
+.wiki-document-heading [data-wiki-leaf='true'] {
+  font-family: inherit !important;
+  font-size: inherit !important;
+  font-weight: inherit;
+  line-height: inherit;
+}
+
+.wiki-document-heading [data-wiki-leaf='true'] * {
+  font-family: inherit !important;
+  font-size: inherit !important;
+  line-height: inherit;
+}
+
+/* =============================================
+ * Heading 1
+ * 큰 구역의 시작을 명확히 보여주되 카드처럼 만들지 않는다.
+ * ============================================= */
+
+.wiki-document-heading--level-1 {
+  --heading-image-size: 48px;
+  --heading-text-icon-size: 42px;
+
+  margin: 42px 0 22px;
+  padding: 0 0 12px;
+  font-size: 28px;
+  font-weight: 820;
+  line-height: 1.3;
+  letter-spacing: -0.028em;
+  border-bottom: 1px solid var(--heading-border);
+}
+
+.wiki-document-heading--level-1::after {
+  content: '';
+  position: absolute;
+  bottom: -1px;
+  left: 0;
+  width: min(96px, 22%);
+  height: 3px;
+  border-radius: 999px;
+  background:
+    linear-gradient(
+      90deg,
+      var(--heading-accent),
+      color-mix(
+        in srgb,
+        var(--heading-accent) 24%,
+        transparent
+      )
+    );
+}
+
+.wiki-document-heading--level-1[data-heading-align='center']::after {
+  left: 50%;
+  transform: translateX(-50%);
+}
+
+.wiki-document-heading--level-1[data-heading-align='right']::after {
+  right: 0;
+  left: auto;
+  background:
+    linear-gradient(
+      270deg,
+      var(--heading-accent),
+      color-mix(
+        in srgb,
+        var(--heading-accent) 24%,
+        transparent
+      )
+    );
+}
+
+/* 문서의 첫 Heading은 상단 여백을 조금 줄인다. */
+.wiki-document-heading--level-1:first-child {
+  margin-top: 18px;
+}
+
+/* =============================================
+ * Heading 2
+ * 세로 포인트로 상하 위계를 빠르게 구분한다.
+ * ============================================= */
+
+.wiki-document-heading--level-2 {
+  --heading-image-size: 38px;
+  --heading-text-icon-size: 34px;
+
+  margin: 34px 0 18px;
+  padding: 1px 0 1px 13px;
+  font-size: 22px;
+  font-weight: 780;
+  line-height: 1.34;
+  letter-spacing: -0.024em;
+}
+
+.wiki-document-heading--level-2::before {
+  content: '';
+  position: absolute;
+  top: 50%;
+  left: 0;
+  width: 4px;
+  height: 22px;
+  border-radius: 999px;
+  background:
+    linear-gradient(
+      180deg,
+      color-mix(
+        in srgb,
+        var(--heading-accent) 62%,
+        white
+      ),
+      var(--heading-accent)
+    );
+  transform: translateY(-50%);
+}
+
+.wiki-document-heading--level-2[data-heading-align='center'],
+.wiki-document-heading--level-2[data-heading-align='right'] {
+  padding-left: 0;
+}
+
+.wiki-document-heading--level-2[data-heading-align='center']::before,
+.wiki-document-heading--level-2[data-heading-align='right']::before {
+  display: none;
+}
+
+/* =============================================
+ * Heading 3
+ * 작은 소구역은 색상과 점만 사용해 과한 장식을 피한다.
+ * ============================================= */
+
+.wiki-document-heading--level-3 {
+  --heading-image-size: 31px;
+  --heading-text-icon-size: 28px;
+
+  margin: 27px 0 14px;
+  padding: 0;
+  color:
+    color-mix(
+      in srgb,
+      var(--heading-text) 91%,
+      var(--heading-muted)
+    );
+  font-size: 18px;
+  font-weight: 740;
+  line-height: 1.4;
+  letter-spacing: -0.018em;
+}
+
+.wiki-document-heading--level-3:not(
+  [data-heading-has-icon='true']
+)::before {
+  content: '';
+  flex: 0 0 auto;
+  width: 6px;
+  height: 6px;
+  margin-right: 9px;
+  border-radius: 999px;
+  background: var(--heading-accent);
+  box-shadow:
+    0 0 0 4px
+    color-mix(
+      in srgb,
+      var(--heading-active) 72%,
+      transparent
+    );
+}
+
+.wiki-document-heading--level-3[data-heading-align='center']::before,
+.wiki-document-heading--level-3[data-heading-align='right']::before {
+  display: none;
+}
+
+/* =============================================
+ * Heading 아이콘
+ * ============================================= */
+
+.wiki-heading-icon {
+  display: inline-flex;
+  flex: 0 0 auto;
+  align-items: center;
+  justify-content: center;
+  margin-right: 10px;
+  line-height: 1;
+  vertical-align: middle;
+  user-select: none;
+}
+
+.wiki-heading-icon--image {
+  width: var(--heading-image-size);
+  height: var(--heading-image-size);
+}
+
+.wiki-heading-icon--text {
+  min-width: 1em;
+  height: var(--heading-image-size);
+}
+
+.wiki-heading-icon-image {
+  display: block;
+  width: var(--heading-image-size);
+  height: var(--heading-image-size);
+  object-fit: contain;
+  filter:
+    drop-shadow(
+      0 3px 4px
+      rgba(35, 82, 43, 0.08)
+    );
+}
+
+.wiki-heading-icon-text {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-size: var(--heading-text-icon-size);
+  line-height: 1;
+}
+
+.wiki-heading-icon--editable {
+  cursor: pointer;
+  border-radius: 9px;
+  transition:
+    background-color 0.14s ease,
+    box-shadow 0.14s ease;
+}
+
+.wiki-heading-icon--editable:hover {
+  background:
+    color-mix(
+      in srgb,
+      var(--heading-hover) 78%,
+      transparent
+    );
+  box-shadow:
+    0 0 0 4px
+    color-mix(
+      in srgb,
+      var(--heading-hover) 64%,
+      transparent
+    );
+}
+
+/* =============================================
+ * Heading 링크 복사 버튼
+ * ============================================= */
+
+.wiki-document-heading .wiki-heading-anchor-btn {
+  display: inline-flex;
+  flex: 0 0 auto;
+  align-items: center;
+  justify-content: center;
+  margin-left: 8px;
+  padding: 0;
+  color: inherit;
+  cursor: pointer;
+  background: transparent;
+  border: 0;
+  opacity: 0;
+  transform: translateX(-2px);
+  transition:
+    opacity 0.14s ease,
+    transform 0.14s ease;
+}
+
+.wiki-document-heading:hover .wiki-heading-anchor-btn,
+.wiki-document-heading .wiki-heading-anchor-btn:focus-visible {
+  opacity: 1;
+  transform: translateX(0);
+}
+
+.wiki-document-heading .wiki-heading-anchor-pill {
+  position: relative;
+  display: inline-flex;
+  width: 22px;
+  height: 22px;
+  align-items: center;
+  justify-content: center;
+  box-sizing: border-box;
+  color: var(--heading-muted);
+  font-size: 12px;
+  font-weight: 800;
+  line-height: 1;
+  background: transparent;
+  border: 1px solid transparent;
+  border-radius: 999px;
+  transition:
+    color 0.14s ease,
+    background-color 0.14s ease,
+    border-color 0.14s ease,
+    transform 0.14s ease;
+}
+
+.wiki-document-heading .wiki-heading-anchor-pill::before {
+  content: '';
+  display: block;
+  width: 13px;
+  height: 13px;
+  opacity: 0.78;
+  background: currentColor;
+  -webkit-mask:
+    url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='2.4' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M10 13a5 5 0 0 0 7.07 0l2.83-2.83a5 5 0 0 0-7.07-7.07L11.5 4.43'/%3E%3Cpath d='M14 11a5 5 0 0 0-7.07 0L4.1 13.83a5 5 0 0 0 7.07 7.07l1.33-1.33'/%3E%3C/svg%3E")
+    center / contain no-repeat;
+  mask:
+    url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='2.4' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M10 13a5 5 0 0 0 7.07 0l2.83-2.83a5 5 0 0 0-7.07-7.07L11.5 4.43'/%3E%3Cpath d='M14 11a5 5 0 0 0-7.07 0L4.1 13.83a5 5 0 0 0 7.07 7.07l1.33-1.33'/%3E%3C/svg%3E")
+    center / contain no-repeat;
+}
+
+.wiki-document-heading
+  .wiki-heading-anchor-pill--copied::before {
+  display: none;
+}
+
+.wiki-document-heading
+  .wiki-heading-anchor-btn:hover
+  .wiki-heading-anchor-pill,
+.wiki-document-heading
+  .wiki-heading-anchor-btn:focus-visible
+  .wiki-heading-anchor-pill {
+  color: var(--heading-accent-strong);
+  background: var(--heading-hover);
+  border-color: var(--heading-border);
+}
+
+.wiki-document-heading .wiki-heading-anchor-pill--copied {
+  color: var(--heading-accent-strong);
+  background: var(--heading-active);
+  border-color:
+    color-mix(
+      in srgb,
+      var(--heading-accent) 35%,
+      var(--heading-border)
+    );
+  transform: scale(1.04);
+}
+
+/* =============================================
+ * 모바일
+ * ============================================= */
+
+@media (max-width: 768px) {
+  .wiki-document-heading--level-1 {
+    --heading-image-size: 43px;
+    --heading-text-icon-size: 38px;
+
+    margin-top: 34px;
+    margin-bottom: 19px;
+    padding-bottom: 10px;
+    font-size: 25px;
+  }
+
+  .wiki-document-heading--level-2 {
+    --heading-image-size: 35px;
+    --heading-text-icon-size: 31px;
+
+    margin-top: 30px;
+    margin-bottom: 16px;
+    font-size: 20px;
+  }
+
+  .wiki-document-heading--level-3 {
+    --heading-image-size: 29px;
+    --heading-text-icon-size: 26px;
+
+    margin-top: 24px;
+    margin-bottom: 12px;
+    font-size: 17px;
+  }
+
+  .wiki-heading-icon {
+    margin-right: 8px;
+  }
+
+  .wiki-document-heading .wiki-heading-anchor-btn {
+    opacity: 0.56;
+    transform: none;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .wiki-heading-icon--editable,
+  .wiki-document-heading .wiki-heading-anchor-btn,
+  .wiki-document-heading .wiki-heading-anchor-pill {
+    transition: none;
+  }
+}

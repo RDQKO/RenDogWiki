@@ -1,0 +1,1740 @@
+/* =============================================
+   File: app/wiki/css/wiki-final-polish.css
+   전체 코드
+
+   유지 항목:
+   - FAQ 질문 추가·편집 모달 디자인
+   - FAQ 항목 오른쪽 편집 버튼 디자인
+   - 목차 너비 소폭 확장
+
+   복원 항목:
+   - FAQ 문서 목록은 기존 faq.css 디자인 사용
+   - FAQ 상세 모달은 기존 faq.css 디자인 사용
+   ============================================= */
+
+/* ===== 기존 FAQ 목록에 추가되는 편집 버튼 ===== */
+
+.wiki-content-body
+.faq-list-card
+.faq-row-actions {
+  position: relative;
+  z-index: 3;
+  display: inline-flex;
+  flex: 0 0 auto;
+  align-items: center;
+  gap: 6px;
+}
+
+.wiki-content-body
+.faq-list-card
+.faq-inline-edit {
+  display: inline-flex;
+  min-width: 68px;
+  height: 32px;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  box-sizing: border-box;
+  padding: 0 10px;
+  color:
+    var(
+      --faq-accent-strong,
+      #327b42
+    );
+  font-size: 12px;
+  font-weight: 800;
+  line-height: 1;
+  white-space: nowrap;
+  cursor: pointer;
+  background:
+    color-mix(
+      in srgb,
+      var(
+        --faq-panel,
+        #fff
+      ) 92%,
+      transparent
+    );
+  border:
+    1px solid
+    color-mix(
+      in srgb,
+      var(
+        --faq-accent,
+        #4d9b5c
+      ) 19%,
+      var(
+        --faq-border,
+        #e5e7eb
+      )
+    );
+  border-radius: 9px;
+  transition:
+    color 0.15s ease,
+    background-color 0.15s ease,
+    border-color 0.15s ease,
+    transform 0.15s ease;
+}
+
+.wiki-content-body
+.faq-list-card
+.faq-inline-edit svg {
+  width: 15px;
+  height: 15px;
+  flex: 0 0 15px;
+}
+
+.wiki-content-body
+.faq-list-card
+.faq-inline-edit:hover {
+  color:
+    var(
+      --faq-accent-strong,
+      #327b42
+    );
+  background:
+    var(
+      --faq-active,
+      #e9f5e4
+    );
+  border-color:
+    color-mix(
+      in srgb,
+      var(
+        --faq-accent,
+        #4d9b5c
+      ) 38%,
+      var(
+        --faq-border,
+        #e5e7eb
+      )
+    );
+  transform: translateY(-1px);
+}
+
+/* ===== 질문 추가·편집 모달 ===== */
+
+.faq-upsert-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 2400;
+  display: grid;
+  place-items: center;
+  box-sizing: border-box;
+  padding: 20px;
+  background:
+    rgba(20, 32, 22, 0.48);
+  backdrop-filter:
+    blur(6px);
+  -webkit-backdrop-filter:
+    blur(6px);
+  animation:
+    faq-upsert-backdrop-in
+    0.16s ease both;
+}
+
+.faq-upsert-dialog {
+  width:
+    min(
+      700px,
+      100%
+    );
+  max-height:
+    min(
+      86dvh,
+      820px
+    );
+  overflow: auto;
+  color:
+    var(
+      --foreground,
+      #18211a
+    );
+  background:
+    radial-gradient(
+      circle at 100% 0,
+      rgba(224, 244, 221, 0.65),
+      transparent 36%
+    ),
+    linear-gradient(
+      180deg,
+      #fff,
+      #fbfdf9
+    );
+  border:
+    1px solid
+    #d5e5d2;
+  border-radius: 22px;
+  box-shadow:
+    0 34px 86px
+    rgba(27, 48, 30, 0.24),
+    0 8px 24px
+    rgba(27, 48, 30, 0.1);
+  animation:
+    faq-upsert-dialog-in
+    0.18s
+    cubic-bezier(
+      0.2,
+      0.8,
+      0.2,
+      1
+    )
+    both;
+}
+
+.faq-upsert-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
+  box-sizing: border-box;
+  padding:
+    21px 22px
+    18px;
+  border-bottom:
+    1px solid
+    #deeadc;
+}
+
+.faq-upsert-heading {
+  display: flex;
+  min-width: 0;
+  align-items: flex-start;
+  gap: 13px;
+}
+
+.faq-upsert-icon {
+  display: grid;
+  width: 46px;
+  height: 46px;
+  flex: 0 0 46px;
+  place-items: center;
+  color: #fff;
+  font-size: 20px;
+  font-weight: 900;
+  background:
+    linear-gradient(
+      180deg,
+      #67b96c,
+      #4fa457
+    );
+  border-radius: 14px;
+  box-shadow:
+    0 8px 18px
+    rgba(66, 147, 75, 0.19);
+}
+
+.faq-upsert-eyebrow {
+  display: inline-block;
+  margin-bottom: 4px;
+  color: #4f8757;
+  font-size: 11px;
+  font-weight: 850;
+  letter-spacing: 0.06em;
+}
+
+.faq-upsert-header h2 {
+  margin: 0;
+  color: #18211a;
+  font-family:
+    'NanumSquareNeo',
+    'NanumSquareRound',
+    system-ui,
+    sans-serif;
+  font-size: 21px;
+  font-weight: 900;
+  line-height: 1.35;
+  letter-spacing: -0.035em;
+}
+
+.faq-upsert-header p {
+  margin: 5px 0 0;
+  color: #7a847c;
+  font-size: 12px;
+  font-weight: 620;
+  line-height: 1.5;
+}
+
+.faq-upsert-backdrop
+.faq-modal-close {
+  display: grid;
+  width: 36px;
+  height: 36px;
+  flex: 0 0 36px;
+  place-items: center;
+  color: #667268;
+  cursor: pointer;
+  background:
+    rgba(255, 255, 255, 0.8);
+  border:
+    1px solid
+    #dce7da;
+  border-radius: 11px;
+  transition:
+    color 0.15s ease,
+    background-color 0.15s ease,
+    transform 0.15s ease;
+}
+
+.faq-upsert-backdrop
+.faq-modal-close:hover:not(
+  :disabled
+) {
+  color: #347b3e;
+  background: #eef8ec;
+  transform:
+    translateY(-1px);
+}
+
+.faq-upsert-backdrop
+.faq-modal-close svg {
+  width: 18px;
+  height: 18px;
+}
+
+.faq-upsert-form {
+  display: flex;
+  flex-direction: column;
+}
+
+.faq-upsert-body {
+  display: grid;
+  gap: 15px;
+  box-sizing: border-box;
+  padding:
+    21px 22px
+    19px;
+}
+
+.faq-form-field {
+  position: relative;
+  display: grid;
+  gap: 7px;
+}
+
+.faq-form-field > span {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  color: #273029;
+  font-size: 12px;
+  font-weight: 850;
+}
+
+.faq-form-field em,
+.faq-form-field b {
+  display: inline-flex;
+  min-height: 20px;
+  align-items: center;
+  box-sizing: border-box;
+  padding: 0 7px;
+  font-size: 9px;
+  font-style: normal;
+  font-weight: 850;
+  border-radius: 999px;
+}
+
+.faq-form-field em {
+  color: #3e8048;
+  background: #edf8eb;
+  border:
+    1px solid
+    #d1e8ce;
+}
+
+.faq-form-field b {
+  color: #758079;
+  background: #f5f7f5;
+  border:
+    1px solid
+    #e0e5e0;
+}
+
+.faq-form-field input,
+.faq-form-field textarea {
+  width: 100%;
+  box-sizing: border-box;
+  color: #202921;
+  font: inherit;
+  font-size: 13px;
+  font-weight: 620;
+  background:
+    rgba(255, 255, 255, 0.96);
+  border:
+    1px solid
+    #ceddcd;
+  border-radius: 12px;
+  outline: none;
+  box-shadow:
+    inset 0 1px 2px
+    rgba(32, 54, 35, 0.025);
+  transition:
+    border-color 0.15s ease,
+    box-shadow 0.15s ease,
+    background-color 0.15s ease;
+}
+
+.faq-form-field input {
+  height: 44px;
+  padding: 0 12px;
+}
+
+.faq-form-field textarea {
+  min-height: 160px;
+  padding:
+    11px 12px
+    28px;
+  line-height: 1.65;
+  resize: vertical;
+}
+
+.faq-form-field input:focus,
+.faq-form-field textarea:focus {
+  background: #fff;
+  border-color: #6fb675;
+  box-shadow:
+    0 0 0 3px
+    rgba(87, 170, 94, 0.12);
+}
+
+.faq-form-field > small {
+  color: #929c94;
+  font-size: 10px;
+  font-weight: 650;
+}
+
+.faq-form-field
+textarea
++
+small {
+  position: absolute;
+  right: 10px;
+  bottom: 8px;
+  padding: 2px 5px;
+  background:
+    rgba(255, 255, 255, 0.88);
+  border-radius: 5px;
+}
+
+.faq-form-tag-preview {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-top: -5px;
+}
+
+.faq-form-tag-preview > span {
+  display: inline-flex;
+  min-height: 26px;
+  align-items: center;
+  box-sizing: border-box;
+  padding: 0 9px;
+  color: #527357;
+  font-size: 11px;
+  font-weight: 760;
+  white-space: nowrap;
+  background: #f4faf2;
+  border:
+    1px solid
+    #d9e9d6;
+  border-radius: 999px;
+}
+
+.faq-form-message {
+  min-height: 19px;
+  color: #879188;
+  font-size: 11px;
+  font-weight: 680;
+  line-height: 1.5;
+}
+
+.faq-form-message.is-error {
+  color: #cf4242;
+}
+
+.faq-upsert-actions {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 9px;
+  box-sizing: border-box;
+  padding:
+    15px 22px
+    20px;
+  background:
+    rgba(247, 251, 246, 0.8);
+  border-top:
+    1px solid
+    #e0eae0;
+}
+
+.faq-upsert-cancel,
+.faq-upsert-submit {
+  display: inline-flex;
+  min-height: 42px;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  box-sizing: border-box;
+  padding: 0 15px;
+  font-size: 12px;
+  font-weight: 830;
+  white-space: nowrap;
+  cursor: pointer;
+  border-radius: 11px;
+  transition:
+    transform 0.15s ease,
+    background-color 0.15s ease,
+    border-color 0.15s ease,
+    opacity 0.15s ease;
+}
+
+.faq-upsert-cancel {
+  color: #5c675e;
+  background: #fff;
+  border:
+    1px solid
+    #d9e3d8;
+}
+
+.faq-upsert-submit {
+  min-width: 110px;
+  color: #fff;
+  background:
+    linear-gradient(
+      180deg,
+      #63b669,
+      #50a558
+    );
+  border:
+    1px solid
+    #46984f;
+  box-shadow:
+    0 8px 18px
+    rgba(66, 148, 75, 0.18);
+}
+
+.faq-upsert-cancel:hover:not(
+  :disabled
+),
+.faq-upsert-submit:hover:not(
+  :disabled
+) {
+  transform:
+    translateY(-1px);
+}
+
+.faq-upsert-cancel:hover:not(
+  :disabled
+) {
+  background: #f4f8f3;
+  border-color: #c7d8c5;
+}
+
+.faq-upsert-submit:hover:not(
+  :disabled
+) {
+  background:
+    linear-gradient(
+      180deg,
+      #5aae61,
+      #489b51
+    );
+}
+
+.faq-upsert-cancel:disabled,
+.faq-upsert-submit:disabled,
+.faq-upsert-backdrop
+.faq-modal-close:disabled {
+  cursor: not-allowed;
+  opacity: 0.5;
+}
+
+.faq-button-spinner {
+  width: 17px;
+  height: 17px;
+  box-sizing: border-box;
+  border:
+    2px solid
+    rgba(82, 163, 90, 0.2);
+  border-top-color: #52a35a;
+  border-radius: 50%;
+  animation:
+    faq-upsert-spin
+    0.75s linear infinite;
+}
+
+/* ===== 목차 너비 보정 ===== */
+
+@media (min-width: 769px) {
+  .wiki-toc,
+  .wiki-toc-sidebar,
+  .wiki-toc-sidebar-desktop {
+    width: 280px !important;
+    flex:
+      0 0
+      280px !important;
+    box-sizing: border-box;
+    padding-left: 18px !important;
+    padding-right: 18px !important;
+  }
+}
+
+@media (
+  min-width: 769px
+) and (
+  max-width: 1180px
+) {
+  .wiki-toc,
+  .wiki-toc-sidebar,
+  .wiki-toc-sidebar-desktop {
+    width: 266px !important;
+    flex-basis:
+      266px !important;
+  }
+}
+
+@media (max-width: 768px) {
+  .wiki-content-body
+  .faq-list-card
+  .faq-inline-edit {
+    width: 34px;
+    min-width: 34px;
+    padding: 0;
+  }
+
+  .wiki-content-body
+  .faq-list-card
+  .faq-inline-edit span {
+    display: none;
+  }
+
+  .faq-upsert-backdrop {
+    padding: 10px;
+  }
+
+  .faq-upsert-dialog {
+    max-height: 92dvh;
+    border-radius: 18px;
+  }
+
+  .faq-upsert-header {
+    padding: 17px;
+  }
+
+  .faq-upsert-icon {
+    width: 40px;
+    height: 40px;
+    flex-basis: 40px;
+    border-radius: 12px;
+  }
+
+  .faq-upsert-header h2 {
+    font-size: 18px;
+  }
+
+  .faq-upsert-body {
+    padding: 17px;
+  }
+
+  .faq-upsert-actions {
+    padding:
+      13px 17px
+      17px;
+  }
+}
+
+:is(
+  html[data-theme='dark'],
+  body[data-theme='dark'],
+  html.dark,
+  body.dark
+)
+.faq-upsert-dialog {
+  color:
+    var(
+      --foreground
+    );
+  background:
+    linear-gradient(
+      180deg,
+      rgba(24, 34, 26, 0.98),
+      rgba(17, 27, 19, 0.98)
+    );
+  border-color:
+    var(
+      --border
+    );
+}
+
+:is(
+  html[data-theme='dark'],
+  body[data-theme='dark'],
+  html.dark,
+  body.dark
+)
+:is(
+  .faq-form-field input,
+  .faq-form-field textarea,
+  .faq-upsert-backdrop
+  .faq-modal-close,
+  .faq-upsert-cancel
+) {
+  color:
+    var(
+      --foreground
+    );
+  background:
+    var(
+      --surface-elevated
+    );
+  border-color:
+    var(
+      --border
+    );
+}
+
+:is(
+  html[data-theme='dark'],
+  body[data-theme='dark'],
+  html.dark,
+  body.dark
+)
+:is(
+  .faq-upsert-header h2,
+  .faq-form-field > span
+) {
+  color:
+    var(
+      --foreground
+    );
+}
+
+:is(
+  html[data-theme='dark'],
+  body[data-theme='dark'],
+  html.dark,
+  body.dark
+)
+.faq-upsert-actions {
+  background:
+    var(
+      --surface-soft
+    );
+  border-color:
+    var(
+      --border
+    );
+}
+
+@keyframes faq-upsert-spin {
+  to {
+    transform:
+      rotate(360deg);
+  }
+}
+
+@keyframes faq-upsert-backdrop-in {
+  from {
+    opacity: 0;
+  }
+
+  to {
+    opacity: 1;
+  }
+}
+
+@keyframes faq-upsert-dialog-in {
+  from {
+    opacity: 0;
+    transform:
+      translateY(7px)
+      scale(0.986);
+  }
+
+  to {
+    opacity: 1;
+    transform:
+      translateY(0)
+      scale(1);
+  }
+}
+
+/* =============================================
+   FAQ 상세 모달 단일 디자인
+
+   - FAQ 문서 목록에서 여는 Portal 모달
+   - 헤더 검색 결과에서 여는 기존 SearchBox 상세 모달
+   두 경로를 동일한 크기·색상·간격으로 표시한다.
+   ============================================= */
+
+/* ===== FAQ 문서 영역에서 여는 상세 모달 ===== */
+
+body > .faq-modal-backdrop {
+  position: fixed !important;
+  inset: 0 !important;
+  z-index: 10000 !important;
+  display: grid !important;
+  width: 100vw !important;
+  height: 100dvh !important;
+  place-items: center !important;
+  box-sizing: border-box !important;
+  margin: 0 !important;
+  padding: 16px !important;
+  overflow: auto !important;
+  background: rgba(0, 0, 0, 0.45) !important;
+}
+
+body > .faq-modal-backdrop > .faq-modal {
+  position: relative !important;
+  width: min(760px, 100%) !important;
+  max-width: 760px !important;
+  max-height: calc(100dvh - 32px) !important;
+  box-sizing: border-box !important;
+  margin: auto !important;
+  padding: 18px 18px 20px !important;
+  overflow: auto !important;
+  color: var(--foreground, #0f172a) !important;
+  background: var(--surface-elevated, #fff) !important;
+  border: 1px solid var(--border, #e5e7eb) !important;
+  border-radius: 20px !important;
+  box-shadow: var(
+    --shadow-xl,
+    0 24px 80px rgba(0, 0, 0, 0.28)
+  ) !important;
+}
+
+body > .faq-modal-backdrop .faq-modal-header {
+  display: flex !important;
+  align-items: center !important;
+  justify-content: space-between !important;
+  gap: 10px !important;
+  margin-bottom: 8px !important;
+}
+
+body > .faq-modal-backdrop .faq-modal-title {
+  display: inline-flex !important;
+  min-width: 0 !important;
+  align-items: center !important;
+  gap: 12px !important;
+}
+
+body > .faq-modal-backdrop .faq-modal-title h3 {
+  min-width: 0 !important;
+  margin: 0 !important;
+  color: var(--foreground, #0f172a) !important;
+  font-size: 20px !important;
+  font-weight: 800 !important;
+  line-height: 1.4 !important;
+  word-break: break-word !important;
+}
+
+body > .faq-modal-backdrop .faq-modal-close {
+  display: grid !important;
+  width: 36px !important;
+  height: 36px !important;
+  flex: 0 0 36px !important;
+  place-items: center !important;
+  box-sizing: border-box !important;
+  padding: 0 !important;
+  color: #ef4444 !important;
+  cursor: pointer !important;
+  background: transparent !important;
+  border: 0 !important;
+  border-radius: 10px !important;
+  transition:
+    transform 0.12s ease,
+    background 0.12s ease !important;
+}
+
+body > .faq-modal-backdrop .faq-modal-close:hover {
+  background: var(--surface-soft, #f3f4f6) !important;
+  transform: scale(1.06) !important;
+}
+
+body > .faq-modal-backdrop .faq-modal-body {
+  display: grid !important;
+  gap: 10px !important;
+  margin-top: 6px !important;
+}
+
+body > .faq-modal-backdrop .faq-qa {
+  display: inline-flex !important;
+  width: 22px !important;
+  height: 22px !important;
+  flex: 0 0 22px !important;
+  align-items: center !important;
+  justify-content: center !important;
+  color: inherit;
+  font-size: 13.5px !important;
+  font-weight: 900 !important;
+  line-height: 1 !important;
+  vertical-align: middle !important;
+  border-radius: 999px !important;
+  transform: translateY(-1px) !important;
+}
+
+body > .faq-modal-backdrop .faq-qa.q {
+  color: #1d4ed8 !important;
+  background: rgba(59, 130, 246, 0.12) !important;
+}
+
+body > .faq-modal-backdrop .faq-qa.a {
+  color: #dc2626 !important;
+  background: rgba(239, 68, 68, 0.12) !important;
+}
+
+body > .faq-modal-backdrop .qa-line {
+  display: flex !important;
+  align-items: flex-start !important;
+  gap: 12px !important;
+  box-sizing: border-box !important;
+  padding: 12px 14px !important;
+  border-radius: 12px !important;
+}
+
+body > .faq-modal-backdrop .qa-line.a {
+  background: rgba(239, 68, 68, 0.06) !important;
+  border: 1px solid rgba(239, 68, 68, 0.14) !important;
+}
+
+body > .faq-modal-backdrop .qa-text {
+  min-width: 0 !important;
+  margin: 0 !important;
+  color: var(--foreground, #111827) !important;
+  font: inherit !important;
+  font-size: 14px !important;
+  line-height: 1.6 !important;
+  white-space: pre-wrap !important;
+  overflow-wrap: anywhere !important;
+}
+
+/* ===== 검색 결과에서 여는 기존 FAQ 상세 모달 =====
+   SearchBox의 inline style보다 우선하도록 구조와 !important를 사용한다. */
+
+body div[style*='z-index: 10000'][style*='position: fixed'],
+body div[style*='z-index:10000'][style*='position:fixed'] {
+  position: fixed !important;
+  inset: 0 !important;
+  z-index: 10000 !important;
+  display: grid !important;
+  width: 100vw !important;
+  height: 100dvh !important;
+  place-items: center !important;
+  box-sizing: border-box !important;
+  margin: 0 !important;
+  padding: 16px !important;
+  overflow: auto !important;
+  background: rgba(0, 0, 0, 0.45) !important;
+}
+
+/* 검색 FAQ 모달의 최상위 카드 */
+body div[style*='z-index: 10000'][style*='position: fixed'] > div,
+body div[style*='z-index:10000'][style*='position:fixed'] > div {
+  position: relative !important;
+  width: min(760px, 100%) !important;
+  max-width: 760px !important;
+  max-height: calc(100dvh - 32px) !important;
+  box-sizing: border-box !important;
+  margin: auto !important;
+  padding: 18px 18px 20px !important;
+  overflow: auto !important;
+  color: var(--foreground, #0f172a) !important;
+  background: var(--surface-elevated, #fff) !important;
+  border: 1px solid var(--border, #e5e7eb) !important;
+  border-radius: 20px !important;
+  box-shadow: var(
+    --shadow-xl,
+    0 24px 80px rgba(0, 0, 0, 0.28)
+  ) !important;
+}
+
+/* 검색 FAQ 모달 헤더 */
+body div[style*='z-index: 10000'][style*='position: fixed']
+  > div
+  > div:first-child,
+body div[style*='z-index:10000'][style*='position:fixed']
+  > div
+  > div:first-child {
+  display: flex !important;
+  align-items: center !important;
+  justify-content: space-between !important;
+  gap: 10px !important;
+  margin: 0 0 8px !important;
+  padding: 0 !important;
+  border: 0 !important;
+}
+
+body div[style*='z-index: 10000'][style*='position: fixed']
+  > div
+  > div:first-child
+  > div:first-child,
+body div[style*='z-index:10000'][style*='position:fixed']
+  > div
+  > div:first-child
+  > div:first-child {
+  display: inline-flex !important;
+  min-width: 0 !important;
+  align-items: center !important;
+  gap: 12px !important;
+}
+
+body div[style*='z-index: 10000'][style*='position: fixed']
+  > div
+  > div:first-child
+  span:first-child,
+body div[style*='z-index:10000'][style*='position:fixed']
+  > div
+  > div:first-child
+  span:first-child {
+  display: inline-flex !important;
+  width: 22px !important;
+  height: 22px !important;
+  flex: 0 0 22px !important;
+  align-items: center !important;
+  justify-content: center !important;
+  color: #1d4ed8 !important;
+  font-size: 13.5px !important;
+  font-weight: 900 !important;
+  line-height: 1 !important;
+  background: rgba(59, 130, 246, 0.12) !important;
+  border: 0 !important;
+  border-radius: 999px !important;
+  transform: translateY(-1px) !important;
+}
+
+body div[style*='z-index: 10000'][style*='position: fixed']
+  > div
+  > div:first-child
+  h3,
+body div[style*='z-index:10000'][style*='position:fixed']
+  > div
+  > div:first-child
+  h3 {
+  min-width: 0 !important;
+  margin: 0 !important;
+  color: var(--foreground, #0f172a) !important;
+  font-size: 20px !important;
+  font-weight: 800 !important;
+  line-height: 1.4 !important;
+  word-break: break-word !important;
+}
+
+body div[style*='z-index: 10000'][style*='position: fixed']
+  > div
+  > div:first-child
+  button,
+body div[style*='z-index:10000'][style*='position:fixed']
+  > div
+  > div:first-child
+  button {
+  display: grid !important;
+  width: 36px !important;
+  height: 36px !important;
+  flex: 0 0 36px !important;
+  place-items: center !important;
+  box-sizing: border-box !important;
+  padding: 0 !important;
+  color: #ef4444 !important;
+  cursor: pointer !important;
+  background: transparent !important;
+  border: 0 !important;
+  border-radius: 10px !important;
+}
+
+/* 검색 FAQ 모달의 두 번째 자식은 답변 래퍼이고,
+   그 안의 첫 번째 div가 실제 답변 카드다. */
+body div[style*='z-index: 10000'][style*='position: fixed']
+  > div
+  > div:nth-child(2),
+body div[style*='z-index:10000'][style*='position:fixed']
+  > div
+  > div:nth-child(2) {
+  display: block !important;
+  margin: 6px 0 0 !important;
+  padding: 0 !important;
+  background: transparent !important;
+  border: 0 !important;
+}
+
+body div[style*='z-index: 10000'][style*='position: fixed']
+  > div
+  > div:nth-child(2)
+  > div:first-child,
+body div[style*='z-index:10000'][style*='position:fixed']
+  > div
+  > div:nth-child(2)
+  > div:first-child {
+  display: flex !important;
+  align-items: flex-start !important;
+  gap: 12px !important;
+  box-sizing: border-box !important;
+  margin: 0 !important;
+  padding: 12px 14px !important;
+  color: var(--foreground, #111827) !important;
+  background: rgba(239, 68, 68, 0.06) !important;
+  border: 1px solid rgba(239, 68, 68, 0.14) !important;
+  border-radius: 12px !important;
+}
+
+body div[style*='z-index: 10000'][style*='position: fixed']
+  > div
+  > div:nth-child(2)
+  > div:first-child
+  > span:first-child,
+body div[style*='z-index:10000'][style*='position:fixed']
+  > div
+  > div:nth-child(2)
+  > div:first-child
+  > span:first-child {
+  display: inline-flex !important;
+  width: 22px !important;
+  height: 22px !important;
+  flex: 0 0 22px !important;
+  align-items: center !important;
+  justify-content: center !important;
+  color: #dc2626 !important;
+  font-size: 13.5px !important;
+  font-weight: 900 !important;
+  line-height: 1 !important;
+  background: rgba(239, 68, 68, 0.12) !important;
+  border: 0 !important;
+  border-radius: 999px !important;
+  transform: translateY(-1px) !important;
+}
+
+body div[style*='z-index: 10000'][style*='position: fixed']
+  > div
+  > div:nth-child(2)
+  > div:first-child
+  :is(pre, p),
+body div[style*='z-index:10000'][style*='position:fixed']
+  > div
+  > div:nth-child(2)
+  > div:first-child
+  :is(pre, p) {
+  min-width: 0 !important;
+  margin: 0 !important;
+  color: var(--foreground, #111827) !important;
+  font: inherit !important;
+  font-size: 14px !important;
+  line-height: 1.6 !important;
+  white-space: pre-wrap !important;
+  overflow-wrap: anywhere !important;
+}
+
+/* FAQ 영역 상세 모달에는 태그 행이 없으므로 검색 모달도 동일하게 숨긴다. */
+body div[style*='z-index: 10000'][style*='position: fixed']
+  > div
+  > div:nth-child(2)
+  > div:nth-child(n + 2),
+body div[style*='z-index:10000'][style*='position:fixed']
+  > div
+  > div:nth-child(2)
+  > div:nth-child(n + 2) {
+  display: none !important;
+}
+
+[data-theme='dark'] body > .faq-modal-backdrop .faq-qa.q,
+[data-theme='dark']
+  body
+  div[style*='z-index: 10000'][style*='position: fixed']
+  > div
+  > div:first-child
+  span:first-child {
+  color: #93c5fd !important;
+  background: rgba(96, 165, 250, 0.18) !important;
+}
+
+[data-theme='dark'] body > .faq-modal-backdrop .faq-qa.a,
+[data-theme='dark']
+  body
+  div[style*='z-index: 10000'][style*='position: fixed']
+  > div
+  > div:nth-child(2)
+  > div:first-child
+  > span:first-child {
+  color: #fca5a5 !important;
+  background: rgba(248, 113, 113, 0.18) !important;
+}
+
+[data-theme='dark'] body > .faq-modal-backdrop .qa-line.a,
+[data-theme='dark']
+  body
+  div[style*='z-index: 10000'][style*='position: fixed']
+  > div
+  > div:nth-child(2)
+  > div:first-child {
+  background: rgba(248, 113, 113, 0.08) !important;
+  border-color: rgba(248, 113, 113, 0.18) !important;
+}
+
+@media (max-width: 768px) {
+  body > .faq-modal-backdrop,
+  body div[style*='z-index: 10000'][style*='position: fixed'],
+  body div[style*='z-index:10000'][style*='position:fixed'] {
+    padding: 10px !important;
+  }
+
+  body > .faq-modal-backdrop > .faq-modal,
+  body div[style*='z-index: 10000'][style*='position: fixed'] > div,
+  body div[style*='z-index:10000'][style*='position:fixed'] > div {
+    width: min(100%, 340px) !important;
+    max-height: calc(100dvh - 20px) !important;
+    padding: 12px 12px 14px !important;
+    border-radius: 14px !important;
+  }
+
+  body > .faq-modal-backdrop .faq-modal-title {
+    gap: 8px !important;
+  }
+
+  body > .faq-modal-backdrop .faq-modal-title h3,
+  body div[style*='z-index: 10000'][style*='position: fixed']
+    > div
+    > div:first-child
+    h3 {
+    font-size: 12px !important;
+    line-height: 1.35 !important;
+  }
+
+  body > .faq-modal-backdrop .faq-modal-close,
+  body div[style*='z-index: 10000'][style*='position: fixed']
+    > div
+    > div:first-child
+    button {
+    width: 30px !important;
+    height: 30px !important;
+    flex-basis: 30px !important;
+  }
+
+  body > .faq-modal-backdrop .faq-qa,
+  body div[style*='z-index: 10000'][style*='position: fixed']
+    > div
+    > div:first-child
+    span:first-child,
+  body div[style*='z-index: 10000'][style*='position: fixed']
+    > div
+    > div:nth-child(2)
+    > div:first-child
+    > span:first-child {
+    width: 18px !important;
+    height: 18px !important;
+    flex-basis: 18px !important;
+    font-size: 10px !important;
+  }
+
+  body > .faq-modal-backdrop .qa-line,
+  body div[style*='z-index: 10000'][style*='position: fixed']
+    > div
+    > div:nth-child(2)
+    > div:first-child {
+    gap: 8px !important;
+    padding: 8px 9px !important;
+    border-radius: 10px !important;
+  }
+
+  body > .faq-modal-backdrop .qa-text,
+  body div[style*='z-index: 10000'][style*='position: fixed']
+    > div
+    > div:nth-child(2)
+    > div:first-child
+    :is(pre, p) {
+    font-size: 12px !important;
+    line-height: 1.5 !important;
+  }
+}
+
+/* =============================================
+   FAQ 한 줄 제목 세로 정렬 보정
+
+   - 한 줄 제목은 Q 아이콘·닫기 버튼과 정확히 수직 중앙 정렬
+   - 여러 줄 제목은 기존 줄바꿈 높이를 그대로 사용
+   - FAQ 문서 모달과 검색 결과 모달에 동일 적용
+   ============================================= */
+
+/* FAQ 문서 영역 상세 모달 */
+body > .faq-modal-backdrop
+.faq-modal-header {
+  min-height: 40px !important;
+}
+
+body > .faq-modal-backdrop
+.faq-modal-title {
+  min-height: 36px !important;
+  align-items: center !important;
+}
+
+body > .faq-modal-backdrop
+.faq-modal-title h3 {
+  display: flex !important;
+  min-height: 36px !important;
+  align-items: center !important;
+  box-sizing: border-box !important;
+}
+
+body > .faq-modal-backdrop
+.faq-modal-title
+.faq-qa.q {
+  transform: none !important;
+}
+
+/* 검색 영역 FAQ 상세 모달 */
+body div[style*='z-index: 10000'][style*='position: fixed']
+  > div
+  > div:first-child,
+body div[style*='z-index:10000'][style*='position:fixed']
+  > div
+  > div:first-child {
+  min-height: 40px !important;
+}
+
+body div[style*='z-index: 10000'][style*='position: fixed']
+  > div
+  > div:first-child
+  > div:first-child,
+body div[style*='z-index:10000'][style*='position:fixed']
+  > div
+  > div:first-child
+  > div:first-child {
+  min-height: 36px !important;
+  align-items: center !important;
+}
+
+body div[style*='z-index: 10000'][style*='position: fixed']
+  > div
+  > div:first-child
+  h3,
+body div[style*='z-index:10000'][style*='position:fixed']
+  > div
+  > div:first-child
+  h3 {
+  display: flex !important;
+  min-height: 36px !important;
+  align-items: center !important;
+  box-sizing: border-box !important;
+}
+
+body div[style*='z-index: 10000'][style*='position: fixed']
+  > div
+  > div:first-child
+  span:first-child,
+body div[style*='z-index:10000'][style*='position:fixed']
+  > div
+  > div:first-child
+  span:first-child {
+  transform: none !important;
+}
+
+@media (max-width: 768px) {
+  body > .faq-modal-backdrop
+  .faq-modal-header,
+  body div[style*='z-index: 10000'][style*='position: fixed']
+    > div
+    > div:first-child,
+  body div[style*='z-index:10000'][style*='position:fixed']
+    > div
+    > div:first-child {
+    min-height: 32px !important;
+  }
+
+  body > .faq-modal-backdrop
+  .faq-modal-title,
+  body > .faq-modal-backdrop
+  .faq-modal-title h3,
+  body div[style*='z-index: 10000'][style*='position: fixed']
+    > div
+    > div:first-child
+    > div:first-child,
+  body div[style*='z-index: 10000'][style*='position: fixed']
+    > div
+    > div:first-child
+    h3,
+  body div[style*='z-index:10000'][style*='position:fixed']
+    > div
+    > div:first-child
+    > div:first-child,
+  body div[style*='z-index:10000'][style*='position:fixed']
+    > div
+    > div:first-child
+    h3 {
+    min-height: 30px !important;
+  }
+}
+
+/* =============================================
+   다크모드 카테고리 화살표·내부 링크 미리보기 보정
+
+   - 카테고리 hover 시 펼침/접힘 버튼이 밝은 연두색으로 뜨는 현상 수정
+   - document.body Portal로 생성되는 내부 링크 미리보기에
+     다크모드 전용 CSS 변수를 직접 공급
+   ============================================= */
+
+/* ===== 카테고리 펼침·접힘 버튼 ===== */
+
+:root[data-theme='dark']
+#rdwiki-page
+#wiki-scroll-root
+.wiki-category-arrow,
+:root[data-theme='dark']
+#wiki-scroll-root
+.wiki-category-arrow {
+  color: #a9bbb0 !important;
+  background: transparent !important;
+  border-color: transparent !important;
+  box-shadow: none !important;
+}
+
+:root[data-theme='dark']
+#rdwiki-page
+#wiki-scroll-root
+.wiki-nav-item:hover
+.wiki-category-arrow,
+:root[data-theme='dark']
+#wiki-scroll-root
+.wiki-nav-item:hover
+.wiki-category-arrow {
+  color: #a7dfb0 !important;
+  background: rgba(47, 88, 57, 0.42) !important;
+  border-color: rgba(135, 202, 148, 0.24) !important;
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.035) !important;
+}
+
+:root[data-theme='dark']
+#rdwiki-page
+#wiki-scroll-root
+.wiki-nav-item.active
+.wiki-category-arrow,
+:root[data-theme='dark']
+#wiki-scroll-root
+.wiki-nav-item.active
+.wiki-category-arrow {
+  color: #b4e7bd !important;
+  background: rgba(58, 105, 68, 0.38) !important;
+  border-color: rgba(145, 211, 157, 0.2) !important;
+}
+
+/* 프로젝트가 body.dark 방식으로 다크모드를 표시하는 경우도 대응 */
+:is(
+  body[data-theme='dark'],
+  html.dark,
+  body.dark
+)
+#wiki-scroll-root
+.wiki-category-arrow {
+  color: #a9bbb0 !important;
+  background: transparent !important;
+  border-color: transparent !important;
+  box-shadow: none !important;
+}
+
+:is(
+  body[data-theme='dark'],
+  html.dark,
+  body.dark
+)
+#wiki-scroll-root
+.wiki-nav-item:hover
+.wiki-category-arrow {
+  color: #a7dfb0 !important;
+  background: rgba(47, 88, 57, 0.42) !important;
+  border-color: rgba(135, 202, 148, 0.24) !important;
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.035) !important;
+}
+
+/* ===== 내부 문서 링크 hover 미리보기 ===== */
+
+/*
+ * InlineWikiLinkRead는 미리보기를 document.body 아래의 Portal로 만든다.
+ * 따라서 #wiki-scroll-root 내부의 다크모드 변수가 상속되지 않는다.
+ * role=tooltip과 고유 z-index 조합으로 해당 미리보기만 지정한다.
+ */
+:root[data-theme='dark']
+body
+> [role='tooltip'][style*='z-index: 9998'],
+:root[data-theme='dark']
+body
+> [role='tooltip'][style*='z-index:9998'],
+:is(
+  body[data-theme='dark'],
+  html.dark,
+  body.dark
+)
+body
+> [role='tooltip'][style*='z-index: 9998'],
+:is(
+  body[data-theme='dark'],
+  html.dark,
+  body.dark
+)
+body
+> [role='tooltip'][style*='z-index:9998'] {
+  --foreground: #edf5ef;
+  --muted: #a7b7ad;
+  --muted-2: #87998e;
+  --accent: #8ed69a;
+  --accent-soft: rgba(67, 123, 77, 0.34);
+  --surface: #111d17;
+  --surface-soft: #14241b;
+  --surface-elevated: #17271d;
+  --border: rgba(139, 194, 150, 0.2);
+  --border-strong: rgba(145, 207, 157, 0.3);
+  --shadow-lg:
+    0 20px 48px rgba(0, 0, 0, 0.42),
+    0 5px 16px rgba(0, 0, 0, 0.24);
+
+  color: var(--foreground) !important;
+  background: var(--surface-elevated) !important;
+  border-color: var(--border) !important;
+}
+
+/* 태그는 기존 보라색 잔색 대신 사이트의 초록 계열로 정리 */
+:root[data-theme='dark']
+body
+> [role='tooltip'][style*='z-index: 9998']
+span[style*='border-radius: 999'],
+:root[data-theme='dark']
+body
+> [role='tooltip'][style*='z-index:9998']
+span[style*='border-radius: 999'],
+:is(
+  body[data-theme='dark'],
+  html.dark,
+  body.dark
+)
+body
+> [role='tooltip'][style*='z-index: 9998']
+span[style*='border-radius: 999'],
+:is(
+  body[data-theme='dark'],
+  html.dark,
+  body.dark
+)
+body
+> [role='tooltip'][style*='z-index:9998']
+span[style*='border-radius: 999'] {
+  color: #95dca1 !important;
+  background: rgba(61, 118, 72, 0.36) !important;
+  border-color: rgba(135, 202, 148, 0.24) !important;
+}
+
+/* =============================================
+   내부 링크 미리보기 정확한 선택자 보정
+
+   기존 보정은 inline style 문자열의 z-index를 기준으로 선택해서
+   브라우저가 style 속성을 직렬화하는 방식에 따라 적용되지 않았다.
+
+   InlineWikiLinkRead가 생성하는 고유 ID:
+   wiki-inline-preview-*
+   를 직접 사용해 Portal 카드에 다크모드 변수를 공급한다.
+   ============================================= */
+
+/* Portal 루트에 다크모드 색상 변수를 직접 공급 */
+:root[data-theme='dark']
+body
+> [id^='wiki-inline-preview-'] {
+  --foreground: #edf5ef !important;
+  --muted: #aabbb1 !important;
+  --muted-2: #8fa196 !important;
+  --accent: #92d99e !important;
+  --accent-soft: rgba(67, 123, 77, 0.36) !important;
+  --surface: #101a14 !important;
+  --surface-soft: #132219 !important;
+  --surface-elevated: #16241b !important;
+  --border: rgba(139, 194, 150, 0.24) !important;
+  --border-strong: rgba(145, 207, 157, 0.34) !important;
+  --shadow-lg:
+    0 20px 48px rgba(0, 0, 0, 0.44),
+    0 5px 16px rgba(0, 0, 0, 0.25) !important;
+
+  color: #edf5ef !important;
+  background: #16241b !important;
+  border-color: rgba(139, 194, 150, 0.24) !important;
+}
+
+/* 카테고리 경로 */
+:root[data-theme='dark']
+body
+> [id^='wiki-inline-preview-']
+div[style*='color: var(--muted)'] {
+  color: #aabbb1 !important;
+}
+
+/* 문서 제목 */
+:root[data-theme='dark']
+body
+> [id^='wiki-inline-preview-']
+div[style*='color: var(--foreground)'] {
+  color: #edf5ef !important;
+}
+
+/* 로딩·오류 문구 */
+:root[data-theme='dark']
+body
+> [id^='wiki-inline-preview-']
+div[style*='color: var(--muted)'] {
+  color: #aabbb1 !important;
+}
+
+/* 아이콘 배경 */
+:root[data-theme='dark']
+body
+> [id^='wiki-inline-preview-']
+div[style*='background: var(--accent-soft)'] {
+  background: rgba(67, 123, 77, 0.36) !important;
+}
+
+/* 태그 */
+:root[data-theme='dark']
+body
+> [id^='wiki-inline-preview-']
+span[style*='border-radius: 999'] {
+  color: #92d99e !important;
+  background: rgba(61, 118, 72, 0.38) !important;
+  border-color: rgba(135, 202, 148, 0.26) !important;
+}
+
+/* 말풍선 화살표 */
+:root[data-theme='dark']
+body
+> [id^='wiki-inline-preview-']
+> span[aria-hidden] {
+  background: #16241b !important;
+  border-right-color: rgba(139, 194, 150, 0.24) !important;
+  border-bottom-color: rgba(139, 194, 150, 0.24) !important;
+}
+
+/* 혹시 body에 테마 속성이 적용되는 환경도 함께 대응 */
+body[data-theme='dark']
+> [id^='wiki-inline-preview-'],
+body.dark
+> [id^='wiki-inline-preview-'] {
+  --foreground: #edf5ef !important;
+  --muted: #aabbb1 !important;
+  --accent: #92d99e !important;
+  --accent-soft: rgba(67, 123, 77, 0.36) !important;
+  --surface-elevated: #16241b !important;
+  --border: rgba(139, 194, 150, 0.24) !important;
+  --shadow-lg:
+    0 20px 48px rgba(0, 0, 0, 0.44),
+    0 5px 16px rgba(0, 0, 0, 0.25) !important;
+
+  color: #edf5ef !important;
+  background: #16241b !important;
+  border-color: rgba(139, 194, 150, 0.24) !important;
+}
+
+/*
+ * 사이트 다크모드를 수동으로 켰지만 data-theme가 Portal 조상에
+ * 반영되기 전인 짧은 구간도 OS 다크모드에서 안전하게 표시한다.
+ */
+@media (prefers-color-scheme: dark) {
+  body
+  > [id^='wiki-inline-preview-'] {
+    --foreground: #edf5ef;
+    --muted: #aabbb1;
+    --accent: #92d99e;
+    --accent-soft: rgba(67, 123, 77, 0.36);
+    --surface-elevated: #16241b;
+    --border: rgba(139, 194, 150, 0.24);
+  }
+}
+
+/* =============================================
+   내부 링크 미리보기 런타임 테마 동기화
+
+   InlineWikiLinkRead가 링크가 실제로 놓인 위키 영역의 계산된 CSS 변수를
+   읽은 뒤 Portal 카드에 직접 색상을 전달한다.
+   아래 규칙은 구조·간격만 담당하며 테마 판별을 CSS 선택자에 의존하지 않는다.
+   ============================================= */
+
+body > .wiki-inline-preview {
+  box-sizing: border-box;
+  isolation: isolate;
+  overflow: visible;
+}
+
+body > .wiki-inline-preview .wiki-inline-preview-status {
+  color: inherit;
+  font-size: 12px;
+  font-weight: 700;
+  line-height: 1.45;
+}
+
+body > .wiki-inline-preview .wiki-inline-preview-content {
+  display: flex;
+  min-width: 0;
+  align-items: flex-start;
+  gap: 12px;
+}
+
+body > .wiki-inline-preview .wiki-inline-preview-icon {
+  display: inline-flex;
+  width: 38px;
+  height: 38px;
+  flex: 0 0 38px;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+  border-radius: 12px;
+  box-shadow:
+    inset 0 1px 0
+    rgba(255, 255, 255, 0.04);
+}
+
+body > .wiki-inline-preview .wiki-inline-preview-copy {
+  min-width: 0;
+  flex: 1 1 auto;
+}
+
+body > .wiki-inline-preview .wiki-inline-preview-category {
+  margin-bottom: 5px;
+  overflow: hidden;
+  font-size: 11px;
+  font-weight: 700;
+  line-height: 1.35;
+  letter-spacing: 0.02em;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+body > .wiki-inline-preview .wiki-inline-preview-title {
+  font-size: 14px;
+  font-weight: 800;
+  line-height: 1.4;
+  letter-spacing: -0.1px;
+  overflow-wrap: break-word;
+  word-break: keep-all;
+}
+
+body > .wiki-inline-preview .wiki-inline-preview-tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-top: 9px;
+}
+
+body > .wiki-inline-preview .wiki-inline-preview-tag {
+  display: inline-flex;
+  align-items: center;
+  box-sizing: border-box;
+  padding: 4px 8px;
+  font-size: 11px;
+  font-weight: 700;
+  line-height: 1;
+  white-space: nowrap;
+  border-style: solid;
+  border-width: 1px;
+  border-radius: 999px;
+}
+
+/* data-preview-theme는 컴포넌트가 실제 위키 영역을 읽어 결정한다. */
+body > .wiki-inline-preview[data-preview-theme='dark'] {
+  color-scheme: dark;
+}
+
+body > .wiki-inline-preview[data-preview-theme='light'] {
+  color-scheme: light;
+}

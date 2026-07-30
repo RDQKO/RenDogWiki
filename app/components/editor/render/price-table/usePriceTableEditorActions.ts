@@ -5,7 +5,6 @@ import { ReactEditor } from 'slate-react';
 import { Editor, Transforms } from 'slate';
 
 import type { PriceTableCardElement } from '@/types/slate';
-import type { PriceTableEditState } from '../types';
 
 import {
   normalizePickedPrices,
@@ -15,7 +14,6 @@ import {
 type UsePriceTableEditorActionsArgs = {
   editor: any;
   element: PriceTableCardElement;
-  setPriceTableEdit: React.Dispatch<React.SetStateAction<PriceTableEditState>>;
 
   imageEditIndex: number | null;
   setImageEditIndex: React.Dispatch<React.SetStateAction<number | null>>;
@@ -27,7 +25,6 @@ type UsePriceTableEditorActionsArgs = {
 export function usePriceTableEditorActions({
   editor,
   element,
-  setPriceTableEdit,
   imageEditIndex,
   setImageEditIndex,
   selectEditIndex,
@@ -85,26 +82,23 @@ export function usePriceTableEditorActions({
     [selectEditIndex, patchItemAt, setSelectEditIndex],
   );
 
-  const openPriceEdit = React.useCallback(
-    (item: any, idx: number) => {
-      window.dispatchEvent(new CustomEvent('editor:capture-scroll:price'));
-
-      setPriceTableEdit({
-        blockPath: path,
-        idx,
-        item: {
-          ...item,
-          mode: item.mode ?? 'block',
-        },
-      });
-    },
-    [path, setPriceTableEdit],
-  );
-
   const removeBlock = React.useCallback(() => {
     const pathToRemove = ReactEditor.findPath(editor, element);
 
-    Transforms.removeNodes(editor, { at: pathToRemove });
+    Editor.withoutNormalizing(editor, () => {
+      Transforms.removeNodes(editor, { at: pathToRemove });
+
+      if (editor.children.length === 0) {
+        Transforms.insertNodes(
+          editor,
+          {
+            type: 'paragraph',
+            children: [{ text: '' }],
+          } as any,
+          { at: [0] },
+        );
+      }
+    });
   }, [editor, element]);
 
   return {
@@ -112,7 +106,6 @@ export function usePriceTableEditorActions({
     patchItemAt,
     handleImageSelected,
     handlePickItem,
-    openPriceEdit,
     removeBlock,
   };
 }

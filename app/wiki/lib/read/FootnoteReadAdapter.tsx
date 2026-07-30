@@ -26,12 +26,17 @@ type FootnoteReadAdapterProps = {
   node: any;
 };
 
+type DesktopTooltipPosition = {
+  left: number;
+  top: number;
+  arrowLeft: number;
+};
+
 export default function FootnoteReadAdapter({
   node,
 }: FootnoteReadAdapterProps) {
   const rootRef =
     useRef<HTMLSpanElement | null>(null);
-
   const desktopTooltipRef =
     useRef<HTMLDivElement | null>(null);
 
@@ -39,21 +44,18 @@ export default function FootnoteReadAdapter({
     open,
     setOpen,
   ] = useState(false);
-
   const [
     isMobileViewport,
     setIsMobileViewport,
   ] = useState(false);
-
   const [
     portalReady,
     setPortalReady,
   ] = useState(false);
-
   const [
     desktopTooltipPos,
     setDesktopTooltipPos,
-  ] = useState({
+  ] = useState<DesktopTooltipPosition>({
     left: 0,
     top: 0,
     arrowLeft: 20,
@@ -65,20 +67,19 @@ export default function FootnoteReadAdapter({
     hasContent,
   } = resolveFootnoteNode(node);
 
-  const notifyFootnoteHover =
-    useCallback(() => {
-      if (
-        typeof window === 'undefined'
-      ) {
-        return;
-      }
+  const notifyFootnoteHover = useCallback(() => {
+    if (
+      typeof window === 'undefined'
+    ) {
+      return;
+    }
 
-      window.dispatchEvent(
-        new CustomEvent(
-          FOOTNOTE_HOVER_EVENT,
-        ),
-      );
-    }, []);
+    window.dispatchEvent(
+      new CustomEvent(
+        FOOTNOTE_HOVER_EVENT,
+      ),
+    );
+  }, []);
 
   useEffect(() => {
     setPortalReady(true);
@@ -169,7 +170,6 @@ export default function FootnoteReadAdapter({
       'mousedown',
       handlePointerDown,
     );
-
     document.addEventListener(
       'touchstart',
       handlePointerDown,
@@ -177,7 +177,6 @@ export default function FootnoteReadAdapter({
         passive: true,
       },
     );
-
     document.addEventListener(
       'keydown',
       handleKeyDown,
@@ -188,12 +187,10 @@ export default function FootnoteReadAdapter({
         'mousedown',
         handlePointerDown,
       );
-
       document.removeEventListener(
         'touchstart',
         handlePointerDown,
       );
-
       document.removeEventListener(
         'keydown',
         handleKeyDown,
@@ -241,7 +238,6 @@ export default function FootnoteReadAdapter({
       const triggerRect =
         rootRef.current
           .getBoundingClientRect();
-
       const tooltipRect =
         desktopTooltipRef.current
           .getBoundingClientRect();
@@ -322,7 +318,6 @@ export default function FootnoteReadAdapter({
       'resize',
       schedule,
     );
-
     window.addEventListener(
       'scroll',
       schedule,
@@ -333,12 +328,10 @@ export default function FootnoteReadAdapter({
       cancelAnimationFrame(
         animationFrame,
       );
-
       window.removeEventListener(
         'resize',
         schedule,
       );
-
       window.removeEventListener(
         'scroll',
         schedule,
@@ -398,65 +391,36 @@ export default function FootnoteReadAdapter({
     open &&
     hasContent;
 
+  const desktopTooltipStyle = {
+    left: desktopTooltipPos.left,
+    top: desktopTooltipPos.top,
+    '--wiki-footnote-arrow-left':
+      `${desktopTooltipPos.arrowLeft}px`,
+  } as React.CSSProperties;
+
   const desktopTooltip =
     showDesktopTooltip
       ? createPortal(
           <div
             ref={desktopTooltipRef}
-            style={{
-              pointerEvents: 'none',
-              position: 'fixed',
-              left:
-                desktopTooltipPos.left,
-              top:
-                desktopTooltipPos.top,
-              zIndex: 9998,
-              width: 'max-content',
-              minWidth: 120,
-              maxWidth: 340,
-              whiteSpace: 'normal',
-              wordBreak: 'keep-all',
-              overflowWrap:
-                'break-word',
-              padding: '10px 12px',
-              borderRadius: 12,
-              border:
-                '1px solid var(--border)',
-              background:
-                'var(--surface-elevated)',
-              color:
-                'var(--foreground)',
-              boxShadow:
-                'var(--shadow-lg)',
-              fontSize: 13,
-              fontWeight: 500,
-              lineHeight: 1.55,
-              letterSpacing:
-                '-0.1px',
-              textAlign: 'left',
-            }}
+            role="tooltip"
+            className="wiki-footnote-tooltip"
+            style={desktopTooltipStyle}
           >
-            <div
-              style={{
-                position: 'absolute',
-                left:
-                  desktopTooltipPos
-                    .arrowLeft,
-                bottom: -6,
-                width: 10,
-                height: 10,
-                transform:
-                  'translateX(-50%) rotate(45deg)',
-                background:
-                  'var(--surface-elevated)',
-                borderRight:
-                  '1px solid var(--border)',
-                borderBottom:
-                  '1px solid var(--border)',
-              }}
-            />
+            <div className="wiki-footnote-tooltip-head">
+              <strong className="wiki-footnote-tooltip-label">
+                [{label}]
+              </strong>
+            </div>
 
-            {content}
+            <div className="wiki-footnote-tooltip-content">
+              {content}
+            </div>
+
+            <span
+              className="wiki-footnote-tooltip-arrow"
+              aria-hidden
+            />
           </div>,
           document.body,
         )
@@ -468,97 +432,51 @@ export default function FootnoteReadAdapter({
     hasContent
       ? createPortal(
           <div
-            onClick={
-              closeMobileModal
+            className="wiki-footnote-modal-backdrop"
+            data-open={
+              open ? 'true' : 'false'
             }
-            style={{
-              position: 'fixed',
-              inset: 0,
-              zIndex: 9999,
-              display: open
-                ? 'flex'
-                : 'none',
-              alignItems: 'center',
-              justifyContent:
-                'center',
-              padding: 16,
-              background:
-                'rgba(0,0,0,.45)',
-            }}
+            onClick={closeMobileModal}
           >
             <div
+              role="dialog"
+              aria-modal="true"
+              aria-label={`각주 ${label}`}
+              className="wiki-footnote-modal"
               onClick={(event) => {
                 event.stopPropagation();
               }}
-              style={{
-                width:
-                  'min(420px, calc(100vw - 32px))',
-                maxHeight:
-                  'min(70vh, 520px)',
-                overflowY: 'auto',
-                borderRadius: 16,
-                border:
-                  '1px solid var(--border)',
-                background:
-                  'var(--surface-elevated)',
-                color:
-                  'var(--foreground)',
-                boxShadow:
-                  'var(--shadow-lg)',
-                padding:
-                  '16px 16px 14px',
-              }}
             >
-              <div
-                style={{
-                  display: 'flex',
-                  justifyContent:
-                    'space-between',
-                  alignItems:
-                    'center',
-                  gap: 12,
-                  marginBottom: 10,
-                }}
-              >
-                <strong>
-                  [{label}]
-                </strong>
+              <div className="wiki-footnote-modal-head">
+                <div className="wiki-footnote-modal-title">
+                  <strong>
+                    [{label}]
+                  </strong>
+                </div>
 
                 <button
                   type="button"
-                  onClick={
-                    closeMobileModal
-                  }
-                  style={{
-                    border:
-                      '1px solid var(--border)',
-                    borderRadius: 999,
-                    background:
-                      'var(--surface)',
-                    color:
-                      'var(--foreground)',
-                    padding:
-                      '3px 10px',
-                    cursor:
-                      'pointer',
-                  }}
+                  className="wiki-footnote-modal-close"
+                  aria-label="각주 닫기"
+                  onClick={closeMobileModal}
                 >
-                  닫기
+                  <svg
+                    viewBox="0 0 20 20"
+                    aria-hidden
+                    focusable="false"
+                  >
+                    <path
+                      d="m6 6 8 8M14 6l-8 8"
+                      fill="none"
+                      stroke="currentColor"
+                      strokeWidth="1.7"
+                      strokeLinecap="round"
+                    />
+                  </svg>
                 </button>
               </div>
 
-              <div
-                style={{
-                  fontSize: 14,
-                  lineHeight: 1.65,
-                  whiteSpace:
-                    'pre-wrap',
-                  wordBreak:
-                    'keep-all',
-                  overflowWrap:
-                    'break-word',
-                }}
-              >
+              <div className="wiki-footnote-modal-content">
                 {content}
               </div>
             </div>
@@ -573,6 +491,9 @@ export default function FootnoteReadAdapter({
         ref={rootRef}
         mode="read"
         label={label}
+        content={
+          hasContent ? content : null
+        }
         tabIndex={
           hasContent ? 0 : -1
         }
@@ -585,9 +506,7 @@ export default function FootnoteReadAdapter({
           notifyFootnoteHover();
           openDesktop();
         }}
-        onMouseLeave={
-          closeDesktop
-        }
+        onMouseLeave={closeDesktop}
         onFocus={() => {
           notifyFootnoteHover();
           openDesktop();

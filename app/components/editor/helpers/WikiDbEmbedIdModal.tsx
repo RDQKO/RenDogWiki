@@ -156,7 +156,7 @@ export default function WikiDbEmbedIdModal({ open, kind, onClose, onSubmit }: Pr
       style={{
         position: 'fixed',
         inset: 0,
-        background: 'rgba(0,0,0,.45)',
+        background: 'var(--editor-overlay)',
         zIndex: 20000,
         display: 'grid',
         placeItems: 'center',
@@ -170,10 +170,11 @@ export default function WikiDbEmbedIdModal({ open, kind, onClose, onSubmit }: Pr
           maxWidth: '100%',
           // ✅ 화면 밖으로 커지지 않도록 상한 고정
           maxHeight: 'calc(100vh - 180px)',
-          background: '#fff',
+          color: 'var(--editor-text)',
+          background: 'var(--editor-panel-elevated)',
           borderRadius: 14,
-          border: '1px solid #e5e7eb',
-          boxShadow: '0 18px 60px rgba(0,0,0,.18)',
+          border: '1px solid var(--editor-border)',
+          boxShadow: 'var(--editor-shadow)',
           overflow: 'hidden',
           display: 'grid',
           // ✅ 가운데(리스트)만 늘어나고, 모달은 maxHeight 안에서 멈춤
@@ -181,15 +182,15 @@ export default function WikiDbEmbedIdModal({ open, kind, onClose, onSubmit }: Pr
         }}
       >
         {/* header */}
-        <div style={{ padding: 16, borderBottom: '1px solid #eef0f2' }}>
+        <div style={{ padding: 16, borderBottom: '1px solid var(--editor-border)' }}>
           <div style={{ fontSize: 15, fontWeight: 900 }}>{label} 검색</div>
-          <div style={{ fontSize: 12.5, color: '#64748b', marginTop: 4 }}>
+          <div style={{ fontSize: 12.5, color: 'var(--editor-muted)', marginTop: 4 }}>
             이름으로 검색 후 선택하면 ID가 자동 입력됩니다.
           </div>
         </div>
 
         {/* search */}
-        <div style={{ padding: 16, borderBottom: '1px solid #f1f5f9' }}>
+        <div style={{ padding: 16, borderBottom: '1px solid var(--editor-border)' }}>
           <input
             ref={inputRef}
             value={q}
@@ -199,7 +200,9 @@ export default function WikiDbEmbedIdModal({ open, kind, onClose, onSubmit }: Pr
               width: '100%',
               height: 42,
               borderRadius: 10,
-              border: '1px solid #dbe3ef',
+              color: 'var(--editor-text)',
+              background: 'var(--editor-panel)',
+              border: '1px solid var(--editor-border)',
               padding: '0 12px',
               fontSize: 14,
               outline: 'none',
@@ -217,11 +220,17 @@ export default function WikiDbEmbedIdModal({ open, kind, onClose, onSubmit }: Pr
           }}
         >
           {!q.trim() ? (
-            <div style={{ color: '#94a3b8', padding: 12 }}>검색어를 입력하세요.</div>
+            <div style={{ color: 'var(--editor-muted-soft)', padding: 12 }}>
+              검색어를 입력하세요.
+            </div>
           ) : loading ? (
-            <div style={{ color: '#94a3b8', padding: 12 }}>검색 중...</div>
+            <div style={{ color: 'var(--editor-muted-soft)', padding: 12 }}>
+              검색 중...
+            </div>
           ) : rows.length === 0 ? (
-            <div style={{ color: '#94a3b8', padding: 12 }}>결과 없음</div>
+            <div style={{ color: 'var(--editor-muted-soft)', padding: 12 }}>
+              결과 없음
+            </div>
           ) : (
             rows.map((r, idx) => {
               const active = idx === selectedIdx;
@@ -235,8 +244,12 @@ export default function WikiDbEmbedIdModal({ open, kind, onClose, onSubmit }: Pr
                     textAlign: 'left',
                     padding: '10px 12px',
                     borderRadius: 10,
-                    border: active ? '1px solid #93c5fd' : '1px solid #e5e7eb',
-                    background: active ? '#eff6ff' : '#fff',
+                    border: active
+                      ? '1px solid var(--editor-accent)'
+                      : '1px solid var(--editor-border)',
+                    background: active
+                      ? 'var(--editor-accent-soft)'
+                      : 'var(--editor-panel-elevated)',
                     cursor: 'pointer',
                     display: 'flex',
                     gap: 10,
@@ -270,24 +283,38 @@ export default function WikiDbEmbedIdModal({ open, kind, onClose, onSubmit }: Pr
                     </div>
 
                     {showSubtitle && r.subtitle && (
-                      <div style={{ fontSize: 12, color: '#64748b' }}>{r.subtitle}</div>
+                      <div style={{ fontSize: 12, color: 'var(--editor-muted)' }}>
+                        {r.subtitle}
+                      </div>
                     )}
                   </div>
 
-                  <div style={{ marginLeft: 'auto', fontSize: 12, color: '#94a3b8' }}>#{r.id}</div>
+                  <div
+                    style={{
+                      marginLeft: 'auto',
+                      fontSize: 12,
+                      color: 'var(--editor-muted-soft)',
+                    }}
+                  >
+                    #{r.id}
+                  </div>
                 </button>
               );
             })
           )}
 
-          {error && <div style={{ color: '#dc2626', padding: 12 }}>{error}</div>}
+          {error && (
+            <div style={{ color: 'var(--editor-danger)', padding: 12 }}>
+              {error}
+            </div>
+          )}
         </div>
 
         {/* footer */}
         <div
           style={{
             padding: 14,
-            borderTop: '1px solid #eef0f2',
+            borderTop: '1px solid var(--editor-border)',
             display: 'flex',
             justifyContent: 'flex-end',
             gap: 10,
@@ -299,8 +326,9 @@ export default function WikiDbEmbedIdModal({ open, kind, onClose, onSubmit }: Pr
               height: 36,
               padding: '0 12px',
               borderRadius: 10,
-              border: '1px solid #e5e7eb',
-              background: '#fff',
+              color: 'var(--editor-text)',
+              border: '1px solid var(--editor-border)',
+              background: 'var(--editor-panel-soft)',
               fontWeight: 700,
             }}
           >
@@ -313,9 +341,13 @@ export default function WikiDbEmbedIdModal({ open, kind, onClose, onSubmit }: Pr
               height: 36,
               padding: '0 12px',
               borderRadius: 10,
-              border: 'none',
-              background: selected ? '#2a90ff' : '#e5e7eb',
-              color: selected ? '#fff' : '#94a3b8',
+              background: selected
+                ? 'var(--editor-accent)'
+                : 'var(--editor-panel-soft)',
+              color: selected ? '#fff' : 'var(--editor-muted-soft)',
+              border: selected
+                ? '1px solid var(--editor-accent)'
+                : '1px solid var(--editor-border)',
               fontWeight: 800,
             }}
           >

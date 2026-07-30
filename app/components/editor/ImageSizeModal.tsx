@@ -154,7 +154,9 @@ export default function ImageSizeModal({ open, width, height, onSave, onClose }:
       <div style={{ display: 'flex', gap: 12, alignItems: 'flex-end' }}>
         {/* W */}
         <div>
-          <div style={{ fontSize: 13, marginBottom: 4, color: '#6b7280' }}>W</div>
+          <div style={{ fontSize: 13, marginBottom: 4, color: 'var(--editor-muted)' }}>
+            W
+          </div>
           <input
             className="rd-input"
             type="number"
@@ -181,8 +183,15 @@ export default function ImageSizeModal({ open, width, height, onSave, onClose }:
             width: 38,
             height: 38,
             borderRadius: 10,
-            border: '1px solid #d1d5db',
-            background: keepRatio ? '#eef5ff' : '#ffffff',
+            color: keepRatio
+              ? 'var(--editor-accent-strong)'
+              : 'var(--editor-muted)',
+            border: keepRatio
+              ? '1px solid var(--editor-accent)'
+              : '1px solid var(--editor-border)',
+            background: keepRatio
+              ? 'var(--editor-accent-soft)'
+              : 'var(--editor-panel-elevated)',
             display: 'inline-flex',
             alignItems: 'center',
             justifyContent: 'center',
@@ -195,7 +204,9 @@ export default function ImageSizeModal({ open, width, height, onSave, onClose }:
 
         {/* H */}
         <div>
-          <div style={{ fontSize: 13, marginBottom: 4, color: '#6b7280' }}>H</div>
+          <div style={{ fontSize: 13, marginBottom: 4, color: 'var(--editor-muted)' }}>
+            H
+          </div>
           <input
             className="rd-input"
             type="number"

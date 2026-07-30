@@ -1,0 +1,73 @@
+.rdwiki-table-block {
+  --rdwiki-table-border: var(--border, #d7dde7);
+  --rdwiki-table-surface: var(--surface-elevated, #ffffff);
+  --rdwiki-table-header: var(--header-hover, #f3f4f6);
+  --rdwiki-table-text: var(--foreground, #171717);
+
+  max-width: 100%;
+  color: var(--rdwiki-table-text);
+}
+
+.rdwiki-table-scroll {
+  width: 100%;
+  max-width: 100%;
+  overscroll-behavior-inline: contain;
+  scrollbar-width: thin;
+}
+
+.rdwiki-table-block table,
+.rdwiki-table {
+  width: 100%;
+  border-collapse: separate;
+  border-spacing: 0;
+  color: inherit;
+}
+
+.rdwiki-table-cell,
+.rdwiki-table-block tbody > tr > td {
+  box-sizing: border-box;
+  min-width: 0;
+  padding: 10px 14px;
+  vertical-align: middle;
+  line-height: 1.55;
+  color: inherit;
+  background: var(--rdwiki-table-surface);
+  border: 0;
+  border-right: 1px solid var(--rdwiki-table-border);
+  border-bottom: 1px solid var(--rdwiki-table-border);
+}
+
+/* 표의 왼쪽과 오른쪽 바깥 세로선은 표시하지 않는다. */
+.rdwiki-table-block tbody > tr > td:last-child {
+  border-right: 0;
+}
+
+/* 첫 번째 행은 홈 화면의 카드 톤과 맞춘 헤더로 표현한다. */
+.rdwiki-table-block tbody > tr:first-child > td {
+  font-weight: 700;
+  background: var(--rdwiki-table-header);
+  border-top: 1px solid var(--rdwiki-table-border);
+}
+
+.rdwiki-table-block tbody > tr:first-child > td:first-child {
+  border-radius: 10px 0 0 10px;
+}
+
+.rdwiki-table-block tbody > tr:first-child > td:last-child {
+  border-radius: 0 10px 10px 0;
+}
+
+.rdwiki-table-block[data-wiki-compact='true'] tbody > tr > td {
+  padding: 7px 10px;
+}
+
+@media (max-width: 640px) {
+  .rdwiki-table-cell,
+  .rdwiki-table-block tbody > tr > td {
+    padding: 9px 11px;
+  }
+
+  .rdwiki-table-block[data-wiki-compact='true'] tbody > tr > td {
+    padding: 7px 9px;
+  }
+}

@@ -83,7 +83,7 @@ const CONTAINER_W = GRID_W + PAD * 2;          // 232
 const baseSwatch: React.CSSProperties = {
   width: CELL,
   height: CELL,
-  border: '1px solid #e5e7eb',
+  border: '1px solid var(--editor-border)',
   borderRadius: 3,
   padding: 0,
   margin: 0,
@@ -148,17 +148,24 @@ export default function CustomColorDropdown({
         left: 0,
         width: CONTAINER_W,
         boxSizing: 'border-box',
-        background: '#fff',
-        border: '1px solid #e2e8f0',
+        background: 'var(--editor-panel-elevated)',
+        border: '1px solid var(--editor-border)',
         borderRadius: 10,
-        boxShadow: '0 10px 28px rgba(2, 8, 23, 0.08)',
+        boxShadow: 'var(--editor-shadow)',
         padding: PAD,
         zIndex: 1000,
         overflow: 'hidden'
       }}
       onMouseDown={(e) => e.stopPropagation()}
     >
-      <div style={{ marginBottom: 8, fontSize: 12.5, fontWeight: 600, color: '#1c1d1fa3' }}>
+      <div
+        style={{
+          marginBottom: 8,
+          fontSize: 12.5,
+          fontWeight: 700,
+          color: 'var(--editor-muted)',
+        }}
+      >
         {title}
       </div>
 
@@ -257,9 +264,9 @@ export default function CustomColorDropdown({
         style={{
           marginTop: 10,
           width: '100%',
-          border: '1px solid #e5e7eb',
-          background: '#f8fafc',
-          color: '#1c1d1fa3',
+          border: '1px solid var(--editor-border)',
+          background: 'var(--editor-panel-soft)',
+          color: 'var(--editor-muted)',
           fontWeight: 600,
           borderRadius: 8,
           padding: '6px 8px',
@@ -285,7 +292,9 @@ export default function CustomColorDropdown({
               spellCheck={false}
               style={{
                 flex: 1,
-                border: '1px solid #e5e7eb',
+                color: 'var(--editor-text)',
+                background: 'var(--editor-panel)',
+                border: '1px solid var(--editor-border)',
                 borderRadius: 8,
                 padding: '6px 8px',
                 fontSize: 13,
@@ -296,12 +305,12 @@ export default function CustomColorDropdown({
             <button
               onClick={() => { select(hex); onClose(); }}
               style={{
-                border: '1px solid #e2e8f0',
-                background: '#fff',
+                border: '1px solid var(--editor-border)',
+                background: 'var(--editor-panel-elevated)',
                 borderRadius: 8,
                 padding: '6px 10px',
                 fontWeight: 700,
-                color: '#2563eb',
+                color: 'var(--editor-accent-strong)',
                 cursor: 'pointer',
                 whiteSpace: 'nowrap'
               }}

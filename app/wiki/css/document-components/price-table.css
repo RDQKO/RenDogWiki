@@ -1,0 +1,665 @@
+/* =============================================
+ * File:
+ * app/wiki/css/document-components/price-table.css
+ *
+ * 전체 코드
+ *
+ * 담당 범위
+ * - 시세표 카드 공통 디자인
+ * - 단계 배지와 단계 이동 버튼
+ * - 아이템 이미지, 이름, 가격 영역
+ * - 에디터/문서 읽기 공통 레이아웃
+ * ============================================= */
+
+.price-table-renderer {
+  position: relative;
+  display: block;
+  width: 100%;
+  max-width: 100%;
+  box-sizing: border-box;
+}
+
+.price-table-renderer__shell {
+  position: relative;
+  display: flex;
+  width: 100%;
+  min-height: 0;
+  align-items: center;
+  justify-content: center;
+  box-sizing: border-box;
+  margin: 12px 0;
+  padding: 12px 0;
+}
+
+.price-table-renderer__grid {
+  display: grid;
+  width: 100%;
+  max-width: 1040px;
+  grid-template-columns:
+    repeat(
+      auto-fit,
+      148px
+    );
+  justify-content: center;
+  align-items: stretch;
+  gap: 16px;
+  box-sizing: border-box;
+  margin: 0 auto;
+  padding: 0 4px;
+}
+
+/* ===== 개별 카드 ===== */
+
+.price-table-card {
+  --price-table-card-border:
+    var(
+      --wiki-chrome-border,
+      var(--border)
+    );
+  --price-table-card-panel:
+    var(
+      --wiki-chrome-panel,
+      var(--surface-elevated)
+    );
+  --price-table-card-panel-soft:
+    var(
+      --wiki-chrome-panel-soft,
+      var(--surface-soft)
+    );
+  --price-table-card-hover:
+    var(
+      --wiki-chrome-hover,
+      var(--surface-soft)
+    );
+  --price-table-card-active:
+    var(
+      --wiki-chrome-active,
+      var(--accent-soft)
+    );
+  --price-table-card-accent:
+    var(
+      --wiki-chrome-accent,
+      #4d9b5c
+    );
+  --price-table-card-accent-strong:
+    var(
+      --wiki-chrome-accent-strong,
+      #327b42
+    );
+  --price-table-card-text:
+    var(
+      --wiki-chrome-text,
+      var(--foreground)
+    );
+  --price-table-card-muted:
+    var(
+      --wiki-chrome-muted,
+      var(--muted)
+    );
+
+  position: relative;
+  isolation: isolate;
+  display: flex;
+  width: 148px;
+  min-width: 148px;
+  max-width: 148px;
+  min-height: 184px;
+  flex-direction: column;
+  align-items: center;
+  box-sizing: border-box;
+  padding: 12px 10px 10px;
+  overflow: visible;
+  color: var(--price-table-card-text);
+  background:
+    linear-gradient(
+      180deg,
+      color-mix(
+        in srgb,
+        var(--price-table-card-panel) 98%,
+        white
+      ),
+      color-mix(
+        in srgb,
+        var(--price-table-card-panel-soft) 48%,
+        var(--price-table-card-panel)
+      )
+    );
+  border:
+    1px solid
+    var(--price-table-card-border);
+  border-radius: 14px;
+  box-shadow:
+    0 1px 2px
+    rgba(31, 55, 36, 0.035),
+    0 7px 18px
+    rgba(31, 55, 36, 0.055);
+  transition:
+    border-color 0.15s ease,
+    box-shadow 0.15s ease,
+    transform 0.15s ease;
+}
+
+.price-table-card--read:hover,
+.price-table-card--hovered,
+.price-table-card--edit:focus-within {
+  border-color:
+    color-mix(
+      in srgb,
+      var(
+        --price-table-card-accent
+      ) 28%,
+      var(
+        --price-table-card-border
+      )
+    );
+  box-shadow:
+    0 2px 5px
+    rgba(31, 55, 36, 0.05),
+    0 12px 25px
+    rgba(31, 55, 36, 0.085);
+  transform:
+    translateY(-1px);
+}
+
+/* ===== 단계 배지 ===== */
+
+.price-table-card__stage-wrap {
+  position: absolute;
+  top: 8px;
+  left: 50%;
+  z-index: 3;
+  display: flex;
+  width: 70px;
+  justify-content: center;
+  transform:
+    translateX(-50%);
+}
+
+.price-table-card__stage {
+  display: inline-flex;
+  width: 70px;
+  min-height: 25px;
+  align-items: center;
+  justify-content: center;
+  box-sizing: border-box;
+  padding: 3px 7px;
+  overflow: hidden;
+  color:
+    var(
+      --price-table-stage-text,
+      #172019
+    );
+  font-size: 13px;
+  font-weight: 800;
+  line-height: 1.1;
+  letter-spacing: 0.025em;
+  text-align: center;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  background:
+    var(
+      --price-table-stage-color,
+      #5cacee
+    );
+  border:
+    2px solid
+    color-mix(
+      in srgb,
+      var(
+        --price-table-card-panel
+      ) 92%,
+      transparent
+    );
+  border-radius: 999px;
+  box-shadow:
+    0 2px 6px
+    rgba(31, 45, 34, 0.12);
+}
+
+/* ===== 단계 이동 버튼 ===== */
+
+.price-table-card__stage-button {
+  position: absolute;
+  top: 50%;
+  z-index: 5;
+  display: inline-grid;
+  width: 28px;
+  height: 28px;
+  padding: 0;
+  place-items: center;
+  color:
+    var(
+      --price-table-card-muted
+    );
+  cursor: pointer;
+  background:
+    color-mix(
+      in srgb,
+      var(
+        --price-table-card-panel
+      ) 96%,
+      transparent
+    );
+  border:
+    1px solid
+    var(
+      --price-table-card-border
+    );
+  border-radius: 999px;
+  box-shadow:
+    0 4px 12px
+    rgba(31, 55, 36, 0.1);
+  transform:
+    translateY(-50%);
+  transition:
+    color 0.14s ease,
+    background-color 0.14s ease,
+    border-color 0.14s ease,
+    transform 0.14s ease;
+}
+
+.price-table-card__stage-button--prev {
+  left: -11px;
+}
+
+.price-table-card__stage-button--next {
+  right: -11px;
+}
+
+.price-table-card__stage-button svg {
+  display: block;
+  width: 17px;
+  height: 17px;
+}
+
+.price-table-card__stage-button:hover {
+  color:
+    var(
+      --price-table-card-accent-strong
+    );
+  background:
+    var(
+      --price-table-card-hover
+    );
+  border-color:
+    color-mix(
+      in srgb,
+      var(
+        --price-table-card-accent
+      ) 26%,
+      var(
+        --price-table-card-border
+      )
+    );
+}
+
+.price-table-card__stage-button--prev:hover {
+  transform:
+    translateY(-50%)
+    translateX(-1px);
+}
+
+.price-table-card__stage-button--next:hover {
+  transform:
+    translateY(-50%)
+    translateX(1px);
+}
+
+/* ===== 이미지 ===== */
+
+.price-table-card__image {
+  display: flex;
+  flex: 0 0 82px;
+  width: 82px;
+  height: 82px;
+  align-items: center;
+  justify-content: center;
+  box-sizing: border-box;
+  margin-top: 2px;
+  margin-bottom: 8px;
+  overflow: hidden;
+  background:
+    linear-gradient(
+      145deg,
+      color-mix(
+        in srgb,
+        var(
+          --price-table-card-active
+        ) 56%,
+        var(
+          --price-table-card-panel
+        )
+      ),
+      color-mix(
+        in srgb,
+        var(
+          --price-table-card-hover
+        ) 62%,
+        var(
+          --price-table-card-panel
+        )
+      )
+    );
+  border:
+    1px solid
+    color-mix(
+      in srgb,
+      var(
+        --price-table-card-accent
+      ) 10%,
+      var(
+        --price-table-card-border
+      )
+    );
+  border-radius: 12px;
+  box-shadow: none;
+}
+
+.price-table-card[
+  data-price-table-has-stages='true'
+]
+.price-table-card__image {
+  margin-top: 27px;
+}
+
+.price-table-card__image--editable {
+  cursor: pointer;
+  transition:
+    border-color 0.14s ease,
+    background-color 0.14s ease;
+}
+
+.price-table-card__image--editable:hover {
+  border-color:
+    color-mix(
+      in srgb,
+      var(
+        --price-table-card-accent
+      ) 30%,
+      var(
+        --price-table-card-border
+      )
+    );
+  background:
+    var(
+      --price-table-card-active
+    );
+}
+
+.price-table-card__image-placeholder {
+  display: inline-flex;
+  width: 54px;
+  height: 54px;
+  align-items: center;
+  justify-content: center;
+  color:
+    color-mix(
+      in srgb,
+      var(
+        --price-table-card-muted
+      ) 72%,
+      transparent
+    );
+}
+
+.price-table-card__image-placeholder svg {
+  display: block;
+  width: 34px;
+  height: 34px;
+}
+
+/* ===== 이름 ===== */
+
+.price-table-card__name {
+  display: flex;
+  width: 100%;
+  min-height: 38px;
+  align-items: center;
+  justify-content: center;
+  box-sizing: border-box;
+  padding: 0 3px;
+  color:
+    var(
+      --price-table-card-text
+    );
+  font-weight: 760;
+  line-height: 1.18;
+  letter-spacing: -0.018em;
+  text-align: center;
+  white-space: normal;
+  word-break: keep-all;
+  overflow-wrap: anywhere;
+}
+
+.price-table-card__name--empty {
+  color:
+    var(
+      --price-table-card-muted
+    );
+  font-weight: 650;
+}
+
+.price-table-card__name--editable {
+  cursor: pointer;
+  border-radius: 7px;
+  transition:
+    color 0.14s ease,
+    background-color 0.14s ease;
+}
+
+.price-table-card__name--editable:hover {
+  color:
+    var(
+      --price-table-card-accent-strong
+    );
+  background:
+    color-mix(
+      in srgb,
+      var(
+        --price-table-card-hover
+      ) 72%,
+      transparent
+    );
+}
+
+/* ===== 가격 ===== */
+
+.price-table-card__price {
+  display: flex;
+  width:
+    calc(
+      100% + 4px
+    );
+  min-height: 32px;
+  align-items: center;
+  justify-content: center;
+  box-sizing: border-box;
+  margin-top: 6px;
+  padding: 5px 7px;
+  overflow: hidden;
+  color:
+    var(
+      --accent,
+      #5b80f5
+    );
+  font-weight: 850;
+  line-height: 1.08;
+  letter-spacing: 0.035em;
+  text-align: center;
+  background:
+    color-mix(
+      in srgb,
+      var(
+        --accent,
+        #5b80f5
+      ) 5%,
+      var(
+        --price-table-card-panel
+      )
+    );
+  border-top:
+    1px solid
+    color-mix(
+      in srgb,
+      var(
+        --accent,
+        #5b80f5
+      ) 12%,
+      var(
+        --price-table-card-border
+      )
+    );
+  border-radius: 8px;
+}
+
+.ptc-price-text {
+  display: inline;
+  max-width: 100%;
+  overflow-wrap: anywhere;
+}
+
+.ptc-price-text__group {
+  white-space: nowrap;
+}
+
+.ptc-price-text__range {
+  color:
+    var(
+      --accent,
+      #5b80f5
+    );
+}
+
+/* ===== 다크 모드 ===== */
+
+:root[data-theme='dark']
+.price-table-card,
+.dark
+.price-table-card {
+  background:
+    linear-gradient(
+      180deg,
+      color-mix(
+        in srgb,
+        var(
+          --price-table-card-panel
+        ) 96%,
+        black
+      ),
+      color-mix(
+        in srgb,
+        var(
+          --price-table-card-panel-soft
+        ) 42%,
+        var(
+          --price-table-card-panel
+        )
+      )
+    );
+  box-shadow:
+    0 1px 2px
+    rgba(0, 0, 0, 0.14),
+    0 9px 22px
+    rgba(0, 0, 0, 0.14);
+}
+
+:root[data-theme='dark']
+.price-table-card__image,
+.dark
+.price-table-card__image {
+  box-shadow: none;
+}
+
+/* ===== 반응형 ===== */
+
+@media (max-width: 768px) {
+  .price-table-renderer__shell {
+    margin: 9px 0;
+    padding: 9px 0;
+  }
+
+  .price-table-renderer__grid {
+    grid-template-columns:
+      repeat(
+        auto-fit,
+        138px
+      );
+    gap: 13px;
+    padding:
+      0
+      2px;
+  }
+
+  .price-table-card {
+    width: 138px;
+    min-width: 138px;
+    max-width: 138px;
+    min-height: 174px;
+    padding:
+      11px
+      8px
+      9px;
+    border-radius: 13px;
+  }
+
+  .price-table-card__image {
+    flex-basis: 74px;
+    width: 74px;
+    height: 74px;
+    margin-bottom: 7px;
+    border-radius: 11px;
+  }
+
+  .price-table-card__image > img {
+    width: 62px !important;
+    height: 62px !important;
+  }
+
+  .price-table-card__stage-wrap,
+  .price-table-card__stage {
+    width: 66px;
+  }
+
+  .price-table-card__stage {
+    min-height: 24px;
+    font-size: 12px;
+  }
+
+  .price-table-card__name {
+    min-height: 36px;
+  }
+
+  .price-table-card__price {
+    min-height: 30px;
+    margin-top: 5px;
+  }
+}
+
+@media (max-width: 420px) {
+  .price-table-renderer__grid {
+    grid-template-columns:
+      repeat(
+        2,
+        minmax(
+          0,
+          1fr
+        )
+      );
+    gap: 10px;
+  }
+
+  .price-table-card {
+    width: 100%;
+    min-width: 0;
+    max-width: none;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .price-table-card,
+  .price-table-card__stage-button,
+  .price-table-card__image--editable,
+  .price-table-card__name--editable {
+    transition: none;
+  }
+}

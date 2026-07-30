@@ -19,7 +19,6 @@ import type {
   WeaponCardElement,
 } from '@/types/slate';
 
-import type { PriceTableEditState } from './render/types';
 import type { ElementRenderProps } from './render/types';
 
 import {
@@ -58,8 +57,6 @@ import EmbedPlaceholderEditorAdapter from './render/embed/EmbedPlaceholderEditor
 export type ElementProps = RenderElementProps & {
   editor: any;
   onIconClick: (element: CustomElement) => void;
-  priceTableEdit: PriceTableEditState;
-  setPriceTableEdit: React.Dispatch<React.SetStateAction<PriceTableEditState>>;
 };
 
 const Element: React.FC<ElementRenderProps> = ({
@@ -68,7 +65,6 @@ const Element: React.FC<ElementRenderProps> = ({
   element,
   editor,
   onIconClick,
-  setPriceTableEdit,
   openFootnoteEditor,
   readOnly,
   onWikiRefClick,
@@ -202,7 +198,6 @@ const Element: React.FC<ElementRenderProps> = ({
         <PriceTableEditorAdapter
           attributes={attributes}
           element={element as PriceTableCardElement}
-          setPriceTableEdit={setPriceTableEdit}
         >
           {children}
         </PriceTableEditorAdapter>

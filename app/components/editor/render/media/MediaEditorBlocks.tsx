@@ -29,10 +29,6 @@ import type {
   VideoElement,
 } from '@/types/slate';
 
-import {
-  toProxyUrl,
-} from '@lib/cdn';
-
 type BlockComponentProps<E = any> = {
   attributes: RenderElementProps['attributes'];
   children: React.ReactNode;
@@ -42,7 +38,7 @@ type BlockComponentProps<E = any> = {
 
 function EditIcon({
   size = 18,
-  color = '#2a90ff',
+  color = 'currentColor',
 }) {
   return (
     <svg
@@ -67,24 +63,6 @@ function EditIcon({
     </svg>
   );
 }
-
-const editButtonStyle: React.CSSProperties = {
-  position: 'absolute',
-  top: 8,
-  right: 8,
-  background: '#fff',
-  border: '1.5px solid #2a90ff',
-  borderRadius: '50%',
-  boxShadow: '0 1px 5px #0001',
-  width: 32,
-  height: 32,
-  display: 'flex',
-  alignItems: 'center',
-  justifyContent: 'center',
-  cursor: 'pointer',
-  zIndex: 1,
-  padding: 0,
-};
 
 export function ImageBlock({
   attributes,
@@ -114,10 +92,40 @@ export function ImageBlock({
   const media =
     resolveMediaNode(element);
 
-  const imgSrc =
-    media.rawSrc.startsWith('http')
-      ? toProxyUrl(media.rawSrc)
-      : media.rawSrc;
+  // 에디터에서도 저장된 원본 URL을 그대로 사용한다.
+  // 프록시 변환 과정에서 저해상도 응답이 선택되는 문제를 피한다.
+  const imgSrc = media.rawSrc;
+
+  const handleContextMenu = (
+    event: React.MouseEvent<HTMLDivElement>,
+  ) => {
+    event.preventDefault();
+    event.stopPropagation();
+    event.nativeEvent.stopImmediatePropagation();
+
+    try {
+      const path =
+        ReactEditor.findPath(
+          editor,
+          element,
+        );
+      window.dispatchEvent(
+        new CustomEvent('editor:image-menu', {
+          detail: {
+            x: event.clientX,
+            y: event.clientY,
+            kind: 'block',
+            path: [...path],
+          },
+        }),
+      );
+    } catch (error) {
+      console.error(
+        '사진 메뉴 경로 확인 실패',
+        error,
+      );
+    }
+  };
 
   const handleSaveSize = (
     width: number,
@@ -150,7 +158,6 @@ export function ImageBlock({
     event.stopPropagation();
 
     const image = imgRef.current;
-
     const renderedWidth = Math.round(
       image
         ?.getBoundingClientRect()
@@ -201,14 +208,20 @@ export function ImageBlock({
         height={media.height}
         selected={selected}
         focused={focused}
-        attributes={attributes}
+        attributes={
+          {
+            ...attributes,
+            onContextMenu:
+              handleContextMenu,
+          } as React.HTMLAttributes<HTMLDivElement>
+        }
         imageRef={imgRef}
         editControls={
           selected ? (
             <button
               type="button"
               onMouseDown={openSizeModal}
-              style={editButtonStyle}
+              className="wiki-editor-floating-action wiki-editor-media-size-action"
               tabIndex={-1}
               title="이미지 크기 편집"
               contentEditable={false}
@@ -220,7 +233,6 @@ export function ImageBlock({
       >
         {children}
       </MediaBlock>
-
       <ImageSizeModal
         open={modalOpen}
         width={initSize.w}
@@ -247,7 +259,6 @@ export function VideoBlock({
     modalOpen,
     setModalOpen,
   ] = useState(false);
-
   const media =
     resolveMediaNode(
       element as unknown as Record<
@@ -256,10 +267,7 @@ export function VideoBlock({
       >,
     );
 
-  const src =
-    media.rawSrc.startsWith('http')
-      ? toProxyUrl(media.rawSrc)
-      : media.rawSrc;
+  const src = media.rawSrc;
 
   const handleSaveSize = (
     width: number,
@@ -270,7 +278,6 @@ export function VideoBlock({
         editor,
         element,
       );
-
     Transforms.setNodes(
       editor,
       {
@@ -310,7 +317,7 @@ export function VideoBlock({
             <button
               type="button"
               onMouseDown={openSizeModal}
-              style={editButtonStyle}
+              className="wiki-editor-floating-action"
               tabIndex={-1}
               title="영상 크기 편집"
               contentEditable={false}
@@ -322,7 +329,6 @@ export function VideoBlock({
       >
         {children}
       </MediaBlock>
-
       <ImageSizeModal
         open={modalOpen}
         width={media.width}

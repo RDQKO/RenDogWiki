@@ -1,0 +1,218 @@
+/* =============================================
+   File: app/components/wiki/CategoryTreeIconStability.module.css
+   전체 코드 - 새 파일
+
+   적용 범위:
+   - 왼쪽 카테고리 트리의 카테고리·문서 아이콘
+   - hover 시 도트 이미지가 미세하게 움직이는 현상
+
+   트리의 열기·닫기, 선택, 스크롤 로직은 변경하지 않는다.
+   ============================================= */
+
+.tree {
+  --tree-root-icon-box: 42px;
+  --tree-root-icon-size: 30px;
+  --tree-child-icon-box: 36px;
+  --tree-child-icon-size: 26px;
+  --tree-doc-icon-box: 28px;
+  --tree-doc-icon-size: 24px;
+}
+
+/*
+ * 기존 디자인에는 항목 전체를 1~2px 이동시키는 hover transform이 있다.
+ * 부모가 transform되면 내부 도트 이미지가 다시 래스터화되어
+ * 주변 픽셀이 꿈틀거리는 것처럼 보일 수 있으므로 위치 이동만 제거한다.
+ */
+:global(#wiki-scroll-root)
+.tree
+:global(.wiki-nav-item:hover),
+:global(#wiki-scroll-root)
+.tree
+:global(.wiki-doc-item:hover) {
+  transform: none !important;
+}
+
+/*
+ * transform이 제거된 항목에 불필요한 transform 보간을 남기지 않는다.
+ * 배경·테두리·글자색 전환은 기존대로 유지한다.
+ */
+:global(#wiki-scroll-root)
+.tree
+:global(.wiki-nav-item),
+:global(#wiki-scroll-root)
+.tree
+:global(.wiki-doc-item) {
+  will-change: auto !important;
+}
+
+/* ===== 루트 카테고리 ===== */
+
+:global(#wiki-scroll-root)
+.tree
+:global(.wiki-nav-list > li > .wiki-nav-item)
+:global(.wiki-cat-icon-token) {
+  width: var(--tree-root-icon-box) !important;
+  height: var(--tree-root-icon-box) !important;
+  min-width: var(--tree-root-icon-box) !important;
+  min-height: var(--tree-root-icon-box) !important;
+  flex:
+    0 0
+    var(--tree-root-icon-box) !important;
+  contain: layout paint;
+}
+
+:global(#wiki-scroll-root)
+.tree
+:global(.wiki-nav-list > li > .wiki-nav-item)
+:global(.wiki-category-icon-img) {
+  display: block !important;
+  width: var(--tree-root-icon-size) !important;
+  height: var(--tree-root-icon-size) !important;
+  max-width: none !important;
+  max-height: none !important;
+  object-fit: contain !important;
+  image-rendering: pixelated;
+}
+
+:global(#wiki-scroll-root)
+.tree
+:global(.wiki-nav-list > li > .wiki-nav-item)
+:global(.wiki-category-icon-emoji) {
+  width: var(--tree-root-icon-size) !important;
+  height: var(--tree-root-icon-size) !important;
+  min-width: var(--tree-root-icon-size) !important;
+  min-height: var(--tree-root-icon-size) !important;
+  font-size: 24px !important;
+}
+
+/* ===== 모든 깊이의 하위 카테고리 ===== */
+
+/*
+ * 중첩 깊이에 관계없이 하위 카테고리 아이콘은 같은 크기를 사용한다.
+ * .wiki-doc-list가 여러 번 중첩되어도 추가로 축소되지 않는다.
+ */
+:global(#wiki-scroll-root)
+.tree
+:global(.wiki-doc-list)
+:global(.wiki-nav-item)
+:global(.wiki-cat-icon-token) {
+  width: var(--tree-child-icon-box) !important;
+  height: var(--tree-child-icon-box) !important;
+  min-width: var(--tree-child-icon-box) !important;
+  min-height: var(--tree-child-icon-box) !important;
+  flex:
+    0 0
+    var(--tree-child-icon-box) !important;
+  margin-right: 8px !important;
+  contain: layout paint;
+}
+
+:global(#wiki-scroll-root)
+.tree
+:global(.wiki-doc-list)
+:global(.wiki-nav-item)
+:global(.wiki-category-icon-img) {
+  display: block !important;
+  width: var(--tree-child-icon-size) !important;
+  height: var(--tree-child-icon-size) !important;
+  min-width: var(--tree-child-icon-size) !important;
+  min-height: var(--tree-child-icon-size) !important;
+  max-width: none !important;
+  max-height: none !important;
+  object-fit: contain !important;
+  image-rendering: pixelated;
+}
+
+:global(#wiki-scroll-root)
+.tree
+:global(.wiki-doc-list)
+:global(.wiki-nav-item)
+:global(.wiki-category-icon-emoji) {
+  width: var(--tree-child-icon-size) !important;
+  height: var(--tree-child-icon-size) !important;
+  min-width: var(--tree-child-icon-size) !important;
+  min-height: var(--tree-child-icon-size) !important;
+  font-size: 21px !important;
+}
+
+/* ===== 문서 아이콘 ===== */
+
+:global(#wiki-scroll-root)
+.tree
+:global(.wiki-doc-icon-token) {
+  display: grid;
+  width: var(--tree-doc-icon-box);
+  height: var(--tree-doc-icon-box);
+  min-width: var(--tree-doc-icon-box);
+  min-height: var(--tree-doc-icon-box);
+  flex:
+    0 0
+    var(--tree-doc-icon-box);
+  place-items: center;
+  margin-right: 8px;
+  overflow: hidden;
+  contain: layout paint;
+}
+
+:global(#wiki-scroll-root)
+.tree
+:global(.wiki-doc-icon-img) {
+  display: block;
+  width: var(--tree-doc-icon-size);
+  height: var(--tree-doc-icon-size);
+  min-width: var(--tree-doc-icon-size);
+  min-height: var(--tree-doc-icon-size);
+  max-width: none;
+  max-height: none;
+  object-fit: contain;
+  image-rendering: pixelated;
+}
+
+:global(#wiki-scroll-root)
+.tree
+:global(.wiki-doc-icon-emoji) {
+  display: grid;
+  width: var(--tree-doc-icon-size);
+  height: var(--tree-doc-icon-size);
+  min-width: var(--tree-doc-icon-size);
+  min-height: var(--tree-doc-icon-size);
+  place-items: center;
+  font-size: 20px;
+  line-height: 1;
+}
+
+/*
+ * 아이콘과 텍스트의 줄 높이를 고정해 선택·hover 재도색 시
+ * 행 높이가 1px씩 달라지지 않게 한다.
+ */
+:global(#wiki-scroll-root)
+.tree
+:global(.wiki-category-main),
+:global(#wiki-scroll-root)
+.tree
+:global(.wiki-doc-item) {
+  min-width: 0;
+  line-height: 1.25;
+}
+
+@media (max-width: 1024px) {
+  .tree {
+    --tree-root-icon-box: 40px;
+    --tree-root-icon-size: 29px;
+    --tree-child-icon-box: 35px;
+    --tree-child-icon-size: 25px;
+    --tree-doc-icon-box: 27px;
+    --tree-doc-icon-size: 23px;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  :global(#wiki-scroll-root)
+  .tree
+  :global(.wiki-nav-item),
+  :global(#wiki-scroll-root)
+  .tree
+  :global(.wiki-doc-item) {
+    transition: none !important;
+  }
+}

@@ -76,9 +76,9 @@ function WritePageInner() {
   if (!path) return <div>잘못된 접근입니다.</div>;
 
   return (
-    <div className="max-w-[95%] mx-auto py-10">
+    <main className="wiki-editor-page">
       <SlateEditor initialDoc={doc} isMain={main} />
-    </div>
+    </main>
   );
 }
 

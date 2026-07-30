@@ -1,0 +1,236 @@
+/* =============================================
+ * File: app/components/common/wikiHeaderHome.module.css
+ * 전체 코드
+ * - 홈 헤더 디자인을 문서 헤더에 동일하게 적용
+ * - 문서 헤더의 중앙 검색창만 추가 유지
+ * ============================================= */
+
+.header {
+  position: fixed;
+  inset: 0 0 auto;
+  z-index: 900;
+  width: 100%;
+  height: 64px;
+  border-bottom:
+    1px solid var(--border);
+  background:
+    color-mix(
+      in srgb,
+      var(--header-bg) 94%,
+      transparent
+    );
+  box-shadow:
+    0 1px 7px
+    rgba(15, 23, 42, 0.05);
+  backdrop-filter: blur(14px);
+  -webkit-backdrop-filter: blur(14px);
+}
+
+.inner {
+  display: grid;
+  grid-template-columns:
+    minmax(205px, 1fr)
+    minmax(320px, 700px)
+    minmax(120px, 1fr);
+  align-items: center;
+  width:
+    min(
+      calc(100% - 48px),
+      1480px
+    );
+  height: 100%;
+  margin: 0 auto;
+  gap: 24px;
+}
+
+.brand {
+  display: inline-flex;
+  align-items: center;
+  justify-self: start;
+  min-width: 0;
+  color: inherit;
+  text-decoration: none;
+}
+
+.brandLogo {
+  display: block;
+  width: 205px;
+  height: auto;
+  max-height: 54px;
+  object-fit: contain;
+  object-position: left center;
+}
+
+.search {
+  position: relative;
+  z-index: 2;
+  justify-self: center;
+  width: 100%;
+  min-width: 0;
+}
+
+.actions {
+  display: flex;
+  align-items: center;
+  justify-self: end;
+  gap: 10px;
+  min-width: max-content;
+}
+
+.iconButton {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex: 0 0 auto;
+  width: 40px;
+  height: 40px;
+  min-width: 40px;
+  padding: 0;
+  border: 0;
+  border-radius: 10px;
+  background: transparent;
+  box-shadow: none;
+  color: var(--foreground);
+  font-family: inherit;
+  font-size: 29px;
+  font-weight: 700;
+  line-height: 1;
+  cursor: pointer;
+  transition:
+    color 0.15s ease,
+    background-color 0.15s ease,
+    transform 0.15s ease;
+}
+
+.iconButton:hover {
+  color: #4f9e5c;
+  background:
+    color-mix(
+      in srgb,
+      #72bd7c 12%,
+      transparent
+    );
+  transform: translateY(-1px);
+}
+
+.iconButton:active {
+  transform: translateY(0);
+}
+
+.iconButton:focus-visible {
+  outline:
+    2px solid
+    color-mix(
+      in srgb,
+      #72bd7c 72%,
+      transparent
+    );
+  outline-offset: 2px;
+}
+
+.mobileMenuButton {
+  display: none;
+}
+
+:global(
+  :root[data-theme='dark']
+) .iconButton:hover {
+  color: #a8ddb0;
+  background:
+    rgba(111, 180, 124, 0.12);
+}
+
+@media (max-width: 1180px) {
+  .inner {
+    grid-template-columns:
+      minmax(180px, 0.8fr)
+      minmax(280px, 620px)
+      minmax(110px, 0.8fr);
+    gap: 18px;
+  }
+
+  .brandLogo {
+    width: 185px;
+  }
+}
+
+@media (max-width: 900px) {
+  .inner {
+    width:
+      min(
+        calc(100% - 32px),
+        1480px
+      );
+    grid-template-columns:
+      164px
+      minmax(220px, 1fr)
+      auto;
+    gap: 14px;
+  }
+
+  .brandLogo {
+    width: 164px;
+  }
+}
+
+@media (max-width: 768px) {
+  .inner {
+    width:
+      calc(100% - 24px);
+    grid-template-columns:
+      150px
+      minmax(0, 1fr)
+      auto;
+    gap: 12px;
+  }
+
+  .brandLogo {
+    width: 150px;
+    max-height: 48px;
+  }
+
+  .desktopAdminButton {
+    display: none;
+  }
+
+  .mobileMenuButton {
+    display: inline-flex;
+  }
+
+  .actions {
+    gap: 8px;
+  }
+
+  .iconButton {
+    width: 36px;
+    height: 36px;
+    min-width: 36px;
+    font-size: 26px;
+  }
+}
+
+@media (max-width: 640px) {
+  .inner {
+    grid-template-columns:
+      142px
+      1fr
+      auto;
+  }
+
+  .brandLogo {
+    width: 142px;
+  }
+
+  .search {
+    display: none;
+  }
+}
+
+@media (
+  prefers-reduced-motion:
+  reduce
+) {
+  .iconButton {
+    transition: none;
+  }
+}

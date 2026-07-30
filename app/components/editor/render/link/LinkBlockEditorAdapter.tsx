@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useMemo } from 'react';
-import { Node, Transforms, Element as SlateElement } from 'slate';
+import { Node, Element as SlateElement } from 'slate';
 import { ReactEditor } from 'slate-react';
 import type { RenderElementProps } from 'slate-react';
 
@@ -12,6 +12,7 @@ import {
 } from '@/components/wiki-render';
 import { resolveLinkCardTarget } from '@/components/wiki-render/link/linkUtils';
 import useResolvedWikiDocIcon from '@/components/wiki-render/link/useResolvedWikiDocIcon';
+import { deleteLinkBlockAt } from './linkBlockActions';
 
 type LinkBlockEditorAdapterProps = {
   attributes: RenderElementProps['attributes'];
@@ -185,21 +186,9 @@ export default function LinkBlockEditorAdapter({
         event.stopPropagation();
 
         const path = ReactEditor.findPath(editor, element);
-        Transforms.removeNodes(editor, { at: path });
+        deleteLinkBlockAt(editor, path, 'one');
       }}
-      style={{
-        width: 26,
-        height: 26,
-        borderRadius: 999,
-        background: '#fff',
-        border: '1.5px solid #cbd5e1',
-        boxShadow: '0 10px 22px rgba(15,23,42,0.10)',
-        display: 'flex',
-        alignItems: 'center',
-        justifyContent: 'center',
-        cursor: 'pointer',
-        padding: 0,
-      }}
+      className="wiki-editor-floating-action wiki-editor-floating-action--small wiki-editor-floating-action--danger"
       contentEditable={false}
       tabIndex={-1}
     >

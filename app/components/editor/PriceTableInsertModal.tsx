@@ -65,7 +65,7 @@ export default function PriceTableInsertModal({ open, onClose, onInsert }: Props
       }
     >
       <div onKeyDown={onModalKeyDown}>
-        <div style={{ fontSize: 14, color: '#475569', marginBottom: 12 }}>
+        <div style={{ fontSize: 14, color: 'var(--editor-muted)', marginBottom: 12 }}>
           한 줄에 표시할 카드 개수만 정하세요. <br />
           아이템 선택은 <b>삽입 후 카드의 이름을 클릭</b>해서 진행합니다.
         </div>
@@ -82,8 +82,13 @@ export default function PriceTableInsertModal({ open, onClose, onInsert }: Props
                 minWidth: 56,
                 height: 36,
                 borderRadius: 10,
-                background: count === v ? '#2563eb' : '#f3f4f6',
-                color: count === v ? '#fff' : '#475569',
+                background: count === v
+                  ? 'var(--editor-accent)'
+                  : 'var(--editor-panel-soft)',
+                color: count === v ? '#fff' : 'var(--editor-muted)',
+                border: count === v
+                  ? '1px solid var(--editor-accent)'
+                  : '1px solid var(--editor-border)',
                 fontWeight: 900,
               }}
             >
@@ -92,7 +97,7 @@ export default function PriceTableInsertModal({ open, onClose, onInsert }: Props
           ))}
         </div>
 
-        <div style={{ marginTop: 12, fontSize: 12, color: '#94a3b8' }}>
+        <div style={{ marginTop: 12, fontSize: 12, color: 'var(--editor-muted-soft)' }}>
           • 삽입 후 각 카드의 이름을 눌러 아이템을 검색/선택하세요.
         </div>
       </div>

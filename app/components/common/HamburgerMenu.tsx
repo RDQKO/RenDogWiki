@@ -1,40 +1,55 @@
 // =============================================
 // File: app/components/common/HamburgerMenu.tsx
-// (전체 코드)
-// - 메뉴가 실제로 열렸을 때만 auth/uuid 보정 요청
+// 전체 코드
+//
+// - 현재 홈 페이지용 햄버거 메뉴 디자인 유지
+// - 메뉴가 열릴 때 /api/auth/me로 실제 로그인 상태 재확인
+// - Header/Home에서 전달된 user prop이 없어도 로그인 상태 정상 표시
+// - writer/admin 권한 확인 후 관리 메뉴 이동
+// - 권한이 없으면 기존과 동일하게 경고 모달 표시
+// - Minecraft UUID와 스킨 아이콘 보정
+// - minecraft_name을 별도 치환 없이 그대로 표시
 // - 메뉴 내부 Link prefetch 비활성화
-// - 외부 스킨 이미지는 lazy/async + width/height 명시
+// - portal, 백드롭, ESC, 스크롤 잠금 유지
 // =============================================
+
 'use client';
 
-import React, { useEffect, useMemo, useState } from 'react';
-import Link from 'next/link';
-import '@wiki/css/HamburgerMenu.css';
-import logo from '../../image/logo.png';
-import Image from 'next/image';
-import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import {
-  faUserPlus,
-  faImages,
-  faList,
-  faUser,
-  faScroll,
-  faCube,
-  faCommentDots,
-} from '@fortawesome/free-solid-svg-icons';
-import { ModalCard } from '@/components/common/Modal';
-import { toProxyUrl } from '@lib/cdn';
+  useEffect,
+  useMemo,
+  useState,
+  type ReactNode,
+  type MouseEvent as ReactMouseEvent,
+} from 'react';
+import Image from 'next/image';
+import Link from 'next/link';
+import {
+  createPortal,
+} from 'react-dom';
 
-interface HamburgerMenuProps {
+import {
+  ModalCard,
+} from '@/components/common/Modal';
+import {
+  toProxyUrl,
+} from '@lib/cdn';
+
+import styles from '@/wiki/css/hamburgerMenu.module.css';
+
+type HamburgerMenuProps = {
+  isOpen?: boolean;
   onClose: () => void;
-  isOpen: boolean;
   isLoggedIn: boolean;
   username?: string;
   uuid?: string;
-  onLogout: () => void;
-}
+  onLogout: () => void | Promise<void>;
+};
 
-type Role = 'guest' | 'writer' | 'admin';
+type Role =
+  | 'guest'
+  | 'writer'
+  | 'admin';
 
 type AuthUser = {
   id?: number;
@@ -45,107 +60,454 @@ type AuthUser = {
   role?: string | null;
 };
 
-const SPECIAL_NICKS: Record<string, string> = {
-  'q_ko': '큐코',
-  'rounding_': '라운딩',
-  'daramg__': '다람지',
-  '_kei_yuki': '케이유키',
-  'minnseo': '민서',
-  'wonjun125': '원준',
-  'iellre': '일레',
-  'carmenia434': '카르메니아',
+type AuthMeResponse = {
+  loggedIn?: boolean;
+  role?: string | null;
+  user?: AuthUser | null;
 };
 
-function normalizeRole(v: unknown): Role {
-  const s = String(v ?? '').toLowerCase();
-  return s === 'admin' || s === 'writer' ? s : 'guest';
+type MenuItem = {
+  href: string;
+  title: string;
+  description: string;
+  icon: ReactNode;
+  tone:
+    | 'green'
+    | 'mint'
+    | 'blue'
+    | 'orange'
+    | 'lime';
+};
+
+const menuItems: ReadonlyArray<MenuItem> = [
+  {
+    href: '/manage/image',
+    title: '이미지 관리',
+    description:
+      '이미지와 폴더를 정리합니다.',
+    tone: 'green',
+    icon: (
+      <svg
+        viewBox="0 0 24 24"
+        aria-hidden="true"
+      >
+        <path d="M4 5.75A1.75 1.75 0 0 1 5.75 4h12.5A1.75 1.75 0 0 1 20 5.75v12.5A1.75 1.75 0 0 1 18.25 20H5.75A1.75 1.75 0 0 1 4 18.25V5.75Z" />
+        <path d="m6.8 17 3.2-3.4 2.45 2.35 1.85-1.8L17.3 17H6.8Z" />
+        <circle
+          cx="8.4"
+          cy="8.4"
+          r="1.35"
+        />
+      </svg>
+    ),
+  },
+  {
+    href: '/manage/category',
+    title: '카테고리 관리',
+    description:
+      '문서 분류와 순서를 관리합니다.',
+    tone: 'mint',
+    icon: (
+      <svg
+        viewBox="0 0 24 24"
+        aria-hidden="true"
+      >
+        <path d="M4.5 6.5h6v5h-6zM13.5 6.5h6v5h-6zM4.5 14h6v4h-6zM13.5 14h6v4h-6z" />
+      </svg>
+    ),
+  },
+  {
+    href: '/manage/npc',
+    title: 'NPC 관리',
+    description:
+      'NPC 정보와 대사를 편집합니다.',
+    tone: 'blue',
+    icon: (
+      <svg
+        viewBox="0 0 24 24"
+        aria-hidden="true"
+      >
+        <circle
+          cx="12"
+          cy="8"
+          r="3.25"
+        />
+        <path d="M5.75 19.25c.55-3.35 2.65-5.15 6.25-5.15s5.7 1.8 6.25 5.15" />
+      </svg>
+    ),
+  },
+  {
+    href: '/manage/quest',
+    title: '퀘스트 관리',
+    description:
+      '퀘스트와 보상 정보를 관리합니다.',
+    tone: 'orange',
+    icon: (
+      <svg
+        viewBox="0 0 24 24"
+        aria-hidden="true"
+      >
+        <path d="M7 4.5h10v15H7z" />
+        <path d="M9.5 8h5M9.5 11.5h5M9.5 15h3" />
+      </svg>
+    ),
+  },
+  {
+    href: '/manage/head',
+    title: '머리 관리',
+    description:
+      '머리 위치와 이미지를 관리합니다.',
+    tone: 'lime',
+    icon: (
+      <svg
+        viewBox="0 0 24 24"
+        aria-hidden="true"
+      >
+        <path d="m12 3.8 7 4v8.4l-7 4-7-4V7.8l7-4Z" />
+        <path d="m5 7.8 7 4 7-4M12 11.8v8.4" />
+      </svg>
+    ),
+  },
+];
+
+function normalizeRole(
+  value: unknown,
+): Role {
+  const normalized =
+    String(value ?? '')
+      .trim()
+      .toLowerCase();
+
+  if (
+    normalized === 'admin' ||
+    normalized === 'writer'
+  ) {
+    return normalized;
+  }
+
+  return 'guest';
+}
+
+function ArrowIcon() {
+  return (
+    <svg
+      viewBox="0 0 24 24"
+      aria-hidden="true"
+    >
+      <path d="m9 5 7 7-7 7" />
+    </svg>
+  );
+}
+
+function CloseIcon() {
+  return (
+    <svg
+      viewBox="0 0 24 24"
+      aria-hidden="true"
+    >
+      <path d="M6 6l12 12M18 6 6 18" />
+    </svg>
+  );
+}
+
+function LoginIcon() {
+  return (
+    <svg
+      viewBox="0 0 24 24"
+      aria-hidden="true"
+    >
+      <path d="M13 5h5v14h-5M10 8l4 4-4 4M14 12H4" />
+    </svg>
+  );
+}
+
+function UserPlusIcon() {
+  return (
+    <svg
+      viewBox="0 0 24 24"
+      aria-hidden="true"
+    >
+      <circle
+        cx="9"
+        cy="8"
+        r="3"
+      />
+      <path d="M3.5 19c.5-3.2 2.35-4.8 5.5-4.8 2.2 0 3.75.8 4.7 2.4M18 8v6M15 11h6" />
+    </svg>
+  );
+}
+
+function UserIcon() {
+  return (
+    <svg
+      viewBox="0 0 24 24"
+      aria-hidden="true"
+    >
+      <circle
+        cx="12"
+        cy="8"
+        r="3.25"
+      />
+      <path d="M5.75 19.25c.55-3.35 2.65-5.15 6.25-5.15s5.7 1.8 6.25 5.15" />
+    </svg>
+  );
+}
+
+function LogoutIcon() {
+  return (
+    <svg
+      viewBox="0 0 24 24"
+      aria-hidden="true"
+    >
+      <path d="M11 5H6v14h5M14 8l4 4-4 4M18 12H9" />
+    </svg>
+  );
 }
 
 export default function HamburgerMenu({
-  isOpen,
+  isOpen = true,
   onClose,
   isLoggedIn,
-  username,
+  username = '',
   uuid,
   onLogout,
 }: HamburgerMenuProps) {
-  const [resolvedUUID, setResolvedUUID] = useState<string | null>(uuid || null);
-  const [role, setRole] = useState<Role>('guest');
-  const [roleLoaded, setRoleLoaded] = useState(false);
-  const [denyOpen, setDenyOpen] = useState(false);
+  const [
+    mounted,
+    setMounted,
+  ] = useState(false);
 
-  const [effectiveLoggedIn, setEffectiveLoggedIn] = useState(isLoggedIn);
-  const [effectiveUsername, setEffectiveUsername] = useState(username || '');
+  const [
+    loggingOut,
+    setLoggingOut,
+  ] = useState(false);
 
-  const [hoverImage, setHoverImage] = useState(false);
-  const [hoverCategory, setHoverCategory] = useState(false);
-  const [hoverNpc, setHoverNpc] = useState(false);
-  const [hoverQuest, setHoverQuest] = useState(false);
-  const [hoverHead, setHoverHead] = useState(false);
+  const [
+    authChecking,
+    setAuthChecking,
+  ] = useState(true);
+
+  const [
+    effectiveLoggedIn,
+    setEffectiveLoggedIn,
+  ] = useState(isLoggedIn);
+
+  const [
+    effectiveUsername,
+    setEffectiveUsername,
+  ] = useState(username);
+
+  const [
+    resolvedUUID,
+    setResolvedUUID,
+  ] = useState<string | null>(
+    uuid || null,
+  );
+
+  const [
+    role,
+    setRole,
+  ] = useState<Role>('guest');
+
+  const [
+    roleLoaded,
+    setRoleLoaded,
+  ] = useState(false);
+
+  const [
+    denyOpen,
+    setDenyOpen,
+  ] = useState(false);
 
   useEffect(() => {
-    setEffectiveLoggedIn(isLoggedIn);
-    setEffectiveUsername(username || '');
-    setResolvedUUID(uuid || null);
-    setRole(isLoggedIn ? 'guest' : 'guest');
-    setRoleLoaded(!isLoggedIn);
-  }, [isLoggedIn, username, uuid]);
+    setEffectiveLoggedIn(
+      isLoggedIn,
+    );
+    setEffectiveUsername(
+      username || '',
+    );
+    setResolvedUUID(
+      uuid || null,
+    );
+
+    /*
+     * props는 빠른 첫 표시를 위한 힌트다.
+     * 실제 로그인/권한 상태는 메뉴가 열릴 때
+     * /api/auth/me 응답으로 다시 확정한다.
+     */
+    setRole('guest');
+    setRoleLoaded(false);
+  }, [
+    isLoggedIn,
+    username,
+    uuid,
+  ]);
 
   useEffect(() => {
-    if (!isOpen) return;
+    setMounted(true);
+
+    return () => {
+      setMounted(false);
+    };
+  }, []);
+
+  useEffect(() => {
+    if (!isOpen) {
+      return;
+    }
 
     let aborted = false;
 
-    const fetchUuidByName = async (name: string) => {
-      try {
-        const res = await fetch(`/api/mojang/uuid?name=${encodeURIComponent(name)}`, {
-          cache: 'no-store',
-        });
-        const data = await res.json().catch(() => ({}));
-        if (!aborted) {
-          setResolvedUUID(data?.uuid ?? null);
-        }
-      } catch {
-        if (!aborted) {
-          setResolvedUUID(null);
-        }
-      }
-    };
+    setAuthChecking(true);
+    setRoleLoaded(false);
+    setDenyOpen(false);
 
-    (async () => {
-      setRoleLoaded(false);
+    const fetchUuidByName =
+      async (
+        minecraftName: string,
+      ) => {
+        try {
+          const response =
+            await fetch(
+              `/api/mojang/uuid?name=${encodeURIComponent(
+                minecraftName,
+              )}`,
+              {
+                cache: 'no-store',
+                credentials:
+                  'same-origin',
+              },
+            );
 
+          if (!response.ok) {
+            return;
+          }
+
+          const payload =
+            await response
+              .json()
+              .catch(() => ({}));
+
+          const nextUuid =
+            typeof payload?.uuid ===
+            'string'
+              ? payload.uuid.trim()
+              : '';
+
+          if (
+            !aborted &&
+            nextUuid
+          ) {
+            setResolvedUUID(
+              nextUuid,
+            );
+          }
+        } catch {
+          /*
+           * UUID 조회 실패는 로그인 상태와 무관하다.
+           * 사용자명 표시는 그대로 유지한다.
+           */
+        }
+      };
+
+    void (async () => {
       try {
-        const res = await fetch('/api/auth/me', { cache: 'no-store' });
-        const data = res.ok ? await res.json() : null;
-        const authUser: AuthUser | null = data?.user ?? null;
-        const nextLoggedIn = Boolean(data?.loggedIn && authUser);
-        const nextRole = normalizeRole(authUser?.role ?? data?.role);
+        const response =
+          await fetch(
+            '/api/auth/me',
+            {
+              cache: 'no-store',
+              credentials: 'include',
+            },
+          );
+
+        const payload:
+          AuthMeResponse | null =
+          response.ok
+            ? await response
+                .json()
+                .catch(() => null)
+            : null;
+
+        const authUser =
+          payload?.user ?? null;
+
+        const nextLoggedIn =
+          Boolean(
+            payload?.loggedIn &&
+              authUser,
+          );
+
+        const nextRole =
+          normalizeRole(
+            authUser?.role ??
+              payload?.role,
+          );
+
         const nextUsername =
-          authUser?.minecraft_name || authUser?.username || username || '';
-        const nextUuid = uuid || authUser?.minecraft_uuid || null;
+          String(
+            authUser?.minecraft_name ??
+              authUser?.username ??
+              username ??
+              '',
+          ).trim();
 
-        if (!aborted) {
-          setEffectiveLoggedIn(nextLoggedIn);
-          setEffectiveUsername(nextUsername);
-          setRole(nextRole);
-          setRoleLoaded(true);
+        const nextUuid =
+          String(
+            uuid ??
+              authUser?.minecraft_uuid ??
+              '',
+          ).trim();
 
-          if (nextUuid) {
-            setResolvedUUID(nextUuid);
-          }
+        if (aborted) {
+          return;
         }
 
-        if (!nextUuid && nextUsername) {
-          await fetchUuidByName(nextUsername);
+        setEffectiveLoggedIn(
+          nextLoggedIn,
+        );
+        setEffectiveUsername(
+          nextUsername,
+        );
+        setRole(nextRole);
+        setRoleLoaded(true);
+
+        if (nextUuid) {
+          setResolvedUUID(
+            nextUuid,
+          );
+        } else {
+          setResolvedUUID(null);
+
+          if (nextUsername) {
+            void fetchUuidByName(
+              nextUsername,
+            );
+          }
         }
       } catch {
+        if (aborted) {
+          return;
+        }
+
+        /*
+         * API가 일시적으로 실패하면 호출부에서 전달한
+         * 로그인 정보는 유지하고 권한만 보수적으로 guest 처리한다.
+         */
+        setEffectiveLoggedIn(
+          isLoggedIn,
+        );
+        setEffectiveUsername(
+          username || '',
+        );
+        setResolvedUUID(
+          uuid || null,
+        );
+        setRole('guest');
+        setRoleLoaded(true);
+      } finally {
         if (!aborted) {
-          setRole('guest');
-          setRoleLoaded(true);
-          if (!uuid && !username) {
-            setResolvedUUID(null);
-          }
+          setAuthChecking(false);
         }
       }
     })();
@@ -153,26 +515,113 @@ export default function HamburgerMenu({
     return () => {
       aborted = true;
     };
-  }, [isOpen, isLoggedIn, username, uuid]);
+  }, [
+    isOpen,
+    isLoggedIn,
+    username,
+    uuid,
+  ]);
 
-  const normName = useMemo(
-    () => (effectiveUsername ?? '').trim().toLowerCase(),
-    [effectiveUsername]
-  );
-  const specialDisplay = SPECIAL_NICKS[normName];
-
-  const handleGuardedClick = (e: React.MouseEvent) => {
-    if (!roleLoaded) {
-      e.preventDefault();
-      e.stopPropagation();
-      setDenyOpen(true);
+  useEffect(() => {
+    if (!isOpen) {
       return;
     }
 
-    const allowed = role === 'writer' || role === 'admin';
-    if (!allowed) {
-      e.preventDefault();
-      e.stopPropagation();
+    const previousOverflow =
+      document.body.style.overflow;
+    const previousPaddingRight =
+      document.body.style.paddingRight;
+
+    const scrollbarWidth =
+      window.innerWidth -
+      document.documentElement.clientWidth;
+
+    document.body.style.overflow =
+      'hidden';
+
+    if (scrollbarWidth > 0) {
+      document.body.style.paddingRight =
+        `${scrollbarWidth}px`;
+    }
+
+    const onKeyDown = (
+      event: KeyboardEvent,
+    ) => {
+      if (event.key === 'Escape') {
+        if (denyOpen) {
+          setDenyOpen(false);
+          return;
+        }
+
+        onClose();
+      }
+    };
+
+    window.addEventListener(
+      'keydown',
+      onKeyDown,
+    );
+
+    return () => {
+      document.body.style.overflow =
+        previousOverflow;
+      document.body.style.paddingRight =
+        previousPaddingRight;
+
+      window.removeEventListener(
+        'keydown',
+        onKeyDown,
+      );
+    };
+  }, [
+    isOpen,
+    onClose,
+    denyOpen,
+  ]);
+
+  const displayName =
+    effectiveUsername.trim() ||
+    'RDWIKI 사용자';
+
+  const initial =
+    useMemo(() => {
+      const value =
+        displayName.trim();
+
+      return (
+        value
+          .charAt(0)
+          .toUpperCase() ||
+        'R'
+      );
+    }, [displayName]);
+
+  const skinUrl =
+    resolvedUUID
+      ? `https://crafthead.net/helm/${resolvedUUID}/64.png`
+      : null;
+
+  const canManage =
+    role === 'writer' ||
+    role === 'admin';
+
+  const permissionMessage =
+    !effectiveLoggedIn
+      ? '로그인이 필요합니다.'
+      : '권한이 없습니다.\n관리자에게 문의해주세요.';
+
+  const handleGuardedClick = (
+    event:
+      ReactMouseEvent<
+        HTMLAnchorElement
+      >,
+  ) => {
+    if (
+      !roleLoaded ||
+      !canManage
+    ) {
+      event.preventDefault();
+      event.stopPropagation();
       setDenyOpen(true);
       return;
     }
@@ -180,230 +629,356 @@ export default function HamburgerMenu({
     onClose();
   };
 
-  const handleNormalLinkClick = () => {
-    onClose();
-  };
+  const handleLogout =
+    async () => {
+      if (loggingOut) {
+        return;
+      }
 
-  const skinUrl = resolvedUUID
-    ? `https://crafthead.net/helm/${resolvedUUID}/64.png`
-    : 'https://crafthead.net/helm/94cf9511-c5d6-433a-b565-14010caac235?overlay/64.png';
+      setLoggingOut(true);
 
-  return (
+      try {
+        await onLogout();
+      } finally {
+        setLoggingOut(false);
+      }
+    };
+
+  if (
+    !mounted ||
+    !isOpen
+  ) {
+    return null;
+  }
+
+  return createPortal(
     <>
       <div
-        className={`hamburger-backdrop${isOpen ? ' open' : ''}`}
-        aria-hidden={!isOpen}
-        onClick={onClose}
-      />
+        className={styles.layer}
+        role="presentation"
+      >
+        <button
+          type="button"
+          className={styles.backdrop}
+          aria-label="관리 메뉴 닫기"
+          onClick={onClose}
+        />
 
-      <div className={`hamburger-menu${isOpen ? ' open' : ''}`}>
-        <div className="hamburger-menu-header">
-          <div className="hamburger-menu-top">
-            <Image src={logo} alt="" width={45} height={40} />
-            <h2 className="hamburger-menu-logo">RDWIKI</h2>
-            <button
-              onClick={onClose}
-              className="hamburger-menu-close-btn"
-              aria-label="메뉴 닫기"
-            >
-              ×
-            </button>
+        <aside
+          className={styles.panel}
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="rdwiki-menu-title"
+        >
+          <div
+            className={styles.ambient}
+            aria-hidden="true"
+          >
+            <span />
+            <span />
+            <span />
           </div>
 
-          <div className="hamburger-user-card">
-            <div className="hamburger-user-info">
-              <Link href="/mypage" prefetch={false} onClick={handleNormalLinkClick}>
-                {resolvedUUID === null && effectiveUsername ? (
-                  <div className="hamburger-user-placeholder" />
-                ) : (
+          <header className={styles.header}>
+            <Link
+              href="/"
+              prefetch={false}
+              className={styles.brand}
+              aria-label="RDWIKI 홈"
+              onClick={onClose}
+            >
+              <Image
+                src="/images/home/branding/rdwiki-logo.png"
+                alt="RDWIKI"
+                width={360}
+                height={120}
+                className={styles.logo}
+                priority
+              />
+            </Link>
+
+            <button
+              type="button"
+              className={
+                styles.closeButton
+              }
+              onClick={onClose}
+              aria-label="관리 메뉴 닫기"
+            >
+              <CloseIcon />
+            </button>
+          </header>
+
+          <div className={styles.scrollArea}>
+            <section
+              className={styles.welcomeCard}
+              aria-label={
+                authChecking
+                  ? '로그인 상태 확인 중'
+                  : effectiveLoggedIn
+                    ? '로그인 사용자 정보'
+                    : '비로그인 사용자 안내'
+              }
+            >
+              <div
+                className={styles.avatar}
+                aria-hidden="true"
+              >
+                {effectiveLoggedIn &&
+                skinUrl ? (
                   <img
-                    src={toProxyUrl(skinUrl)}
-                    className="hamburger-user-image"
-                    alt="마인크래프트 프로필"
-                    width={64}
-                    height={64}
+                    src={toProxyUrl(
+                      skinUrl,
+                    )}
+                    alt=""
+                    width={58}
+                    height={58}
                     loading="lazy"
                     decoding="async"
                     draggable={false}
+                    style={{
+                      display:
+                        'block',
+                      width: '100%',
+                      height: '100%',
+                      borderRadius:
+                        '16px',
+                      objectFit:
+                        'cover',
+                      imageRendering:
+                        'pixelated',
+                    }}
                   />
-                )}
-              </Link>
-              <p className="hamburger-username">
-                {effectiveLoggedIn ? effectiveUsername || 'USER' : 'GUEST'}
-              </p>
-            </div>
-
-            <div className="hamburger-login-info">
-              <span className="hamburger-welcome">
-                {!effectiveLoggedIn ? (
-                  <Link
-                    href="/login"
-                    prefetch={false}
-                    className="hamburger-welcome no-underline"
-                    onClick={handleNormalLinkClick}
-                  >
-                    로그인 해주세요
-                  </Link>
-                ) : specialDisplay ? (
-                  <button onClick={onLogout} className="hamburger-welcome no-underline">
-                    환영합니다 {specialDisplay}님
-                  </button>
+                ) : effectiveLoggedIn ? (
+                  <span>{initial}</span>
                 ) : (
-                  <button onClick={onLogout} className="hamburger-welcome no-underline">
-                    환영합니다
-                  </button>
+                  <UserIcon />
                 )}
-              </span>
-            </div>
+              </div>
+
+              <div className={styles.welcomeBody}>
+                <p className={styles.eyebrow}>
+                  {authChecking
+                    ? 'CHECKING ACCOUNT'
+                    : effectiveLoggedIn
+                      ? 'WELCOME BACK'
+                      : 'WELCOME TO RDWIKI'}
+                </p>
+
+                <h2 id="rdwiki-menu-title">
+                  {authChecking
+                    ? '로그인 상태 확인 중'
+                    : effectiveLoggedIn
+                      ? `${displayName}님`
+                      : '게스트로 둘러보는 중'}
+                </h2>
+
+                <p>
+                  {authChecking
+                    ? '현재 계정과 관리 권한을 확인하고 있습니다.'
+                    : effectiveLoggedIn
+                      ? canManage
+                        ? (
+                          <>
+                            렌독위키 관리 도구와
+                            <br />
+                            개인 메뉴를 이용할 수 있습니다.
+                          </>
+                        )
+                        : '로그인되었습니다. 관리 기능은 권한이 있는 계정만 이용할 수 있습니다.'
+                      : '로그인하면 문서와 관리 기능을 더욱 편하게 이용할 수 있습니다.'}
+                </p>
+              </div>
+            </section>
+
+            <section
+              className={styles.menuSection}
+              aria-labelledby="manage-menu-heading"
+            >
+              <div className={styles.sectionHeading}>
+                <div>
+                  <p className={styles.eyebrow}>
+                    RDWIKI TOOLS
+                  </p>
+
+                  <h3 id="manage-menu-heading">
+                    관리 메뉴
+                  </h3>
+                </div>
+
+              </div>
+
+              <nav
+                className={styles.menuList}
+                aria-label="관리 도구"
+              >
+                {menuItems.map(
+                  (item) => (
+                    <Link
+                      key={item.href}
+                      href={item.href}
+                      prefetch={false}
+                      className={
+                        styles.menuItem
+                      }
+                      data-tone={item.tone}
+                      onClick={
+                        handleGuardedClick
+                      }
+                      aria-disabled={
+                        !roleLoaded ||
+                        !canManage
+                      }
+                      title={
+                        !roleLoaded
+                          ? '권한 확인 중'
+                          : !canManage
+                            ? 'writer 또는 admin 권한 필요'
+                            : item.title
+                      }
+                    >
+                      <span
+                        className={
+                          styles.menuIcon
+                        }
+                        aria-hidden="true"
+                      >
+                        {item.icon}
+                      </span>
+
+                      <span
+                        className={
+                          styles.menuText
+                        }
+                      >
+                        <strong>
+                          {item.title}
+                        </strong>
+
+                        <span>
+                          {item.description}
+                        </span>
+                      </span>
+
+                      <span
+                        className={
+                          styles.menuArrow
+                        }
+                        aria-hidden="true"
+                      >
+                        <ArrowIcon />
+                      </span>
+                    </Link>
+                  ),
+                )}
+              </nav>
+            </section>
           </div>
 
-          <ul className="hamburger-menu-list">
-            <li className="hamburger-menu-item">
-              <div className="btn-conteiner-1">
-                <Link
-                  href="/manage/image"
-                  prefetch={false}
-                  className="glow-btn"
-                  onClick={handleGuardedClick}
-                  onMouseEnter={() => setHoverImage(true)}
-                  onMouseLeave={() => setHoverImage(false)}
+          <footer className={styles.footer}>
+            {authChecking ? (
+              <>
+                <button
+                  type="button"
+                  className={`${styles.accountButton} ${styles.accountButtonPrimary}`}
+                  disabled
                 >
-                  {hoverImage ? <FontAwesomeIcon icon={faImages} /> : 'IMAGE'}
-                </Link>
-              </div>
-            </li>
+                  <UserIcon />
+                  <span>확인 중</span>
+                </button>
 
-            <li className="hamburger-menu-item">
-              <div className="btn-conteiner-2">
-                <Link
-                  href="/manage/category"
-                  prefetch={false}
-                  className="glow-btn"
-                  onClick={handleGuardedClick}
-                  onMouseEnter={() => setHoverCategory(true)}
-                  onMouseLeave={() => setHoverCategory(false)}
+                <button
+                  type="button"
+                  className={`${styles.accountButton} ${styles.accountButtonSecondary}`}
+                  disabled
                 >
-                  {hoverCategory ? <FontAwesomeIcon icon={faList} /> : 'CATEGORY'}
-                </Link>
-              </div>
-            </li>
-
-            <li className="hamburger-menu-item">
-              <div className="btn-conteiner-3">
+                  <span>잠시만요</span>
+                </button>
+              </>
+            ) : effectiveLoggedIn ? (
+              <>
                 <Link
-                  href="/manage/npc"
+                  href="/mypage"
                   prefetch={false}
-                  className="glow-btn"
-                  onClick={handleGuardedClick}
-                  onMouseEnter={() => setHoverNpc(true)}
-                  onMouseLeave={() => setHoverNpc(false)}
+                  className={`${styles.accountButton} ${styles.accountButtonPrimary}`}
+                  onClick={onClose}
                 >
-                  {hoverNpc ? <FontAwesomeIcon icon={faUser} /> : 'NPC'}
+                  <UserIcon />
+                  <span>마이페이지</span>
                 </Link>
-              </div>
-            </li>
 
-            <li className="hamburger-menu-item">
-              <div className="btn-conteiner-4">
+                <button
+                  type="button"
+                  className={`${styles.accountButton} ${styles.accountButtonSecondary}`}
+                  onClick={() => {
+                    void handleLogout();
+                  }}
+                  disabled={loggingOut}
+                >
+                  <LogoutIcon />
+                  <span>
+                    {loggingOut
+                      ? '로그아웃 중'
+                      : '로그아웃'}
+                  </span>
+                </button>
+              </>
+            ) : (
+              <>
                 <Link
-                  href="/manage/quest"
+                  href="/login"
                   prefetch={false}
-                  className="glow-btn"
-                  onClick={handleGuardedClick}
-                  onMouseEnter={() => setHoverQuest(true)}
-                  onMouseLeave={() => setHoverQuest(false)}
+                  className={`${styles.accountButton} ${styles.accountButtonPrimary}`}
+                  onClick={onClose}
                 >
-                  {hoverQuest ? <FontAwesomeIcon icon={faScroll} /> : 'QUEST'}
+                  <LoginIcon />
+                  <span>로그인</span>
                 </Link>
-              </div>
-            </li>
 
-            <li className="hamburger-menu-item">
-              <div className="btn-conteiner-5">
                 <Link
-                  href="/manage/head"
+                  href="/register"
                   prefetch={false}
-                  className="glow-btn"
-                  onClick={handleGuardedClick}
-                  onMouseEnter={() => setHoverHead(true)}
-                  onMouseLeave={() => setHoverHead(false)}
+                  className={`${styles.accountButton} ${styles.accountButtonSecondary}`}
+                  onClick={onClose}
                 >
-                  {hoverHead ? <FontAwesomeIcon icon={faCube} /> : 'HEAD'}
+                  <UserPlusIcon />
+                  <span>회원가입</span>
                 </Link>
-              </div>
-            </li>
-          </ul>
-        </div>
-
-        <div className="hm-bottom-btns">
-          {effectiveLoggedIn ? (
-            <>
-              <Link
-                href="/manage/chat"
-                prefetch={false}
-                className="hm-btn hm-btn-mypage"
-                onClick={handleNormalLinkClick}
-              >
-                <div className="hm-btn-sign">
-                  <FontAwesomeIcon icon={faCommentDots} />
-                  <div className="hm-btn-text">&nbsp;&nbsp;&nbsp;&nbsp;채팅</div>
-                </div>
-              </Link>
-              <button className="hm-btn hm-btn-logout" onClick={onLogout}>
-                <div className="hm-btn-sign">
-                  <svg viewBox="0 0 512 512">
-                    <path d="M377.9 105.9L500.7 228.7c7.2 7.2 11.3 17.1 11.3 27.3s-4.1 20.1-11.3 27.3L377.9 406.1c-6.4 6.4-15 9.9-24 9.9c-18.7 0-33.9-15.2-33.9-33.9l0-62.1-128 0c-17.7 0-32-14.3-32-32l0-64c0-17.7 14.3-32 32-32l128 0 0-62.1c0-18.7 15.2-33.9 33.9-33.9c9 0 17.6 3.6 24 9.9zM160 96L96 96c-17.7 0-32 14.3-32 32l0 256c0 17.7 14.3 32 32 32l64 0c17.7 0 32 14.3 32 32s-14.3 32 32 32z"></path>
-                  </svg>
-                </div>
-                <div className="hm-btn-text">로그아웃</div>
-              </button>
-            </>
-          ) : (
-            <>
-              <Link
-                href="/login"
-                prefetch={false}
-                className="hm-btn hm-btn-login"
-                onClick={handleNormalLinkClick}
-              >
-                <div className="hm-btn-sign">
-                  <svg viewBox="0 0 512 512">
-                    <path d="M217.9 105.9L340.7 228.7c7.2 7.2 11.3 17.1 11.3 27.3s-4.1 20.1-11.3 27.3L217.9 406.1c-6.4 6.4-15 9.9-24 9.9c-18.7 0-33.9-15.2-33.9-33.9l0-62.1L32 320c-17.7 0-32-14.3-32-32l0-64c0-17.7 14.3-32 32-32l128 0 0-62.1c0-18.7 15.2-33.9 33.9-33.9c9 0 17.6 3.6 24 9.9zM352 416l64 0c17.7 0 32-14.3 32-32l0-256c0-17.7-14.3-32-32-32l-64 0c-17.7 0-32-14.3-32-32s-14.3-32 32-32l64 0c53 0 96 43 96 96l0 256c0 53-43 96-96 96l-64 0c-17.7 0-32-14.3-32-32s-14.3 32 32 32z"></path>
-                  </svg>
-                </div>
-                <div className="hm-btn-text">&nbsp;&nbsp;로그인</div>
-              </Link>
-              <Link
-                href="/register"
-                prefetch={false}
-                className="hm-btn hm-btn-register"
-                onClick={handleNormalLinkClick}
-              >
-                <div className="hm-btn-sign">
-                  <FontAwesomeIcon icon={faUserPlus} />
-                </div>
-                <div className="hm-btn-text">&nbsp;회원가입</div>
-              </Link>
-            </>
-          )}
-        </div>
+              </>
+            )}
+          </footer>
+        </aside>
       </div>
 
       <ModalCard
         open={denyOpen}
-        onClose={() => setDenyOpen(false)}
+        onClose={() => {
+          setDenyOpen(false);
+        }}
         title="경고"
+        width={360}
         actions={
-          <button className="rd-btn danger" onClick={() => setDenyOpen(false)}>
+          <button
+            type="button"
+            className={`${styles.accountButton} ${styles.accountButtonPrimary}`}
+            onClick={() => {
+              setDenyOpen(false);
+            }}
+          >
             확인
           </button>
         }
-        width={360}
       >
-        <p className="rd-card-description" style={{ textAlign: 'center', whiteSpace: 'pre-line' }}>
-          권한이 없습니다{'\n'}관리자에게 문의해주세요
-        </p>
+        <div
+          style={{
+            whiteSpace:
+              'pre-line',
+          }}
+        >
+          {permissionMessage}
+        </div>
       </ModalCard>
-    </>
+    </>,
+    document.body,
   );
 }

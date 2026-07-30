@@ -31,6 +31,40 @@ type DropdownButtonProps = {
   disabled?: boolean;
 };
 
+type ToolbarActionMeta = {
+  action: 'symbol' | 'wiki-reference';
+  title: string;
+  glyph: string;
+};
+
+const TOOLBAR_ACTION_META: Record<string, ToolbarActionMeta> = {
+  'inline-mark': {
+    action: 'symbol',
+    title: '기호 삽입',
+    glyph: 'Ω',
+  },
+  'wiki-ref': {
+    action: 'wiki-reference',
+    title: '퀘스트·NPC·FAQ 할당',
+    glyph: 'Q+',
+  },
+  'wiki-reference': {
+    action: 'wiki-reference',
+    title: '퀘스트·NPC·FAQ 할당',
+    glyph: 'Q+',
+  },
+  'wiki-assignment': {
+    action: 'wiki-reference',
+    title: '퀘스트·NPC·FAQ 할당',
+    glyph: 'Q+',
+  },
+  'wiki-db': {
+    action: 'wiki-reference',
+    title: '퀘스트·NPC·FAQ 할당',
+    glyph: 'Q+',
+  },
+};
+
 const DEFAULT_MENU_EST_WIDTH = 260; // 오른쪽 오버플로우 감지용 기본 값
 
 const DropdownButton = ({
@@ -47,6 +81,7 @@ const DropdownButton = ({
 }: DropdownButtonProps) => {
   const editor = useSlate();
   const isOpen = openDropdown === dropdownId;
+  const toolbarAction = TOOLBAR_ACTION_META[dropdownId];
 
   const btnRef = useRef<HTMLButtonElement>(null);
   const menuRef = useRef<HTMLUListElement>(null);
@@ -165,6 +200,9 @@ const DropdownButton = ({
       <button
         ref={btnRef}
         type="button"
+        title={toolbarAction?.title}
+        aria-label={toolbarAction?.title}
+        data-toolbar-action={toolbarAction?.action}
         disabled={!!disabled}
         onMouseDown={(e) => {
           e.preventDefault();
@@ -180,7 +218,16 @@ const DropdownButton = ({
           cursor: disabled ? 'not-allowed' : 'pointer',
         }}
       >
-        {label}
+        {toolbarAction ? (
+          <span
+            className={`editor-toolbar-action-icon editor-toolbar-action-icon--${toolbarAction.action}`}
+            aria-hidden="true"
+          >
+            {toolbarAction.glyph}
+          </span>
+        ) : (
+          label
+        )}
       </button>
 
       {/* 일반(absolute) 메뉴 */}
@@ -197,10 +244,10 @@ const DropdownButton = ({
             top: 'calc(100% + 6px)',
             left: 0,
             minWidth: menuWidth,
-            background: '#fff',
-            border: '1px solid #e5e7eb',
+            background: 'var(--editor-panel-elevated)',
+            border: '1px solid var(--editor-border)',
             borderRadius: 10,
-            boxShadow: '0 8px 28px rgba(0,0,0,.12)',
+            boxShadow: 'var(--editor-shadow)',
             padding: 6,
             zIndex: 1000,
           }}
@@ -214,7 +261,9 @@ const DropdownButton = ({
               onMouseDown={() => handleSelect(itemLabel)}
               onKeyDown={onItemKeyDown}
               style={{ padding: '8px 12px', borderRadius: 8, cursor: 'pointer' }}
-              onMouseEnter={(e) => (e.currentTarget.style.background = '#f3f4f6')}
+              onMouseEnter={(e) => (
+                e.currentTarget.style.background = 'var(--editor-accent-softer)'
+              )}
               onMouseLeave={(e) => (e.currentTarget.style.background = 'transparent')}
             >
               {itemLabel}
@@ -238,10 +287,10 @@ const DropdownButton = ({
             left: fixedPos.left,
             transform: fixedPos.alignRight ? 'translateX(-100%)' : undefined,
             minWidth: menuWidth,
-            background: '#fff',
-            border: '1px solid #e5e7eb',
+            background: 'var(--editor-panel-elevated)',
+            border: '1px solid var(--editor-border)',
             borderRadius: 10,
-            boxShadow: '0 8px 28px rgba(0,0,0,.12)',
+            boxShadow: 'var(--editor-shadow)',
             padding: 6,
             zIndex: 10000,
           }}
@@ -255,7 +304,9 @@ const DropdownButton = ({
               onMouseDown={() => handleSelect(itemLabel)}
               onKeyDown={onItemKeyDown}
               style={{ padding: '8px 12px', borderRadius: 8, cursor: 'pointer' }}
-              onMouseEnter={(e) => (e.currentTarget.style.background = '#f3f4f6')}
+              onMouseEnter={(e) => (
+                e.currentTarget.style.background = 'var(--editor-accent-softer)'
+              )}
               onMouseLeave={(e) => (e.currentTarget.style.background = 'transparent')}
             >
               {itemLabel}

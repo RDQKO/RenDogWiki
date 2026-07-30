@@ -21,7 +21,6 @@ type MediaBlockProps = {
   textAlign?: string | null;
   width?: number | string | null;
   height?: number | string | null;
-
   selected?: boolean;
   focused?: boolean;
 
@@ -104,8 +103,6 @@ export default function MediaBlock({
       width: resolvedWidth ? `${resolvedWidth}px` : 'auto',
       height: resolvedHeight ? `${resolvedHeight}px` : 'auto',
       objectFit: resolvedWidth && resolvedHeight ? 'contain' : undefined,
-
-      // 원본 에디터 렌더와 동일하게 이미지/영상 모서리 둥글게 처리
       borderRadius: 10,
     };
 
@@ -165,7 +162,6 @@ export default function MediaBlock({
   }
 
   const justifyContent = editJustifyFromAlign(textAlign);
-
   const outerStyle: React.CSSProperties = {
     ...(attributes?.style || {}),
     margin: '16px 0',
@@ -177,16 +173,22 @@ export default function MediaBlock({
     justifyContent,
     alignItems: 'flex-start',
     minHeight: 40,
+    width: '100%',
   };
 
   const shellStyle: React.CSSProperties = {
     position: 'relative',
     display: 'inline-block',
+    maxWidth: '100%',
   };
 
+  // 저장된 width/height는 실제 표시 크기로 적용한다.
+  // 크기가 지정되지 않은 새 이미지는 원본 크기로 표시하되 편집 영역을 넘지 않는다.
   const baseEditMediaStyle: React.CSSProperties = {
-    maxWidth: resolvedWidth ? `${resolvedWidth}px` : '90%',
+    width: resolvedWidth ? `${resolvedWidth}px` : 'auto',
+    maxWidth: '100%',
     height: resolvedHeight ? `${resolvedHeight}px` : 'auto',
+    objectFit: resolvedWidth && resolvedHeight ? 'contain' : undefined,
     borderRadius: 10,
     boxShadow: '0 2px 12px 0 #0001',
     display: 'block',
@@ -224,7 +226,6 @@ export default function MediaBlock({
           alt={alt || ''}
           loading="lazy"
           decoding="async"
-          fetchPriority="low"
           draggable={false}
           className="wiki-media-image"
           style={imageStyle}
@@ -267,7 +268,6 @@ export default function MediaBlock({
           {controls}
         </div>
       </div>
-
       {children}
     </div>
   );

@@ -59,9 +59,9 @@ export default function FootnoteEditModal({
             type="button"
             onClick={onDelete}
             style={{
-              border: '1px solid #ef4444',
-              background: '#fff',
-              color: '#ef4444',
+              border: '1px solid var(--editor-danger)',
+              background: 'var(--editor-panel-elevated)',
+              color: 'var(--editor-danger)',
               borderRadius: 10,
               padding: '10px 14px',
               fontWeight: 700,
@@ -76,9 +76,9 @@ export default function FootnoteEditModal({
               type="button"
               onClick={onClose}
               style={{
-                border: '1px solid #d1d5db',
-                background: '#fff',
-                color: '#111827',
+                border: '1px solid var(--editor-border)',
+                background: 'var(--editor-panel-soft)',
+                color: 'var(--editor-text)',
                 borderRadius: 10,
                 padding: '10px 14px',
                 fontWeight: 700,
@@ -92,8 +92,8 @@ export default function FootnoteEditModal({
               type="button"
               onClick={handleSave}
               style={{
-                border: '1px solid #2563eb',
-                background: '#2563eb',
+                border: '1px solid var(--editor-accent)',
+                background: 'var(--editor-accent)',
                 color: '#fff',
                 borderRadius: 10,
                 padding: '10px 14px',
@@ -109,7 +109,7 @@ export default function FootnoteEditModal({
     >
       <div style={{ display: 'grid', gap: 14 }}>
         <div style={{ display: 'grid', gap: 6 }}>
-          <label style={{ fontSize: 14, fontWeight: 800, color: '#111827' }}>
+          <label style={{ fontSize: 14, fontWeight: 800, color: 'var(--editor-text)' }}>
             각주 이름
           </label>
           <input
@@ -122,7 +122,9 @@ export default function FootnoteEditModal({
               width: '100%',
               height: 42,
               borderRadius: 10,
-              border: '1px solid #dbe3ef',
+              color: 'var(--editor-text)',
+              background: 'var(--editor-panel)',
+              border: '1px solid var(--editor-border)',
               padding: '0 12px',
               fontSize: 14,
               outline: 'none',
@@ -131,7 +133,7 @@ export default function FootnoteEditModal({
         </div>
 
         <div style={{ display: 'grid', gap: 6 }}>
-          <label style={{ fontSize: 14, fontWeight: 800, color: '#111827' }}>
+          <label style={{ fontSize: 14, fontWeight: 800, color: 'var(--editor-text)' }}>
             설명
           </label>
           <textarea
@@ -142,7 +144,9 @@ export default function FootnoteEditModal({
             style={{
               width: '100%',
               borderRadius: 10,
-              border: '1px solid #dbe3ef',
+              color: 'var(--editor-text)',
+              background: 'var(--editor-panel)',
+              border: '1px solid var(--editor-border)',
               padding: '12px',
               fontSize: 14,
               outline: 'none',

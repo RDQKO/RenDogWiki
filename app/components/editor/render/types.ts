@@ -1,4 +1,3 @@
-import type React from 'react';
 import type { RenderElementProps } from 'slate-react';
 import type { Path } from 'slate';
 
@@ -14,12 +13,6 @@ export type {
   WikiRefKind,
 } from '@/components/wiki-render/types';
 
-export type PriceTableEditState = {
-  blockPath: Path | null;
-  idx: number | null;
-  item: any | null;
-};
-
 /**
  * 공통 Renderer Props
  * - Slate가 요구하는 RenderElementProps 기반
@@ -28,11 +21,6 @@ export type PriceTableEditState = {
 export type CustomElementProps = {
   editor: any;
   onIconClick: (element: CustomElement) => void;
-
-  priceTableEdit: PriceTableEditState;
-  setPriceTableEdit: React.Dispatch<
-    React.SetStateAction<PriceTableEditState>
-  >;
 
   openFootnoteEditor?: (
     path: Path,

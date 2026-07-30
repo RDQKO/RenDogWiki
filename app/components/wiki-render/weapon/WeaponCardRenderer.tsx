@@ -1,8 +1,8 @@
 import React from 'react';
+import { createPortal } from 'react-dom';
+
 import {
-  createWeaponFrameStyles,
   getEnabledWeaponStats,
-  getWeaponCardPalette,
   getWeaponStatDisplay,
   isMaxLevelLabel,
   isSpiritWeapon,
@@ -14,8 +14,273 @@ import {
 import type {
   WeaponCardRendererProps,
   WeaponImageRenderArgs,
+  WeaponMetaLike,
   WeaponStatLike,
 } from './types';
+
+type WeaponVisualTheme = {
+  key: string;
+  accent: string;
+  spark: string;
+  base0: string;
+  base1: string;
+  base2: string;
+};
+
+type WeaponThemeVariables =
+  React.CSSProperties &
+  Record<
+    `--weapon-${string}`,
+    string | number
+  >;
+
+const WEAPON_VISUAL_THEMES: Record<
+  string,
+  WeaponVisualTheme
+> = {
+  epic: {
+    key: 'epic',
+    accent: '#c084fc',
+    spark: '#f5d0fe',
+    base0: '#080513',
+    base1: '#170b2e',
+    base2: '#31105a',
+  },
+  unique: {
+    key: 'unique',
+    accent: '#67e8f9',
+    spark: '#ecfeff',
+    base0: '#03131b',
+    base1: '#062a3d',
+    base2: '#07506f',
+  },
+  legendary: {
+    key: 'legendary',
+    accent: '#fb7185',
+    spark: '#ffe4e6',
+    base0: '#170407',
+    base1: '#3b0a12',
+    base2: '#68101d',
+  },
+  divine: {
+    key: 'divine',
+    accent: '#bef264',
+    spark: '#fef9c3',
+    base0: '#031208',
+    base1: '#07341a',
+    base2: '#0d5728',
+  },
+  superior: {
+    key: 'superior',
+    accent: '#fde047',
+    spark: '#fff7c2',
+    base0: '#171002',
+    base1: '#3d2903',
+    base2: '#704707',
+  },
+  class: {
+    key: 'class',
+    accent: '#a5b4fc',
+    spark: '#e0e7ff',
+    base0: '#070b20',
+    base1: '#111d49',
+    base2: '#24377c',
+  },
+  block: {
+    key: 'block',
+    accent: '#bef264',
+    spark: '#ecfccb',
+    base0: '#061105',
+    base1: '#123313',
+    base2: '#286322',
+  },
+  hidden: {
+    key: 'hidden',
+    accent: '#2dd4bf',
+    spark: '#99f6e4',
+    base0: '#010807',
+    base1: '#05221f',
+    base2: '#07433d',
+  },
+  limited: {
+    key: 'limited',
+    accent: '#fb923c',
+    spark: '#ffedd5',
+    base0: '#190901',
+    base1: '#461704',
+    base2: '#812d08',
+  },
+  ancient: {
+    key: 'ancient',
+    accent: '#d6d3d1',
+    spark: '#f5f5f4',
+    base0: '#0e0c09',
+    base1: '#28221a',
+    base2: '#4b4133',
+  },
+  boss: {
+    key: 'boss',
+    accent: '#e879f9',
+    spark: '#f5d0fe',
+    base0: '#0d0215',
+    base1: '#2a0640',
+    base2: '#550d6b',
+  },
+  miniBoss: {
+    key: 'mini-boss',
+    accent: '#f87171',
+    spark: '#fee2e2',
+    base0: '#180303',
+    base1: '#430707',
+    base2: '#781010',
+  },
+  'mini-boss': {
+    key: 'mini-boss',
+    accent: '#f87171',
+    spark: '#fee2e2',
+    base0: '#180303',
+    base1: '#430707',
+    base2: '#781010',
+  },
+  monster: {
+    key: 'monster',
+    accent: '#4ade80',
+    spark: '#d9f99d',
+    base0: '#020e06',
+    base1: '#082c13',
+    base2: '#0d5522',
+  },
+  rune: {
+    key: 'rune',
+    accent: '#818cf8',
+    spark: '#ddd6fe',
+    base0: '#070217',
+    base1: '#170737',
+    base2: '#311068',
+  },
+  'fishing-rod': {
+    key: 'fishing',
+    accent: '#22d3ee',
+    spark: '#bae6fd',
+    base0: '#020d18',
+    base1: '#042a43',
+    base2: '#075b80',
+  },
+  armor: {
+    key: 'armor',
+    accent: '#94a3b8',
+    spark: '#e2e8f0',
+    base0: '#070b10',
+    base1: '#17222f',
+    base2: '#34465a',
+  },
+  weapon: {
+    key: 'weapon',
+    accent: '#fb923c',
+    spark: '#fecaca',
+    base0: '#0e0b0a',
+    base1: '#291613',
+    base2: '#4e251d',
+  },
+  spirit: {
+    key: 'spirit',
+    accent: '#2dd4bf',
+    spark: '#ccfbf1',
+    base0: '#010807',
+    base1: '#032321',
+    base2: '#07504a',
+  },
+  'transcend-epic': {
+    key: 'transcend-epic',
+    accent: '#e9d5ff',
+    spark: '#ffffff',
+    base0: '#090514',
+    base1: '#21103c',
+    base2: '#4c1d72',
+  },
+  'transcend-unique': {
+    key: 'transcend-unique',
+    accent: '#cffafe',
+    spark: '#ffffff',
+    base0: '#02131b',
+    base1: '#073249',
+    base2: '#096786',
+  },
+  'transcend-legend': {
+    key: 'transcend-legendary',
+    accent: '#ffe4e6',
+    spark: '#ffffff',
+    base0: '#160406',
+    base1: '#420d14',
+    base2: '#7b1422',
+  },
+  'transcend-divine': {
+    key: 'transcend-divine',
+    accent: '#ecfccb',
+    spark: '#ffffff',
+    base0: '#031108',
+    base1: '#09351b',
+    base2: '#12622d',
+  },
+  'transcend-superior': {
+    key: 'transcend-superior',
+    accent: '#fef9c3',
+    spark: '#ffffff',
+    base0: '#171002',
+    base1: '#432d04',
+    base2: '#7b4e08',
+  },
+};
+
+function resolveWeaponVisualTheme(
+  weaponType: string,
+): WeaponVisualTheme {
+  return (
+    WEAPON_VISUAL_THEMES[
+      weaponType
+    ] ??
+    WEAPON_VISUAL_THEMES.weapon
+  );
+}
+
+function createWeaponThemeVariables({
+  weaponType,
+  meta,
+  cardWidth,
+}: {
+  weaponType: string;
+  meta: WeaponMetaLike;
+  cardWidth: number;
+}): WeaponThemeVariables {
+  const theme =
+    resolveWeaponVisualTheme(
+      weaponType,
+    );
+
+  return {
+    '--weapon-card-width':
+      `${cardWidth}px`,
+    '--weapon-primary':
+      meta.headerBg ||
+      theme.accent,
+    '--weapon-secondary':
+      meta.border ||
+      theme.accent,
+    '--weapon-deep':
+      meta.badgeBg ||
+      theme.base1,
+    '--weapon-accent':
+      theme.accent,
+    '--weapon-spark':
+      theme.spark,
+    '--weapon-base-0':
+      theme.base0,
+    '--weapon-base-1':
+      theme.base1,
+    '--weapon-base-2':
+      theme.base2,
+  };
+}
 
 function defaultRenderImage({
   src,
@@ -55,240 +320,560 @@ function WeaponLevelSelector({
   overlay = false,
   spiritLayout = false,
 }: WeaponLevelSelectorProps) {
-  const [open, setOpen] = React.useState(false);
+  const [
+    open,
+    setOpen,
+  ] = React.useState(false);
 
-  if (levelLabels.length <= 1) return null;
+  if (levelLabels.length <= 1) {
+    return null;
+  }
 
-  const displayLevelLabels = normalizeWeaponLevelLabels(levelLabels, spiritLayout);
+  const displayLevelLabels =
+    normalizeWeaponLevelLabels(
+      levelLabels,
+      spiritLayout,
+    );
+
   const selectedLabel =
-    selectedIndex != null ? displayLevelLabels[selectedIndex] : null;
-  const selectedShort = selectedLabel ? shortLevelLabel(selectedLabel) : '-';
-  const selectedIsMax = isMaxLevelLabel(selectedLabel, selectedShort);
+    selectedIndex != null
+      ? displayLevelLabels[
+          selectedIndex
+        ]
+      : null;
 
-  const handleSelect = (idx: number) => {
-    onChange?.(idx);
+  const selectedShort =
+    selectedLabel
+      ? shortLevelLabel(
+          selectedLabel,
+        )
+      : '-';
+
+  const selectedIsMax =
+    isMaxLevelLabel(
+      selectedLabel,
+      selectedShort,
+    );
+
+  const selectLevel = (
+    index: number,
+  ) => {
+    onChange?.(index);
     setOpen(false);
   };
 
-  const BASE_BG = 'rgba(15,23,42,0.96)';
-  const BASE_TEXT = '#e5e7eb';
-  const BASE_BORDER = '1px solid rgba(148,163,184,0.95)';
-  const ACTIVE_BORDER = '1px solid rgba(96,165,250,0.95)';
+  const renderLevelButton = (
+    fullLabel: string,
+    index: number,
+  ) => {
+    const short =
+      shortLevelLabel(
+        fullLabel,
+      );
 
-  const MAX_BG = '#facc15';
-  const MAX_TEXT = '#111827';
-  const MAX_BORDER = '1px solid #fbbf24';
+    const active =
+      selectedIndex === index;
 
-  const DOT = compact ? 26 : 30;
-  const DOT_FONT = compact ? 12 : 13;
-  const TOP_FONT = compact ? 13 : 14;
-
-  const DOT_SHADOW =
-    '0 10px 24px rgba(15,23,42,0.22), 0 2px 6px rgba(15,23,42,0.12)';
-  const DOT_SHADOW_ACTIVE =
-    '0 12px 28px rgba(37,99,235,0.18), 0 2px 8px rgba(15,23,42,0.12)';
-
-  const renderLevelButton = (fullLabel: string, idx: number) => {
-    const short = shortLevelLabel(fullLabel);
-    const active = selectedIndex === idx;
-    const isMax = isMaxLevelLabel(fullLabel, short);
-
-    const bg = isMax ? MAX_BG : BASE_BG;
-    const textColor = isMax ? MAX_TEXT : BASE_TEXT;
-    const border = isMax ? MAX_BORDER : active ? ACTIVE_BORDER : BASE_BORDER;
+    const max =
+      isMaxLevelLabel(
+        fullLabel,
+        short,
+      );
 
     return (
       <button
-        key={`${fullLabel}-${idx}`}
+        key={`${fullLabel}-${index}`}
         type="button"
-        onClick={(e) => {
-          e.preventDefault();
-          e.stopPropagation();
-          handleSelect(idx);
-        }}
-        style={{
-          border: 'none',
-          outline: 'none',
-          cursor: 'pointer',
-          padding: 0,
-          margin: 0,
-          background: 'transparent',
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'center',
-        }}
+        className={[
+          'weapon-level-selector__option',
+          active
+            ? 'weapon-level-selector__option--active'
+            : '',
+          max
+            ? 'weapon-level-selector__option--max'
+            : '',
+        ]
+          .filter(Boolean)
+          .join(' ')}
+        aria-pressed={active}
         title={fullLabel}
+        onClick={(event) => {
+          event.preventDefault();
+          event.stopPropagation();
+          selectLevel(index);
+        }}
       >
-        <span
-          style={{
-            width: DOT,
-            height: DOT,
-            borderRadius: 999,
-            display: 'inline-flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            fontSize: DOT_FONT,
-            fontWeight: active ? 900 : 800,
-            background: bg,
-            color: textColor,
-            border,
-            boxShadow: active ? DOT_SHADOW_ACTIVE : DOT_SHADOW,
-            transform: active ? 'translateY(-1px)' : 'translateY(0)',
-            transition:
-              'transform 0.12s ease, box-shadow 0.12s ease, border-color 0.12s ease',
-          }}
-        >
-          {short}
-        </span>
+        {short}
       </button>
     );
   };
 
   return (
-    <>
-      <style jsx global>{`
-        @keyframes rdwikiWeaponLevelSelectorPop {
-          from {
-            opacity: 0;
-            transform: translateY(-4px) scale(0.98);
-          }
-          to {
-            opacity: 1;
-            transform: translateY(0) scale(1);
-          }
-        }
-      `}</style>
+    <div
+      data-wiki-part="weapon-level-selector"
+      data-weapon-level-overlay={
+        overlay
+          ? 'true'
+          : 'false'
+      }
+      data-weapon-level-compact={
+        compact
+          ? 'true'
+          : 'false'
+      }
+      className={[
+        'weapon-level-selector',
+        overlay
+          ? 'weapon-level-selector--overlay'
+          : '',
+        compact
+          ? 'weapon-level-selector--compact'
+          : '',
+      ]
+        .filter(Boolean)
+        .join(' ')}
+      contentEditable={false}
+      suppressContentEditableWarning
+    >
+      <button
+        type="button"
+        className={[
+          'weapon-level-selector__trigger',
+          selectedIsMax
+            ? 'weapon-level-selector__trigger--max'
+            : '',
+        ]
+          .filter(Boolean)
+          .join(' ')}
+        aria-expanded={open}
+        title="강화 단계 선택"
+        onClick={(event) => {
+          event.preventDefault();
+          event.stopPropagation();
 
-      <div
-        data-wiki-part="weapon-level-selector"
-        contentEditable={false}
-        suppressContentEditableWarning
-        style={{
-          position: overlay ? 'absolute' : 'relative',
-          right: overlay ? -10 : undefined,
-          top: overlay ? 8 : undefined,
-          marginLeft: overlay ? 0 : 10,
-          alignSelf: 'flex-start',
-          zIndex: 10,
+          setOpen(
+            (previous) =>
+              !previous,
+          );
         }}
       >
-        <button
-          type="button"
-          onClick={(e) => {
-            e.preventDefault();
-            e.stopPropagation();
-            setOpen((prev) => !prev);
-          }}
-          style={{
-            border: 'none',
-            outline: 'none',
-            cursor: 'pointer',
-            display: 'inline-flex',
-            alignItems: 'center',
-            gap: 8,
-            padding: 0,
-            background: 'transparent',
-            color: BASE_TEXT,
-            fontSize: TOP_FONT,
-            fontWeight: 650,
-            lineHeight: 1,
-          }}
-          title="강화 단계 선택"
+        <span className="weapon-level-selector__current">
+          {selectedShort}
+        </span>
+
+        <span
+          className="weapon-level-selector__chevron"
+          aria-hidden
         >
-          <span
-            style={{
-              width: DOT,
-              height: DOT,
-              borderRadius: 999,
-              display: 'inline-flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              fontSize: DOT_FONT,
-              fontWeight: 800,
-              background: selectedIsMax ? MAX_BG : BASE_BG,
-              color: selectedIsMax ? MAX_TEXT : BASE_TEXT,
-              border: selectedIsMax ? MAX_BORDER : BASE_BORDER,
-              boxShadow: DOT_SHADOW,
-            }}
-          >
-            {selectedShort}
-          </span>
+          {open ? '▲' : '▼'}
+        </span>
+      </button>
 
-          <span
-            style={{
-              color: 'rgba(148,163,184,0.62)',
-              fontSize: 11,
-              lineHeight: 1,
-              opacity: 0.8,
-              transform: open ? 'translateY(-1px)' : 'translateY(0)',
-              transition: 'transform 0.12s ease',
-              userSelect: 'none',
-            }}
-          >
-            {open ? '▲' : '▼'}
-          </span>
-        </button>
+      {open ? (
+        <div
+          className={[
+            'weapon-level-selector__menu',
+            spiritLayout
+              ? 'weapon-level-selector__menu--spirit'
+              : '',
+          ]
+            .filter(Boolean)
+            .join(' ')}
+          onMouseDown={(event) => {
+            event.preventDefault();
+            event.stopPropagation();
+          }}
+        >
+          {spiritLayout ? (
+            <>
+              <div className="weapon-level-selector__column">
+                {displayLevelLabels
+                  .slice(0, 9)
+                  .map(
+                    renderLevelButton,
+                  )}
+              </div>
 
-        {open ? (
+              <div className="weapon-level-selector__column">
+                {displayLevelLabels
+                  .slice(9)
+                  .map(
+                    (
+                      fullLabel,
+                      localIndex,
+                    ) =>
+                      renderLevelButton(
+                        fullLabel,
+                        localIndex + 9,
+                      ),
+                  )}
+              </div>
+            </>
+          ) : (
+            <div className="weapon-level-selector__column">
+              {displayLevelLabels.map(
+                renderLevelButton,
+              )}
+            </div>
+          )}
+        </div>
+      ) : null}
+    </div>
+  );
+}
+
+type WeaponStatTooltipPosition = {
+  left: number;
+  top: number;
+  arrowLeft: number;
+  placement: 'top' | 'bottom';
+};
+
+type WeaponStatTooltipStyle =
+  React.CSSProperties & {
+    '--weapon-tooltip-arrow-left': string;
+    '--weapon-tooltip-accent': string;
+  };
+
+function WeaponStatValue({
+  label,
+  value,
+  unit,
+  tooltipAccent,
+}: {
+  label: string;
+  value: string;
+  unit: string;
+  tooltipAccent: string;
+}) {
+  const triggerRef =
+    React.useRef<HTMLSpanElement | null>(
+      null,
+    );
+
+  const tooltipRef =
+    React.useRef<HTMLDivElement | null>(
+      null,
+    );
+
+  const [
+    portalReady,
+    setPortalReady,
+  ] = React.useState(false);
+
+  const [
+    isOverflowing,
+    setIsOverflowing,
+  ] = React.useState(false);
+
+  const [
+    open,
+    setOpen,
+  ] = React.useState(false);
+
+  const [
+    measured,
+    setMeasured,
+  ] = React.useState(false);
+
+  const [
+    position,
+    setPosition,
+  ] =
+    React.useState<WeaponStatTooltipPosition>({
+      left: 0,
+      top: 0,
+      arrowLeft: 24,
+      placement: 'top',
+    });
+
+  const fullValue = [
+    value || '-',
+    unit,
+  ]
+    .filter(Boolean)
+    .join(' ');
+
+  const measureOverflow =
+    React.useCallback(() => {
+      const element =
+        triggerRef.current;
+
+      if (!element) return;
+
+      const overflowed =
+        element.scrollWidth >
+        element.clientWidth + 1;
+
+      setIsOverflowing(
+        overflowed,
+      );
+
+      if (!overflowed) {
+        setOpen(false);
+      }
+    }, []);
+
+  React.useEffect(() => {
+    setPortalReady(true);
+  }, []);
+
+  React.useLayoutEffect(() => {
+    measureOverflow();
+
+    const element =
+      triggerRef.current;
+
+    if (!element) return;
+
+    const observer =
+      typeof ResizeObserver !==
+      'undefined'
+        ? new ResizeObserver(
+            measureOverflow,
+          )
+        : null;
+
+    observer?.observe(element);
+
+    window.addEventListener(
+      'resize',
+      measureOverflow,
+    );
+
+    void document.fonts?.ready
+      ?.then(measureOverflow)
+      .catch(() => undefined);
+
+    return () => {
+      observer?.disconnect();
+
+      window.removeEventListener(
+        'resize',
+        measureOverflow,
+      );
+    };
+  }, [
+    fullValue,
+    measureOverflow,
+  ]);
+
+  const updateTooltipPosition =
+    React.useCallback(() => {
+      if (
+        typeof window ===
+        'undefined'
+      ) {
+        return;
+      }
+
+      if (
+        !triggerRef.current ||
+        !tooltipRef.current
+      ) {
+        return;
+      }
+
+      const triggerRect =
+        triggerRef.current
+          .getBoundingClientRect();
+
+      const tooltipRect =
+        tooltipRef.current
+          .getBoundingClientRect();
+
+      const sidePadding = 12;
+      const gap = 10;
+
+      let left =
+        triggerRect.right -
+        tooltipRect.width;
+
+      left = Math.max(
+        sidePadding,
+        Math.min(
+          left,
+          window.innerWidth -
+            sidePadding -
+            tooltipRect.width,
+        ),
+      );
+
+      let placement:
+        | 'top'
+        | 'bottom' =
+        'top';
+
+      let top =
+        triggerRect.top -
+        gap -
+        tooltipRect.height;
+
+      if (top < sidePadding) {
+        placement = 'bottom';
+        top =
+          triggerRect.bottom +
+          gap;
+      }
+
+      const triggerCenter =
+        triggerRect.left +
+        triggerRect.width / 2;
+
+      const arrowLeft =
+        Math.max(
+          18,
+          Math.min(
+            triggerCenter - left,
+            tooltipRect.width - 18,
+          ),
+        );
+
+      setPosition({
+        left,
+        top,
+        arrowLeft,
+        placement,
+      });
+
+      setMeasured(true);
+    }, []);
+
+  React.useLayoutEffect(() => {
+    if (
+      !portalReady ||
+      !open ||
+      !isOverflowing
+    ) {
+      return;
+    }
+
+    let animationFrame = 0;
+
+    const schedule = () => {
+      cancelAnimationFrame(
+        animationFrame,
+      );
+
+      animationFrame =
+        requestAnimationFrame(
+          updateTooltipPosition,
+        );
+    };
+
+    schedule();
+
+    window.addEventListener(
+      'resize',
+      schedule,
+    );
+
+    window.addEventListener(
+      'scroll',
+      schedule,
+      true,
+    );
+
+    return () => {
+      cancelAnimationFrame(
+        animationFrame,
+      );
+
+      window.removeEventListener(
+        'resize',
+        schedule,
+      );
+
+      window.removeEventListener(
+        'scroll',
+        schedule,
+        true,
+      );
+    };
+  }, [
+    portalReady,
+    open,
+    isOverflowing,
+    updateTooltipPosition,
+  ]);
+
+  const tooltipStyle:
+    WeaponStatTooltipStyle = {
+      left: position.left,
+      top: position.top,
+      '--weapon-tooltip-arrow-left':
+        `${position.arrowLeft}px`,
+      '--weapon-tooltip-accent':
+        tooltipAccent,
+    };
+
+  const tooltip =
+    portalReady &&
+    open &&
+    isOverflowing
+      ? createPortal(
           <div
-            style={{
-              position: 'absolute',
-              top: compact ? 38 : 42,
-              right: 0,
-              zIndex: 50,
-              display: 'flex',
-              flexDirection: spiritLayout ? 'row' : 'column',
-              gap: compact ? 8 : 10,
-              alignItems: 'flex-start',
-              background: 'transparent',
-              border: 'none',
-              boxShadow: 'none',
-              padding: 0,
-              animation: 'rdwikiWeaponLevelSelectorPop 0.14s ease-out',
-            }}
-            onMouseDown={(e) => {
-              e.preventDefault();
-              e.stopPropagation();
-            }}
+            ref={tooltipRef}
+            role="tooltip"
+            aria-hidden={
+              !measured
+            }
+            data-visible={
+              measured
+                ? 'true'
+                : 'false'
+            }
+            data-placement={
+              position.placement
+            }
+            className="weapon-stat-tooltip"
+            style={tooltipStyle}
           >
-            {spiritLayout ? (
-              <>
-                <div
-                  style={{
-                    display: 'flex',
-                    flexDirection: 'column',
-                    gap: 10,
-                    alignItems: 'center',
-                  }}
-                >
-                  {displayLevelLabels
-                    .slice(0, 9)
-                    .map((fullLabel, idx) => renderLevelButton(fullLabel, idx))}
-                </div>
+            <span className="weapon-stat-tooltip__label">
+              {label}
+            </span>
 
-                <div
-                  style={{
-                    display: 'flex',
-                    flexDirection: 'column',
-                    gap: 10,
-                    alignItems: 'center',
-                  }}
-                >
-                  {displayLevelLabels
-                    .slice(9)
-                    .map((fullLabel, localIdx) =>
-                      renderLevelButton(fullLabel, localIdx + 9),
-                    )}
-                </div>
-              </>
-            ) : (
-              displayLevelLabels.map((fullLabel, idx) =>
-                renderLevelButton(fullLabel, idx),
-              )
-            )}
-          </div>
-        ) : null}
-      </div>
+            <strong className="weapon-stat-tooltip__value">
+              {fullValue}
+            </strong>
+
+            <span
+              className="weapon-stat-tooltip__arrow"
+              aria-hidden
+            />
+          </div>,
+          document.body,
+        )
+      : null;
+
+  return (
+    <>
+      <span className="weapon-card__stat-value-wrap">
+        <span
+          ref={triggerRef}
+          data-truncated={
+            isOverflowing
+              ? 'true'
+              : 'false'
+          }
+          className="weapon-card__stat-value"
+          onMouseEnter={() => {
+            if (!isOverflowing) {
+              return;
+            }
+
+            setMeasured(false);
+            setOpen(true);
+          }}
+          onMouseLeave={() => {
+            setOpen(false);
+          }}
+        >
+          {fullValue}
+        </span>
+      </span>
+
+      {tooltip}
     </>
   );
 }
@@ -296,68 +881,76 @@ function WeaponLevelSelector({
 function WeaponStatRow({
   stat,
   selectedLevelIndex,
-  styleTokens,
-  isSpirit,
+  tooltipAccent,
   onClick,
 }: {
   stat: WeaponStatLike;
-  selectedLevelIndex: number | null;
-  styleTokens: ReturnType<typeof getWeaponCardPalette>;
-  isSpirit: boolean;
-  onClick?: (stat: WeaponStatLike, event: React.MouseEvent) => void;
+  selectedLevelIndex:
+    number | null;
+  tooltipAccent: string;
+  onClick?: (
+    stat: WeaponStatLike,
+    event: React.MouseEvent,
+  ) => void;
 }) {
-  const { value, unit } = getWeaponStatDisplay(stat, selectedLevelIndex);
+  const {
+    value,
+    unit,
+  } = getWeaponStatDisplay(
+    stat,
+    selectedLevelIndex,
+  );
+
+  const label =
+    String(
+      stat.label ??
+      '정보',
+    ).trim() ||
+    '정보';
 
   return (
     <button
       data-wiki-part="weapon-stat-row"
       type="button"
-      key={stat.key || stat.label}
+      className={[
+        'weapon-card__stat-row',
+        onClick
+          ? 'weapon-card__stat-row--editable'
+          : '',
+      ]
+        .filter(Boolean)
+        .join(' ')}
+      title={
+        onClick
+          ? '클릭해서 강화별 상세 정보 보기/편집'
+          : undefined
+      }
       onClick={
         onClick
-          ? (e) => {
-              e.preventDefault();
-              e.stopPropagation();
-              onClick(stat, e);
+          ? (event) => {
+              event.preventDefault();
+              event.stopPropagation();
+
+              onClick(
+                stat,
+                event,
+              );
             }
           : undefined
       }
-      style={{
-        width: '100%',
-        borderRadius: 10,
-        padding: '6px 8px',
-        border: styleTokens.statRowBorder,
-        background: styleTokens.statRowBg,
-        boxShadow: isSpirit
-          ? '0 0 18px rgba(20, 184, 166, .035) inset'
-          : undefined,
-        display: 'flex',
-        alignItems: 'center',
-        justifyContent: 'space-between',
-        cursor: onClick ? 'pointer' : 'default',
-      }}
-      title={onClick ? '클릭해서 강화별 상세 정보 보기/편집' : undefined}
     >
-      <span
-        style={{
-          fontSize: 12,
-          color: styleTokens.statLabelColor,
-          fontWeight: 500,
-        }}
-      >
-        {stat.label}
+      <span className="weapon-card__stat-label">
+        {label}
       </span>
 
-      <span
-        style={{
-          fontSize: 13,
-          color: styleTokens.statValueColor,
-          fontWeight: 600,
-        }}
-      >
-        {value || '-'}
-        {unit ? ` ${unit}` : ''}
-      </span>
+      <WeaponStatValue
+        label={label}
+        value={value || '-'}
+        unit={unit}
+        tooltipAccent={
+          tooltipAccent
+        }
+      />
     </button>
   );
 }
@@ -383,198 +976,275 @@ export default function WeaponCardRenderer({
   onVideoSettingClick,
   onStatSettingClick,
   onContextMenu,
-  renderImage = defaultRenderImage,
+  renderImage =
+    defaultRenderImage,
   renderExtraControls,
   children,
 }: WeaponCardRendererProps) {
-  const normalized = normalizeWeaponData(weapon);
-  const weaponType = normalized.weaponType;
-  const isSpirit = isSpiritWeapon(weaponType);
-  const isTranscend = isTranscendWeapon(weaponType, meta);
-  const enabledStats = getEnabledWeaponStats(stats);
+  const normalized =
+    normalizeWeaponData(
+      weapon,
+    );
 
-  const cardWidth = isMobile ? 220 : 260;
+  const weaponType =
+    normalized.weaponType;
 
-  const frame = createWeaponFrameStyles({
-    meta,
-    isSpirit,
-    isTranscend,
-  });
+  const visualTheme =
+    resolveWeaponVisualTheme(
+      weaponType,
+    );
 
-  const colors = getWeaponCardPalette({
-    isDarkMode,
-    isSpirit,
-  });
+  const isSpirit =
+    isSpiritWeapon(
+      weaponType,
+    );
 
-  const label = meta.label || weaponType || 'WEAPON';
-  const name = normalized.name || '새 무기 이름';
-  const safeImageSrc = String(imageSrc ?? normalized.imageUrl ?? '').trim();
-  const safeVideoSrc = String(videoSrc ?? normalized.videoUrl ?? '').trim();
-  const canEdit = mode === 'edit';
+  const isTranscend =
+    isTranscendWeapon(
+      weaponType,
+      meta,
+    );
+
+  const enabledStats =
+    getEnabledWeaponStats(
+      stats,
+    );
+
+  const cardWidth =
+    isMobile
+      ? 220
+      : 260;
+
+  const label =
+    meta.label ||
+    weaponType ||
+    'WEAPON';
+
+  const name =
+    normalized.name ||
+    '새 무기 이름';
+
+  const safeImageSrc =
+    String(
+      imageSrc ??
+      normalized.imageUrl ??
+      '',
+    ).trim();
+
+  const safeVideoSrc =
+    String(
+      videoSrc ??
+      normalized.videoUrl ??
+      '',
+    ).trim();
+
+  const canEdit =
+    mode === 'edit';
+
+  const themeVariables =
+    createWeaponThemeVariables({
+      weaponType,
+      meta,
+      cardWidth,
+    });
 
   return (
     <>
       <div
-        data-wiki-card-wrap={mode === 'read' ? 'weapon-read' : 'weapon-edit'}
+        data-wiki-card-wrap={
+          mode === 'read'
+            ? 'weapon-read'
+            : 'weapon-edit'
+        }
+        data-weapon-type={
+          weaponType
+        }
+        data-weapon-theme={
+          visualTheme.key
+        }
+        data-weapon-spirit={
+          isSpirit
+            ? 'true'
+            : 'false'
+        }
+        data-weapon-transcend={
+          isTranscend
+            ? 'true'
+            : 'false'
+        }
+        data-weapon-mobile={
+          isMobile
+            ? 'true'
+            : 'false'
+        }
+        data-weapon-dark={
+          isDarkMode
+            ? 'true'
+            : 'false'
+        }
+        className={[
+          'weapon-card-wrap',
+          `weapon-card-wrap--${mode}`,
+          isSpirit
+            ? 'weapon-card-wrap--spirit'
+            : '',
+          isTranscend
+            ? 'weapon-card-wrap--transcend'
+            : '',
+        ]
+          .filter(Boolean)
+          .join(' ')}
         contentEditable={false}
         suppressContentEditableWarning
-        onContextMenu={onContextMenu}
-        style={{
-          margin: '14px 0',
-          display: 'flex',
-          justifyContent: 'center',
-          alignItems: 'flex-start',
-          gap: isMobile ? 0 : 10,
-          flexWrap: 'nowrap',
-          position: isMobile ? 'relative' : undefined,
-          width: isMobile ? `${cardWidth}px` : undefined,
-          marginLeft: isMobile ? 'auto' : undefined,
-          marginRight: isMobile ? 'auto' : undefined,
-        }}
+        onContextMenu={
+          onContextMenu
+        }
+        style={
+          themeVariables
+        }
       >
-        <div
-          style={
-            isSpirit || isTranscend
-              ? frame.frameStyle
-              : {
-                  borderRadius: 18,
-                  border: `2px solid ${meta.border || '#a855f7'}`,
-                  overflow: 'hidden',
-                  background: '#020617',
-                  boxShadow: '0 16px 35px rgba(0,0,0,.45)',
-                }
-          }
-        >
+        <div className="weapon-card-frame">
           <div
-            data-wiki-card={mode === 'read' ? 'weapon-read' : 'weapon-edit'}
-            style={{
-              width: cardWidth,
-              borderRadius: 18,
-              overflow: 'hidden',
-              background: colors.cardBg,
-              boxShadow: colors.cardShadow,
-              fontFamily: 'inherit',
-              paddingTop: 8,
-              ...(frame.innerGlowStyle || null),
-            }}
+            data-wiki-card={
+              mode === 'read'
+                ? 'weapon-read'
+                : 'weapon-edit'
+            }
+            className={[
+              'weapon-card',
+              `weapon-card--${mode}`,
+            ].join(' ')}
           >
-            {isSpirit ? (
-              <div style={frame.spiritOverlayStyle} aria-hidden="true" />
-            ) : null}
+            <span
+              className="weapon-card__cosmic-field"
+              aria-hidden
+            />
 
-            <div style={{ position: 'relative', zIndex: 1 }}>
+            <div className="weapon-card__content">
               {renderExtraControls?.()}
 
               <button
                 data-wiki-part="weapon-type-bar"
                 type="button"
+                className={[
+                  'weapon-card__type-bar',
+                  onTypeClick
+                    ? 'weapon-card__type-bar--editable'
+                    : '',
+                ]
+                  .filter(Boolean)
+                  .join(' ')}
                 onClick={
                   onTypeClick
-                    ? (e) => {
-                        e.preventDefault();
-                        e.stopPropagation();
-                        onTypeClick(e);
+                    ? (event) => {
+                        event.preventDefault();
+                        event.stopPropagation();
+
+                        onTypeClick(
+                          event,
+                        );
                       }
                     : undefined
                 }
-                style={{
-                  width: '100%',
-                  border: 'none',
-                  outline: 'none',
-                  background: isSpirit
-                    ? 'linear-gradient(90deg, #020617 0%, #06383a 35%, #0f766e 55%, #020617 100%)'
-                    : meta.headerBg || '#7c3aed',
-                  color: isSpirit ? '#d9fffb' : '#f9fafb',
-                  textShadow: isSpirit
-                    ? '0 0 10px rgba(45, 212, 191, .65)'
-                    : undefined,
-                  padding: '6px 0',
-                  fontSize: 16,
-                  fontWeight: 700,
-                  letterSpacing: 1.5,
-                  textAlign: 'center',
-                  cursor: onTypeClick ? 'pointer' : 'default',
-                }}
               >
-                {label}
+                <span>
+                  {label}
+                </span>
               </button>
 
               <div
                 data-wiki-part="weapon-name"
+                className={[
+                  'weapon-card__name',
+                  onNameClick
+                    ? 'weapon-card__name--editable'
+                    : '',
+                ]
+                  .filter(Boolean)
+                  .join(' ')}
                 onClick={
                   onNameClick
-                    ? (e) => {
-                        e.preventDefault();
-                        e.stopPropagation();
-                        onNameClick(e);
+                    ? (event) => {
+                        event.preventDefault();
+                        event.stopPropagation();
+
+                        onNameClick(
+                          event,
+                        );
                       }
                     : undefined
                 }
-                style={{
-                  padding: '10px 14px',
-                  background: isSpirit
-                    ? 'linear-gradient(180deg, rgba(2, 6, 23, .98), rgba(3, 24, 27, .96))'
-                    : '#020617',
-                  color: isSpirit ? '#e6fffb' : '#e5e7eb',
-                  fontSize: 18,
-                  fontWeight: 700,
-                  textAlign: 'center',
-                  borderBottom: isSpirit
-                    ? '1px solid rgba(45, 212, 191, .22)'
-                    : '1px solid #111827',
-                  cursor: onNameClick ? 'pointer' : 'default',
-                  userSelect: 'none',
-                  textShadow: isSpirit
-                    ? '0 0 12px rgba(20, 184, 166, .35)'
-                    : undefined,
-                }}
               >
                 {name}
               </div>
 
+              {levelLabels.length >
+                1 &&
+              isMobile ? (
+                <WeaponLevelSelector
+                  levelLabels={
+                    levelLabels
+                  }
+                  selectedIndex={
+                    selectedLevelIndex
+                  }
+                  onChange={
+                    onLevelChange
+                  }
+                  compact
+                  overlay
+                  spiritLayout={
+                    isSpirit
+                  }
+                />
+              ) : null}
+
               <div
                 data-wiki-part="weapon-image"
+                className={[
+                  'weapon-card__image',
+                  onImageClick
+                    ? 'weapon-card__image--editable'
+                    : '',
+                ]
+                  .filter(Boolean)
+                  .join(' ')}
                 onClick={
                   onImageClick
-                    ? (e) => {
-                        e.preventDefault();
-                        e.stopPropagation();
-                        onImageClick(e);
+                    ? (event) => {
+                        event.preventDefault();
+                        event.stopPropagation();
+
+                        onImageClick(
+                          event,
+                        );
                       }
                     : undefined
                 }
-                style={{
-                  background: isSpirit
-                    ? 'radial-gradient(circle at 18% 12%, rgba(29, 211, 199, .20), transparent 38%), radial-gradient(circle at 78% 22%, rgba(14, 165, 233, .12), transparent 42%), radial-gradient(circle at 50% 95%, rgba(6, 78, 59, .26), transparent 48%), #010607'
-                    : 'radial-gradient(circle at 20% 0%, rgba(56,189,248,0.18), transparent 55%), radial-gradient(circle at 100% 0%, rgba(129,140,248,0.22), transparent 55%), #020617',
-                  height: 140,
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  cursor: onImageClick ? 'pointer' : 'default',
-                }}
               >
+                <span
+                  className="weapon-card__image-aura"
+                  aria-hidden
+                />
+
                 {safeImageSrc ? (
                   renderImage({
-                    src: safeImageSrc,
+                    src:
+                      safeImageSrc,
                     alt: name,
                     width: 160,
                     height: 96,
                     style: {
                       maxWidth: '80%',
                       maxHeight: '80%',
-                      objectFit: 'contain',
-                      filter: 'drop-shadow(0 12px 18px rgba(0,0,0,.55))',
-                      display: 'block',
+                      objectFit:
+                        'contain',
+                      display:
+                        'block',
                     },
                   })
                 ) : (
-                  <span
-                    style={{
-                      color: colors.imageEmptyColor,
-                      fontSize: 14,
-                    }}
-                  >
+                  <span className="weapon-card__image-empty">
                     이미지 없음
                   </span>
                 )}
@@ -582,105 +1252,83 @@ export default function WeaponCardRenderer({
 
               <div
                 data-wiki-part="weapon-stats"
-                style={{
-                  padding: '8px 10px 8px',
-                  display: 'flex',
-                  flexDirection: 'column',
-                  gap: 6,
-                }}
+                className="weapon-card__stats"
               >
-                {enabledStats.length === 0 ? (
-                  <div
-                    style={{
-                      fontSize: 12,
-                      color: colors.imageEmptyColor,
-                      padding: '6px 8px',
-                      borderRadius: 10,
-                      background: colors.statEmptyBg,
-                    }}
-                  >
-                    표시할 정보가 없습니다. (정보 설정 버튼으로 추가)
+                {enabledStats.length ===
+                0 ? (
+                  <div className="weapon-card__stats-empty">
+                    표시할 정보가
+                    없습니다.
+                    {canEdit
+                      ? ' 정보 설정 버튼으로 추가하세요.'
+                      : ''}
                   </div>
                 ) : null}
 
-                {enabledStats.map((stat) => (
-                  <WeaponStatRow
-                    key={stat.key || stat.label}
-                    stat={stat}
-                    selectedLevelIndex={selectedLevelIndex}
-                    styleTokens={colors}
-                    isSpirit={isSpirit}
-                    onClick={onStatClick}
-                  />
-                ))}
+                {enabledStats.map(
+                  (stat) => (
+                    <WeaponStatRow
+                      key={
+                        stat.key ||
+                        stat.label
+                      }
+                      stat={stat}
+                      selectedLevelIndex={
+                        selectedLevelIndex
+                      }
+                      tooltipAccent={
+                        meta.headerBg ||
+                        visualTheme.accent
+                      }
+                      onClick={
+                        onStatClick
+                      }
+                    />
+                  ),
+                )}
               </div>
 
               {supportsVideo ? (
                 <div
                   data-wiki-part="weapon-video-actions"
-                  style={{
-                    padding: '8px 10px 10px',
-                    display: 'flex',
-                    gap: mode === 'edit' ? 8 : 0,
-                    justifyContent: mode === 'edit' ? 'stretch' : 'center',
-                  }}
+                  className="weapon-card__video-actions"
                 >
                   <button
                     data-wiki-part="weapon-video-button"
                     type="button"
-                    disabled={!safeVideoSrc}
+                    className="weapon-card__video-button"
+                    disabled={
+                      !safeVideoSrc
+                    }
                     onClick={
+                      safeVideoSrc &&
                       onVideoClick
-                        ? (e) => {
-                            e.preventDefault();
-                            e.stopPropagation();
-                            onVideoClick(e);
+                        ? (event) => {
+                            event.preventDefault();
+                            event.stopPropagation();
+
+                            onVideoClick(
+                              event,
+                            );
                           }
                         : undefined
                     }
-                    style={{
-                      padding: '8px 10px',
-                      borderRadius: 999,
-                      border: 'none',
-                      fontSize: 13,
-                      fontWeight: 600,
-                      background: safeVideoSrc
-                        ? isSpirit
-                          ? 'linear-gradient(90deg, #064e3b, #0f766e, #155e75)'
-                          : 'linear-gradient(90deg,#1d4ed8,#3b82f6)'
-                        : colors.disabledButtonBg,
-                      color: safeVideoSrc ? '#f9fafb' : colors.disabledButtonColor,
-                      cursor: safeVideoSrc && onVideoClick ? 'pointer' : 'default',
-                      flex: mode === 'edit' ? 1 : undefined,
-                      minWidth: mode === 'edit' ? undefined : 160,
-                      textAlign: 'center',
-                      boxShadow: safeVideoSrc
-                        ? isSpirit
-                          ? '0 12px 34px rgba(20,184,166,.42), 0 0 18px rgba(45,212,191,.22)'
-                          : '0 12px 30px rgba(37,99,235,0.7)'
-                        : 'none',
-                    }}
                   >
                     스킬 사용 영상
                   </button>
 
-                  {mode === 'edit' && onVideoSettingClick ? (
+                  {canEdit &&
+                  onVideoSettingClick ? (
                     <button
                       type="button"
-                      onClick={(e) => {
-                        e.preventDefault();
-                        e.stopPropagation();
-                        onVideoSettingClick(e);
-                      }}
-                      style={{
-                        padding: '8px 10px',
-                        borderRadius: 999,
-                        border: '1px solid #334155',
-                        background: '#020617',
-                        color: '#e5e7eb',
-                        fontSize: 12,
-                        cursor: 'pointer',
-                        whiteSpace: 'nowrap',
+                      className="weapon-card__secondary-button"
+                      onClick={(event) => {
+                        event.preventDefault();
+                        event.stopPropagation();
+
+                        onVideoSettingClick(
+                          event,
+                        );
                       }}
                     >
                       영상 설정
@@ -692,36 +1340,39 @@ export default function WeaponCardRenderer({
           </div>
         </div>
 
-        {levelLabels.length > 1 && !isMobile ? (
+        {levelLabels.length >
+          1 &&
+        !isMobile ? (
           <WeaponLevelSelector
-            levelLabels={levelLabels}
-            selectedIndex={selectedLevelIndex}
-            onChange={onLevelChange}
-            spiritLayout={isSpirit}
+            levelLabels={
+              levelLabels
+            }
+            selectedIndex={
+              selectedLevelIndex
+            }
+            onChange={
+              onLevelChange
+            }
+            spiritLayout={
+              isSpirit
+            }
           />
         ) : null}
 
-        {mode === 'edit' && onStatSettingClick ? (
+        {canEdit &&
+        onStatSettingClick ? (
           <button
             type="button"
-            onClick={(e) => {
-              e.preventDefault();
-              e.stopPropagation();
-              onStatSettingClick(e);
-            }}
-            style={{
-              alignSelf: 'flex-start',
-              marginTop: 8,
-              fontSize: 11,
-              borderRadius: 999,
-              padding: '4px 10px',
-              border: '1px solid #4b5563',
-              background: '#020617',
-              color: '#9ca3af',
-              cursor: 'pointer',
-              whiteSpace: 'nowrap',
-            }}
+            className="weapon-card__settings-button"
             title="표시할 정보 선택"
+            onClick={(event) => {
+              event.preventDefault();
+              event.stopPropagation();
+
+              onStatSettingClick(
+                event,
+              );
+            }}
           >
             정보 설정
           </button>

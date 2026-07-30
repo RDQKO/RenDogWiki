@@ -607,7 +607,9 @@ export async function GET(req: NextRequest) {
     if (merged.length < limit) pushUnique(enrichedContentRows);
 
     return NextResponse.json(merged, {
-      headers: { 'Cache-Control': 'no-store' },
+      headers: {
+        'Cache-Control': 'public, max-age=0, s-maxage=60, stale-while-revalidate=120',
+      },
     });
   } catch (err) {
     console.error('[search GET] unexpected error:', err);

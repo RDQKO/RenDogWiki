@@ -1,6 +1,14 @@
-// app/components/wiki/NpcGrid.tsx
-import React, { useEffect, useMemo, useState } from "react";
+"use client";
+
+import React, {
+  useEffect,
+  useMemo,
+  useState,
+} from "react";
+
 import { toProxyUrl } from "@lib/cdn";
+
+import "../../wiki/css/document-components/quest-grid.css";
 
 const ALLOWED_TAGS = [
   "추천",
@@ -13,7 +21,9 @@ const ALLOWED_TAGS = [
   "혼의 시련",
   "6차",
 ] as const;
-type TagKey = (typeof ALLOWED_TAGS)[number];
+
+type TagKey =
+  (typeof ALLOWED_TAGS)[number];
 
 export type Npc = {
   id: number;
@@ -28,21 +38,524 @@ export type Npc = {
 
 type Props = {
   npcs: Npc[];
-  onClick?: (npc: Npc) => void;
-  selectedNpcId?: number | null;
+  onClick?: (
+    npc: Npc,
+  ) => void;
+  selectedNpcId?:
+    number | null;
   page?: number;
-  onPageChange?: (nextPage: number) => void;
-  pageSize?: number; // 기본 21 (7x3)
-  showPager?: boolean; // 기본 true
+  onPageChange?: (
+    nextPage: number,
+  ) => void;
+  pageSize?: number;
+  showPager?: boolean;
+  villageName?: string | null;
 };
 
-const DESKTOP_PAGE_SIZE = 7 * 3; // 21
-const MOBILE_PAGE_SIZE = 3 * 4; // 현재 실제 사용값 12
-const MOBILE_QUERY = "(max-width: 768px)";
+const DESKTOP_PAGE_SIZE =
+  7 * 3;
 
-const isImageUrl = (v?: string | null) =>
-  typeof v === "string" && v.startsWith("http");
-const slug = (t: string) => t.replace(/\s+/g, "-");
+const MOBILE_PAGE_SIZE =
+  3 * 4;
+
+const MOBILE_QUERY =
+  "(max-width: 768px)";
+
+type VillageTheme =
+  | "slime"
+  | "desert"
+  | "frost"
+  | "under"
+  | "seloterain"
+  | "atlantis"
+  | "cretora"
+  | "hell"
+  | "finalis"
+  | "default";
+
+function normalizeVillageName(
+  value?: string | null,
+) {
+  return String(value ?? "")
+    .normalize("NFKC")
+    .toLowerCase()
+    .replace(
+      /[\s_\-·ㆍ.,()[\]{}]+/g,
+      "",
+    );
+}
+
+function resolveVillageTheme(
+  value?: string | null,
+): VillageTheme {
+  const village =
+    normalizeVillageName(value);
+
+  if (!village) {
+    return "default";
+  }
+
+  if (
+    village.includes(
+      "슬라임빌리지",
+    ) ||
+    village === "슬라임"
+  ) {
+    return "slime";
+  }
+
+  if (
+    village.includes(
+      "데저트빌리지",
+    ) ||
+    village.includes("데저트") ||
+    village.includes("사막")
+  ) {
+    return "desert";
+  }
+
+  if (
+    village.includes(
+      "프로스트타운",
+    ) ||
+    village.includes("프로스트") ||
+    village.includes("설원")
+  ) {
+    return "frost";
+  }
+
+  if (
+    village.includes(
+      "언더빌리지",
+    ) ||
+    village.includes("언더") ||
+    village.includes("지하")
+  ) {
+    return "under";
+  }
+
+  if (
+    village.includes(
+      "셀로테레인",
+    ) ||
+    village.includes(
+      "셀로테라인",
+    )
+  ) {
+    return "seloterain";
+  }
+
+  if (
+    village.includes(
+      "아틀란티스",
+    )
+  ) {
+    return "atlantis";
+  }
+
+  if (
+    village.includes(
+      "크레토라",
+    )
+  ) {
+    return "cretora";
+  }
+
+  if (
+    village.includes(
+      "헬스토니아",
+    ) ||
+    village.includes("헬스토니아")
+  ) {
+    return "hell";
+  }
+
+  if (
+    village.includes(
+      "피날리스",
+    ) ||
+    village.includes("공허")
+  ) {
+    return "finalis";
+  }
+
+  return "default";
+}
+
+function readVillageNameFromPage() {
+  if (
+    typeof window ===
+    "undefined"
+  ) {
+    return "";
+  }
+
+  const search =
+    new URLSearchParams(
+      window.location.search,
+    );
+
+  const titleParam =
+    search.get("title");
+
+  if (titleParam) {
+    try {
+      return decodeURIComponent(
+        titleParam,
+      ).replace(/_/g, " ");
+    } catch {
+      return titleParam.replace(
+        /_/g,
+        " ",
+      );
+    }
+  }
+
+  const titleElement =
+    document.querySelector(
+      ".wiki-content-title",
+    );
+
+  return String(
+    titleElement?.textContent ??
+      "",
+  ).trim();
+}
+
+function isImageUrl(
+  value?: string | null,
+) {
+  return (
+    typeof value ===
+      "string" &&
+    value.startsWith("http")
+  );
+}
+
+function slug(
+  value: string,
+) {
+  return value.replace(
+    /\s+/g,
+    "-",
+  );
+}
+
+function resolveTag(
+  value?: string | null,
+): TagKey | null {
+  const tag =
+    String(value ?? "").trim();
+
+  return (
+    ALLOWED_TAGS as readonly string[]
+  ).includes(tag)
+    ? (tag as TagKey)
+    : null;
+}
+
+function getNameClass(
+  name: string,
+) {
+  const compactLength =
+    name.replace(
+      /\s+/g,
+      "",
+    ).length;
+
+  if (compactLength >= 13) {
+    return " is-xlong";
+  }
+
+  if (compactLength >= 9) {
+    return " is-longer";
+  }
+
+  if (compactLength >= 6) {
+    return " is-long";
+  }
+
+  return "";
+}
+
+function QuestName({
+  name,
+  sizeClass,
+}: {
+  name: string;
+  sizeClass: string;
+}) {
+  const ref =
+    React.useRef<HTMLSpanElement | null>(
+      null,
+    );
+
+  const [
+    fittedFontSize,
+    setFittedFontSize,
+  ] = React.useState<number | null>(
+    null,
+  );
+
+  React.useLayoutEffect(() => {
+    const element =
+      ref.current;
+
+    if (!element) return;
+
+    let animationFrame = 0;
+
+    const fit = () => {
+      cancelAnimationFrame(
+        animationFrame,
+      );
+
+      animationFrame =
+        requestAnimationFrame(() => {
+          const target =
+            ref.current;
+
+          if (!target) return;
+
+          /*
+           * 이전 측정에서 적용한 인라인 크기를 잠시 제거한 뒤,
+           * CSS가 정한 기본 크기를 기준으로 다시 계산한다.
+           */
+          target.style.fontSize = "";
+
+          const computed =
+            window.getComputedStyle(
+              target,
+            );
+
+          const baseFontSize =
+            Number.parseFloat(
+              computed.fontSize,
+            ) || 15;
+
+          const availableWidth =
+            target.clientWidth;
+
+          const requiredWidth =
+            target.scrollWidth;
+
+          if (
+            requiredWidth <=
+              availableWidth + 0.5 ||
+            availableWidth <= 0
+          ) {
+            setFittedFontSize(
+              null,
+            );
+            return;
+          }
+
+          const ratio =
+            availableWidth /
+            requiredWidth;
+
+          const nextSize =
+            Math.max(
+              10,
+              Math.floor(
+                baseFontSize *
+                  ratio *
+                  100,
+              ) / 100,
+            );
+
+          setFittedFontSize(
+            nextSize,
+          );
+        });
+    };
+
+    fit();
+
+    const resizeObserver =
+      typeof ResizeObserver !==
+      "undefined"
+        ? new ResizeObserver(
+            fit,
+          )
+        : null;
+
+    resizeObserver?.observe(
+      element,
+    );
+
+    if (element.parentElement) {
+      resizeObserver?.observe(
+        element.parentElement,
+      );
+    }
+
+    window.addEventListener(
+      "resize",
+      fit,
+    );
+
+    void document.fonts?.ready
+      ?.then(fit)
+      .catch(() => undefined);
+
+    return () => {
+      cancelAnimationFrame(
+        animationFrame,
+      );
+
+      resizeObserver?.disconnect();
+
+      window.removeEventListener(
+        "resize",
+        fit,
+      );
+    };
+  }, [
+    name,
+    sizeClass,
+  ]);
+
+  return (
+    <span
+      ref={ref}
+      className={[
+        "npc-name",
+        sizeClass,
+      ]
+        .filter(Boolean)
+        .join(" ")}
+      style={
+        fittedFontSize
+          ? {
+              fontSize:
+                `${fittedFontSize}px`,
+            }
+          : undefined
+      }
+      title={name}
+    >
+      {name}
+    </span>
+  );
+}
+
+function QuestCard({
+  npc,
+  selected,
+  onActivate,
+}: {
+  npc: Npc;
+  selected: boolean;
+  onActivate: () => void;
+}) {
+  const tag =
+    resolveTag(npc.tag);
+
+  const nameClass =
+    getNameClass(npc.name);
+
+  const title = [
+    npc.name,
+    `(${npc.location_x}, ${npc.location_y}, ${npc.location_z})`,
+  ].join(" · ");
+
+  return (
+    <button
+      type="button"
+      className={[
+        "npc-card",
+        selected
+          ? "is-selected"
+          : "",
+      ]
+        .filter(Boolean)
+        .join(" ")}
+      aria-pressed={selected}
+      aria-label={npc.name}
+      title={title}
+      data-selected={
+        selected
+          ? "true"
+          : "false"
+      }
+      data-has-tag={
+        tag
+          ? "true"
+          : "false"
+      }
+      onClick={onActivate}
+    >
+      {tag ? (
+        <span
+          className={[
+            "npc-tag-badge",
+            `tag-${slug(tag)}`,
+          ].join(" ")}
+          data-quest-tag={tag}
+          aria-hidden
+        >
+          {tag}
+        </span>
+      ) : null}
+
+      <span
+        className="npc-card-inner"
+        aria-hidden
+      >
+        <span className="npc-icon-wrap">
+          <span className="npc-icon-surface">
+            {isImageUrl(
+              npc.icon,
+            ) ? (
+              <img
+                src={toProxyUrl(
+                  npc.icon,
+                )}
+                alt=""
+                loading="lazy"
+                decoding="async"
+                draggable={false}
+                className="npc-icon-img"
+              />
+            ) : (
+              <span className="npc-emoji">
+                {npc.icon || ""}
+              </span>
+            )}
+          </span>
+        </span>
+
+        <QuestName
+          name={npc.name}
+          sizeClass={
+            nameClass.trim()
+          }
+        />
+
+        <span
+          className="npc-card-open-indicator"
+        >
+          <span>상세 보기</span>
+
+          <svg
+            viewBox="0 0 18 18"
+            focusable="false"
+          >
+            <path
+              d="m7 5 4 4-4 4"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="1.7"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+            />
+          </svg>
+        </span>
+      </span>
+    </button>
+  );
+}
 
 export default function NpcGrid({
   npcs,
@@ -52,551 +565,378 @@ export default function NpcGrid({
   onPageChange,
   pageSize,
   showPager = false,
+  villageName,
 }: Props) {
-  const [innerPage, setInnerPage] = useState(0);
-  const [isMobile, setIsMobile] = useState(false);
+  const [
+    innerPage,
+    setInnerPage,
+  ] = useState(0);
+
+  const [
+    isMobile,
+    setIsMobile,
+  ] = useState(false);
+
+  const [
+    detectedVillageName,
+    setDetectedVillageName,
+  ] = useState(
+    villageName ?? "",
+  );
 
   useEffect(() => {
-    if (typeof window === "undefined") return;
+    if (villageName) {
+      setDetectedVillageName(
+        villageName,
+      );
+      return;
+    }
 
-    const mq = window.matchMedia(MOBILE_QUERY);
+    /*
+     * 현재 구조에서는 NpcGrid 호출부에 마을명이 직접 전달되지
+     * 않는 경우가 있으므로 문서 URL 제목을 안전한 fallback으로 쓴다.
+     * npcs가 바뀔 때 다시 읽어 마을 문서 전환에도 대응한다.
+     */
+    setDetectedVillageName(
+      readVillageNameFromPage(),
+    );
+  }, [
+    npcs,
+    villageName,
+  ]);
+
+  const villageTheme =
+    useMemo(
+      () =>
+        resolveVillageTheme(
+          villageName ??
+            detectedVillageName,
+        ),
+      [
+        detectedVillageName,
+        villageName,
+      ],
+    );
+
+  useEffect(() => {
+    if (
+      typeof window ===
+      "undefined"
+    ) {
+      return;
+    }
+
+    const mediaQuery =
+      window.matchMedia(
+        MOBILE_QUERY,
+      );
 
     const apply = () => {
-      setIsMobile(mq.matches);
+      setIsMobile(
+        mediaQuery.matches,
+      );
     };
 
     apply();
 
-    if (typeof mq.addEventListener === "function") {
-      mq.addEventListener("change", apply);
-      return () => mq.removeEventListener("change", apply);
+    if (
+      typeof mediaQuery
+        .addEventListener ===
+      "function"
+    ) {
+      mediaQuery.addEventListener(
+        "change",
+        apply,
+      );
+
+      return () => {
+        mediaQuery.removeEventListener(
+          "change",
+          apply,
+        );
+      };
     }
 
-    mq.addListener(apply);
-    return () => mq.removeListener(apply);
+    mediaQuery.addListener(
+      apply,
+    );
+
+    return () => {
+      mediaQuery.removeListener(
+        apply,
+      );
+    };
   }, []);
 
   const resolvedPageSize =
-    typeof pageSize === "number" && pageSize > 0
+    typeof page ===
+      "number" &&
+    typeof pageSize ===
+      "number" &&
+    pageSize > 0
       ? pageSize
-      : isMobile
-      ? MOBILE_PAGE_SIZE
-      : DESKTOP_PAGE_SIZE;
+      : typeof pageSize ===
+            "number" &&
+          pageSize > 0
+        ? pageSize
+        : isMobile
+          ? MOBILE_PAGE_SIZE
+          : DESKTOP_PAGE_SIZE;
 
-  const curPage = typeof page === "number" ? page : innerPage;
-  const pageCount = Math.max(1, Math.ceil(npcs.length / resolvedPageSize));
+  const currentPage =
+    typeof page ===
+    "number"
+      ? page
+      : innerPage;
+
+  const pageCount =
+    Math.max(
+      1,
+      Math.ceil(
+        npcs.length /
+          resolvedPageSize,
+      ),
+    );
 
   useEffect(() => {
-    if (curPage <= pageCount - 1) return;
+    if (
+      currentPage <=
+      pageCount - 1
+    ) {
+      return;
+    }
 
-    const next = Math.max(0, pageCount - 1);
+    const nextPage =
+      Math.max(
+        0,
+        pageCount - 1,
+      );
 
-    if (typeof page === "number" && onPageChange) onPageChange(next);
-    else setInnerPage(next);
-  }, [curPage, pageCount, page, onPageChange]);
+    if (
+      typeof page ===
+        "number" &&
+      onPageChange
+    ) {
+      onPageChange(
+        nextPage,
+      );
+      return;
+    }
 
-  const view = useMemo(() => {
-    const start = curPage * resolvedPageSize;
-    return npcs.slice(start, start + resolvedPageSize);
-  }, [npcs, curPage, resolvedPageSize]);
+    setInnerPage(
+      nextPage,
+    );
+  }, [
+    currentPage,
+    onPageChange,
+    page,
+    pageCount,
+  ]);
 
-  const goPage = (p: number) => {
-    const next = Math.min(Math.max(0, p), pageCount - 1);
-    if (typeof page === "number" && onPageChange) onPageChange(next);
-    else setInnerPage(next);
+  const visibleNpcs =
+    useMemo(() => {
+      const start =
+        currentPage *
+        resolvedPageSize;
+
+      return npcs.slice(
+        start,
+        start +
+          resolvedPageSize,
+      );
+    }, [
+      currentPage,
+      npcs,
+      resolvedPageSize,
+    ]);
+
+  const goPage = (
+    targetPage: number,
+  ) => {
+    const nextPage =
+      Math.min(
+        Math.max(
+          0,
+          targetPage,
+        ),
+        pageCount - 1,
+      );
+
+    if (
+      typeof page ===
+        "number" &&
+      onPageChange
+    ) {
+      onPageChange(
+        nextPage,
+      );
+      return;
+    }
+
+    setInnerPage(
+      nextPage,
+    );
   };
 
   return (
-    <div className="npc-grid-wrap">
-      <div role="grid" aria-label="NPC 목록" className="npc-grid">
-        {view.map((npc) => {
-          const selected = selectedNpcId === npc.id;
-          const handleActivate = () => onClick?.(npc);
-
-          const tag = (ALLOWED_TAGS as readonly string[]).includes(
-            (npc.tag ?? "") as string
-          )
-            ? (npc.tag as TagKey)
-            : null;
-
-          return (
-            <div
-              key={npc.id}
-              role="button"
-              tabIndex={0}
-              aria-pressed={selected}
-              aria-label={`${npc.name}`}
-              title={`${npc.name} · (${npc.location_x}, ${npc.location_y}, ${npc.location_z})`}
-              onClick={handleActivate}
-              onKeyDown={(e) => {
-                if (e.key === "Enter" || e.key === " ") {
-                  e.preventDefault();
-                  handleActivate();
+    <div
+      className="npc-grid-wrap"
+      data-wiki-grid="quest"
+      data-village-theme={
+        villageTheme
+      }
+      data-village-name={
+        villageName ??
+        detectedVillageName
+      }
+    >
+      {visibleNpcs.length >
+      0 ? (
+        <div
+          role="grid"
+          aria-label="퀘스트 목록"
+          className="npc-grid"
+        >
+          {visibleNpcs.map(
+            (npc) => (
+              <QuestCard
+                key={npc.id}
+                npc={npc}
+                selected={
+                  selectedNpcId ===
+                  npc.id
                 }
-              }}
-              className={`npc-card${selected ? " is-selected" : ""}`}
+                onActivate={() =>
+                  onClick?.(
+                    npc,
+                  )
+                }
+              />
+            ),
+          )}
+        </div>
+      ) : (
+        <div
+          className="npc-grid-empty"
+          role="status"
+        >
+          <span
+            className="npc-grid-empty__icon"
+            aria-hidden
+          >
+            <svg
+              viewBox="0 0 24 24"
+              focusable="false"
             >
-              {tag && (
-                <span className={`npc-tag-badge tag-${slug(tag)}`} aria-hidden>
-                  {tag}
-                </span>
-              )}
+              <path
+                d="M7 4.5h10v15H7v-15Z"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="1.6"
+                strokeLinejoin="round"
+              />
+              <path
+                d="M9.5 8h5M9.5 11.5h5M9.5 15h3.2"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="1.6"
+                strokeLinecap="round"
+              />
+            </svg>
+          </span>
 
-              <div className="npc-card-inner">
-                <div className="npc-icon-wrap">
-                  {isImageUrl(npc.icon) ? (
-                    <img
-                      src={toProxyUrl(npc.icon)}
-                      alt={npc.name}
-                      loading="lazy"
-                      decoding="async"
-                      draggable={false}
-                      className="npc-icon-img"
-                    />
-                  ) : (
-                    <span className="npc-emoji">{npc.icon || "🧑"}</span>
-                  )}
-                </div>
+          <span>
+            등록된 목록이 없습니다.
+          </span>
+        </div>
+      )}
 
-                {(() => {
-                  const compactLen = npc.name.replace(/\s+/g, "").length;
-
-                  let nameClass = "";
-                  if (compactLen >= 9) nameClass = " is-xlong";
-                  else if (compactLen >= 7) nameClass = " is-longer";
-                  else if (compactLen >= 5) nameClass = " is-long";
-
-                  return <div className={`npc-name${nameClass}`}>{npc.name}</div>;
-                })()}
-              </div>
-            </div>
-          );
-        })}
-      </div>
-
-      {showPager && pageCount > 1 && (
+      {showPager &&
+      pageCount > 1 ? (
         <div className="npc-pager-wrap">
-          <div className="npc-pager" aria-label="NPC 페이지 이동">
+          <div
+            className="npc-pager"
+            aria-label="퀘스트 페이지 이동"
+          >
             <button
               type="button"
               className="npc-pg-btn"
-              onClick={() => goPage(curPage - 1)}
-              disabled={curPage <= 0}
+              onClick={() =>
+                goPage(
+                  currentPage - 1,
+                )
+              }
+              disabled={
+                currentPage <= 0
+              }
               aria-label="이전 페이지"
               title="이전 페이지"
             >
-              ‹
+              <svg
+                viewBox="0 0 20 20"
+                aria-hidden
+                focusable="false"
+              >
+                <path
+                  d="m12.25 5.5-4.5 4.5 4.5 4.5"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="1.8"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                />
+              </svg>
             </button>
 
-            <span className="npc-pg-text" aria-live="polite">
-              {curPage + 1} / {pageCount}
+            <span
+              className="npc-pg-text"
+              aria-live="polite"
+            >
+              <strong>
+                {currentPage +
+                  1}
+              </strong>
+
+              <span>/</span>
+
+              <span>
+                {pageCount}
+              </span>
             </span>
 
             <button
               type="button"
               className="npc-pg-btn"
-              onClick={() => goPage(curPage + 1)}
-              disabled={curPage >= pageCount - 1}
+              onClick={() =>
+                goPage(
+                  currentPage + 1,
+                )
+              }
+              disabled={
+                currentPage >=
+                pageCount - 1
+              }
               aria-label="다음 페이지"
               title="다음 페이지"
             >
-              ›
+              <svg
+                viewBox="0 0 20 20"
+                aria-hidden
+                focusable="false"
+              >
+                <path
+                  d="m7.75 5.5 4.5 4.5-4.5 4.5"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="1.8"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                />
+              </svg>
             </button>
           </div>
         </div>
-      )}
-
-      <style jsx>{`
-        .npc-grid-wrap {
-          width: 100%;
-          container-type: inline-size;
-
-          --npc-card-bg: var(--surface-elevated);
-          --npc-card-border: var(--border);
-          --npc-card-shadow: var(--shadow-sm);
-          --npc-card-selected-bg: #e7f6ff;
-          --npc-card-selected-border: #93c5fd;
-
-          --npc-name-color: #111;
-          --npc-name-shadow:
-            0 1.2px 0 #fff,
-            1.2px 0 0 #fff,
-            0 -1.2px 0 #fff,
-            -1.2px 0 0 #fff;
-
-          --npc-badge-bg: #fff;
-
-          --npc-pager-fg: #334155;
-          --npc-pager-bg: #ffffff;
-          --npc-pager-border: #d7dce3;
-          --npc-pager-divider: #e5e7eb;
-          --npc-pager-shadow: 0 6px 18px rgba(15, 23, 42, 0.08);
-          --npc-pager-hover-bg: #f8fafc;
-          --npc-pager-disabled-fg: #a3aab5;
-        }
-
-        :global(:root[data-theme='dark']) .npc-grid-wrap,
-        :global(body[data-theme='dark']) .npc-grid-wrap,
-        :global(html.dark) .npc-grid-wrap,
-        :global(body.dark) .npc-grid-wrap {
-          --npc-card-bg: var(--surface-elevated);
-          --npc-card-border: var(--border-strong);
-          --npc-card-shadow: 0 12px 28px rgba(2, 6, 23, 0.32);
-          --npc-card-selected-bg: color-mix(
-            in oklab,
-            var(--surface-elevated) 82%,
-            #38bdf8 18%
-          );
-          --npc-card-selected-border: color-mix(
-            in oklab,
-            var(--border-strong) 55%,
-            #60a5fa 45%
-          );
-
-          --npc-name-color: var(--foreground);
-          --npc-name-shadow:
-            0 1.2px 0 rgba(2, 6, 23, 0.95),
-            1.2px 0 0 rgba(2, 6, 23, 0.95),
-            0 -1.2px 0 rgba(2, 6, 23, 0.95),
-            -1.2px 0 0 rgba(2, 6, 23, 0.95);
-
-          --npc-badge-bg: var(--surface);
-
-          --npc-pager-fg: var(--foreground);
-          --npc-pager-bg: color-mix(
-            in oklab,
-            var(--surface-elevated) 96%,
-            white 4%
-          );
-          --npc-pager-border: var(--border-strong);
-          --npc-pager-divider: color-mix(
-            in oklab,
-            var(--border-strong) 72%,
-            transparent
-          );
-          --npc-pager-shadow: 0 12px 28px rgba(2, 6, 23, 0.34);
-          --npc-pager-hover-bg: color-mix(
-            in oklab,
-            var(--surface-elevated) 88%,
-            white 10%
-          );
-          --npc-pager-disabled-fg: var(--muted);
-        }
-
-        .npc-grid {
-          container-type: inline-size;
-
-          --icon: clamp(50px, 4vw, 80px);
-          --gap-x: clamp(18px, 3vw, 56px);
-          --name: clamp(16px, 1.4vw, 24px);
-          --pad: clamp(6px, 0.8vw, 8px);
-
-          display: grid;
-          grid-template-columns: repeat(7, 1fr);
-          justify-content: start;
-          column-gap: var(--gap-x);
-          row-gap: 40px;
-          margin: 20px 0;
-        }
-
-        @supports (width: 1cqw) {
-          .npc-grid {
-            --icon: clamp(50px, 8cqw, 80px);
-            --gap-x: clamp(18px, 3cqw, 48px);
-            --name: clamp(16px, 2.5cqw, 24px);
-            --pad: clamp(6px, 0.8cqw, 8px);
-          }
-
-          @container (max-width: 1100px) {
-            .npc-grid {
-              --icon: clamp(46px, 7cqw, 72px);
-              --name: clamp(14px, 2.1cqw, 22px);
-            }
-          }
-
-          @container (max-width: 900px) {
-            .npc-grid {
-              --icon: clamp(42px, 6cqw, 64px);
-              --name: clamp(13px, 1.9cqw, 20px);
-            }
-          }
-        }
-
-        .npc-card {
-          width: 100%;
-          aspect-ratio: 1 / 1;
-          position: relative;
-          border: 1.5px solid var(--npc-card-border);
-          border-radius: 12px;
-          background: var(--npc-card-bg);
-          box-shadow: var(--npc-card-shadow);
-          cursor: pointer;
-          overflow: visible;
-          padding: 0;
-          isolation: isolate;
-        }
-
-        .npc-card.is-selected {
-          background: var(--npc-card-selected-bg);
-          border-color: var(--npc-card-selected-border);
-        }
-
-        .npc-card-inner {
-          position: absolute;
-          inset: var(--pad);
-          display: flex;
-          flex-direction: column;
-          align-items: center;
-          justify-content: center;
-          gap: 6px;
-        }
-
-        .npc-icon-wrap {
-          width: min(var(--icon), 60%);
-          aspect-ratio: 1 / 1;
-          display: grid;
-          place-items: center;
-          flex-shrink: 0;
-        }
-
-        .npc-icon-img {
-          width: 100%;
-          height: 100%;
-          display: block;
-          object-fit: cover;
-          border-radius: 10px;
-        }
-
-        .npc-emoji {
-          font-size: calc(var(--icon) * 0.7);
-          line-height: 1;
-        }
-
-        .npc-name {
-          font-size: var(--name);
-          font-weight: 900;
-          text-align: center;
-          color: var(--npc-name-color);
-          letter-spacing: 0.3px;
-          text-shadow: var(--npc-name-shadow);
-          font-family: var(--wiki-round-font, "Jua"), Pretendard,
-            "Malgun Gothic", system-ui, sans-serif;
-          overflow: hidden;
-          text-overflow: ellipsis;
-          white-space: nowrap;
-          max-width: 98%;
-        }
-
-        .npc-name.is-long {
-          font-size: calc(var(--name) * 0.82);
-          letter-spacing: 0;
-        }
-
-        .npc-name.is-longer {
-          font-size: calc(var(--name) * 0.72);
-          letter-spacing: -0.2px;
-        }
-
-        .npc-name.is-xlong {
-          font-size: calc(var(--name) * 0.62);
-          letter-spacing: -0.35px;
-        }
-
-        .npc-tag-badge {
-          --badge-out: clamp(6px, 0.8cqw, 10px);
-          --badge-h: clamp(22px, 2cqw, 28px);
-          --badge-px: clamp(8px, 1.2cqw, 12px);
-          --r: 999px;
-          --elev: 10px;
-
-          --c: #0f172a;
-          --fg: color-mix(in oklab, var(--c) 88%, black 0%);
-          --bd: color-mix(in oklab, var(--c) 55%, #ffffff);
-          --bg: var(--npc-badge-bg);
-
-          position: absolute;
-          top: 0;
-          right: 0;
-          transform: translate(var(--badge-out), calc(var(--badge-out) * -1));
-
-          display: inline-flex;
-          align-items: center;
-          height: var(--badge-h);
-          padding: 0 var(--badge-px);
-          border-radius: var(--r);
-          border: 1.5px solid var(--bd);
-          background: var(--bg);
-          color: var(--fg);
-          font-weight: 800;
-          letter-spacing: 0.2px;
-          font-size: clamp(12px, 1.2cqw, 14px);
-          white-space: nowrap;
-          box-shadow:
-            0 2px 6px rgba(0, 0, 0, 0.06),
-            0 6px var(--elev) color-mix(in oklab, var(--c) 22%, transparent);
-          z-index: 3;
-        }
-
-        .tag-추천 {
-          --c: #10b981;
-        }
-        .tag-필수 {
-          --c: #ef4444;
-        }
-        .tag-완정 {
-          --c: #3b82f6;
-        }
-        .tag-타임어택 {
-          --c: #f97316;
-        }
-        .tag-기사단 {
-          --c: #8b5cf6;
-        }
-        .tag-극난퀘,
-        .tag-보스 {
-          --c: #dc2626;
-        }
-        .tag-혼의-시련,
-        .tag-6차 {
-          --c: #0ea5e9;
-        }
-
-        .npc-tag-badge.filled {
-          --bg: color-mix(in oklab, var(--c) 12%, #ffffff);
-          --bd: color-mix(in oklab, var(--c) 60%, #ffffff);
-          box-shadow:
-            0 2px 6px rgba(0, 0, 0, 0.06),
-            0 6px var(--elev) color-mix(in oklab, var(--c) 26%, transparent),
-            inset 0 0 0 1px color-mix(in oklab, var(--c) 18%, transparent);
-        }
-
-        .npc-pager-wrap {
-          display: flex;
-          justify-content: center;
-          margin: 12px 0 0;
-        }
-
-        .npc-pager {
-          display: inline-grid;
-          grid-template-columns: 52px minmax(84px, auto) 52px;
-          align-items: center;
-          min-height: 42px;
-          border-radius: 14px;
-          overflow: hidden;
-          background: var(--npc-pager-bg);
-          border: 1px solid var(--npc-pager-border);
-          box-shadow: var(--npc-pager-shadow);
-        }
-
-        .npc-pg-btn {
-          height: 100%;
-          display: inline-flex;
-          align-items: center;
-          justify-content: center;
-          appearance: none;
-          background: transparent;
-          border: none;
-          color: var(--npc-pager-fg);
-          font-size: 28px;
-          line-height: 1;
-          cursor: pointer;
-          transition:
-            background 140ms ease,
-            color 140ms ease,
-            opacity 140ms ease;
-        }
-
-        .npc-pg-btn:first-child {
-          border-right: 1px solid var(--npc-pager-divider);
-        }
-
-        .npc-pg-btn:last-child {
-          border-left: 1px solid var(--npc-pager-divider);
-        }
-
-        .npc-pg-btn:hover:not(:disabled) {
-          background: var(--npc-pager-hover-bg);
-        }
-
-        .npc-pg-btn:disabled {
-          color: var(--npc-pager-disabled-fg);
-          cursor: default;
-        }
-
-        .npc-pg-text {
-          display: inline-flex;
-          align-items: center;
-          justify-content: center;
-          height: 100%;
-          padding: 0 18px;
-          font-size: 16px;
-          font-weight: 800;
-          color: var(--npc-pager-fg);
-          letter-spacing: 0.2px;
-          white-space: nowrap;
-        }
-
-        @media (max-width: 768px) {
-          .npc-grid {
-            --icon: 44px;
-            --name: 13px;
-            --pad: 5px;
-
-            grid-template-columns: repeat(3, minmax(0, 1fr));
-            column-gap: 10px;
-            row-gap: 12px;
-
-            width: calc(100% - 20px);
-            margin: 12px auto 0;
-          }
-
-          .npc-card {
-            border-radius: 10px;
-          }
-
-          .npc-card-inner {
-            gap: 3px;
-          }
-
-          .npc-icon-wrap {
-            width: min(var(--icon), 54%);
-          }
-
-          .npc-icon-img {
-            border-radius: 8px;
-          }
-
-          .npc-name {
-            max-width: 94%;
-          }
-
-          .npc-tag-badge {
-            --badge-out: 4px;
-            --badge-h: 22px;
-            --badge-px: 8px;
-            font-size: 11px;
-          }
-
-          .npc-pager-wrap {
-            margin-top: 10px;
-          }
-
-          .npc-pager {
-            grid-template-columns: 46px minmax(72px, auto) 46px;
-            min-height: 40px;
-            border-radius: 13px;
-          }
-
-          .npc-pg-btn {
-            font-size: 24px;
-          }
-
-          .npc-pg-text {
-            padding: 0 14px;
-            font-size: 13px;
-          }
-        }
-      `}</style>
+      ) : null}
     </div>
   );
 }

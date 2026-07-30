@@ -1,3 +1,5 @@
+import '../../wiki/css/document-components/weapon-card.css';
+
 export { default as DividerBlock } from './blocks/DividerBlock';
 export { default as HeadingBlock } from './blocks/HeadingBlock';
 export { default as InfoBoxBlock } from './blocks/InfoBoxBlock';

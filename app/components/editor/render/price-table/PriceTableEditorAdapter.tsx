@@ -9,6 +9,7 @@ import type {
   RenderElementProps,
 } from 'slate-react';
 import {
+  Editor,
   Transforms,
 } from 'slate';
 
@@ -25,9 +26,6 @@ import {
 import type {
   PriceTableCardElement,
 } from '@/types/slate';
-import type {
-  PriceTableEditState,
-} from '../types';
 
 import {
   useLivePriceTableItems,
@@ -50,18 +48,12 @@ export interface PriceTableEditorAdapterProps {
     RenderElementProps['attributes'];
   children: React.ReactNode;
   element: PriceTableCardElement;
-  setPriceTableEdit: React.Dispatch<
-    React.SetStateAction<
-      PriceTableEditState
-    >
-  >;
 }
 
 export default function PriceTableEditorAdapter({
   attributes,
   children,
   element,
-  setPriceTableEdit,
 }: PriceTableEditorAdapterProps) {
   const editor =
     useSlateStatic();
@@ -89,12 +81,10 @@ export default function PriceTableEditorAdapter({
   const {
     handleImageSelected,
     handlePickItem,
-    openPriceEdit,
     removeBlock,
   } = usePriceTableEditorActions({
     editor,
     element: el,
-    setPriceTableEdit,
     imageEditIndex,
     setImageEditIndex,
     selectEditIndex,
@@ -116,6 +106,82 @@ export default function PriceTableEditorAdapter({
     sourceItems,
   );
 
+  const handleContextMenu = (
+    event: React.MouseEvent<HTMLDivElement>,
+  ) => {
+    event.preventDefault();
+    event.stopPropagation();
+    event.nativeEvent.stopImmediatePropagation();
+
+    try {
+      const path = ReactEditor.findPath(
+        editor as ReactEditor,
+        element,
+      );
+
+      window.dispatchEvent(
+        new CustomEvent('editor:price-table-menu', {
+          detail: {
+            x: event.clientX,
+            y: event.clientY,
+            path: [...path],
+          },
+        }),
+      );
+    } catch (error) {
+      console.error(
+        '시세표 메뉴 경로 확인 실패',
+        error,
+      );
+    }
+  };
+
+  const handleMouseDown = (
+    event: React.MouseEvent<HTMLDivElement>,
+  ) => {
+    if (event.button !== 0) return;
+
+    const target =
+      event.target instanceof Element
+        ? event.target
+        : null;
+    const interactiveTarget = target?.closest(
+      [
+        'button',
+        'a',
+        'input',
+        'textarea',
+        'select',
+        '[role="button"]',
+        '.price-table-card__image--editable',
+        '.price-table-card__name--editable',
+      ].join(','),
+    );
+
+    if (interactiveTarget) return;
+
+    event.preventDefault();
+    event.stopPropagation();
+
+    try {
+      const path = ReactEditor.findPath(
+        editor as ReactEditor,
+        element,
+      );
+
+      Transforms.select(
+        editor,
+        Editor.start(editor, path),
+      );
+      ReactEditor.focus(editor as ReactEditor);
+    } catch (error) {
+      console.error(
+        '시세표 선택 위치 복원 실패',
+        error,
+      );
+    }
+  };
+
   const deleteButton = (
     <button
       type="button"
@@ -127,27 +193,7 @@ export default function PriceTableEditorAdapter({
         event.stopPropagation();
         removeBlock();
       }}
-      style={{
-        background:
-          'var(--surface-elevated)',
-        color: '#d34b4b',
-        border:
-          '1.2px solid #e6b7b7',
-        borderRadius: '50%',
-        width: 26,
-        height: 26,
-        fontWeight: 900,
-        fontSize: 16,
-        display: 'flex',
-        alignItems: 'center',
-        justifyContent: 'center',
-        boxShadow:
-          'var(--shadow-sm)',
-        cursor: 'pointer',
-        transition:
-          'background .13s',
-        padding: 0,
-      }}
+      className="wiki-editor-floating-action wiki-editor-floating-action--small wiki-editor-floating-action--danger"
     >
       ×
     </button>
@@ -191,18 +237,9 @@ export default function PriceTableEditorAdapter({
 
           setSelectEditIndex(index);
         }}
-        onPriceClick={(
-          item,
-          index,
-          event,
-        ) => {
-          event.stopPropagation();
-          openPriceEdit(
-            item,
-            index,
-          );
-        }}
-      />
+      >
+        {children}
+      </PriceTableRenderer>
 
       <ImageSelectModal
         open={
@@ -234,14 +271,16 @@ export default function PriceTableEditorAdapter({
       editClassName="wiki-price-table-edit"
       readClassName="wiki-price-table-read"
       attributes={
-        attributes as React.HTMLAttributes<
-          HTMLDivElement
-        >
+        {
+          ...attributes,
+          onContextMenu:
+            handleContextMenu,
+          onMouseDown:
+            handleMouseDown,
+        } as React.HTMLAttributes<HTMLDivElement>
       }
       content={content}
       editControls={deleteButton}
-    >
-      {children}
-    </WikiBlockFrame>
+    />
   );
 }

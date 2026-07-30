@@ -2,6 +2,9 @@
 
 import React from 'react';
 import {
+  Editor,
+  Node as SlateNode,
+  Path,
   Transforms,
 } from 'slate';
 import {
@@ -60,6 +63,152 @@ export interface WeaponEditorAdapterProps {
   children: React.ReactNode;
   element: WeaponCardElement;
   editor: any;
+}
+
+function cloneNode<T>(node: T): T {
+  return JSON.parse(
+    JSON.stringify(node),
+  ) as T;
+}
+
+function encodeSlateFragment(
+  fragment: WeaponCardElement[],
+) {
+  return window.btoa(
+    encodeURIComponent(
+      JSON.stringify(fragment),
+    ),
+  );
+}
+
+function escapeHtml(
+  value: string,
+) {
+  return value
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#039;');
+}
+
+async function writeFormattedData(
+  data: DataTransfer,
+) {
+  let copiedByEvent = false;
+
+  const onCopy = (
+    event: ClipboardEvent,
+  ) => {
+    if (!event.clipboardData) {
+      return;
+    }
+
+    event.preventDefault();
+    event.stopImmediatePropagation();
+
+    const types = [
+      'text/plain',
+      'text/html',
+      'application/x-slate-fragment',
+      'text/x-slate-fragment',
+    ];
+
+    for (const type of types) {
+      const value =
+        data.getData(type);
+
+      if (!value) {
+        continue;
+      }
+
+      try {
+        event.clipboardData.setData(
+          type,
+          value,
+        );
+      } catch {
+        // 사용자 정의 MIME을 지원하지 않는 브라우저에서도
+        // HTML/일반 텍스트 복사는 유지한다.
+      }
+    }
+
+    copiedByEvent = true;
+  };
+
+  document.addEventListener(
+    'copy',
+    onCopy,
+    true,
+  );
+
+  try {
+    document.execCommand('copy');
+  } finally {
+    document.removeEventListener(
+      'copy',
+      onCopy,
+      true,
+    );
+  }
+
+  if (copiedByEvent) {
+    return;
+  }
+
+  const ClipboardItemConstructor =
+    window.ClipboardItem;
+
+  if (
+    navigator.clipboard?.write &&
+    ClipboardItemConstructor
+  ) {
+    const plain =
+      data.getData('text/plain');
+    const html =
+      data.getData('text/html');
+    const clipboardData: Record<
+      string,
+      Blob
+    > = {
+      'text/plain': new Blob(
+        [plain],
+        {
+          type: 'text/plain',
+        },
+      ),
+    };
+
+    if (html) {
+      clipboardData['text/html'] =
+        new Blob(
+          [html],
+          {
+            type: 'text/html',
+          },
+        );
+    }
+
+    await navigator.clipboard.write([
+      new ClipboardItemConstructor(
+        clipboardData,
+      ),
+    ]);
+    return;
+  }
+
+  throw new Error(
+    'formatted clipboard copy failed',
+  );
+}
+
+function isWeaponCardElement(
+  node: SlateNode,
+): node is WeaponCardElement {
+  return (
+    'type' in node &&
+    node.type === 'weapon-card'
+  );
 }
 
 export default function WeaponEditorAdapter({
@@ -372,6 +521,270 @@ export default function WeaponEditorAdapter({
       [isReadOnly],
     );
 
+  const copyWeaponCard =
+    React.useCallback(
+      async () => {
+        try {
+          if (
+            !Editor.hasPath(
+              editor,
+              path,
+            )
+          ) {
+            return;
+          }
+
+          const node =
+            SlateNode.get(
+              editor,
+              path,
+            );
+
+          if (
+            !isWeaponCardElement(
+              node,
+            )
+          ) {
+            return;
+          }
+
+          const copiedNode =
+            cloneNode(node);
+          const encoded =
+            encodeSlateFragment([
+              copiedNode,
+            ]);
+          const plainText =
+            String(
+              copiedNode.name ??
+                '',
+            ).trim() ||
+            '무기 카드';
+          const data =
+            new DataTransfer();
+
+          data.setData(
+            'application/x-slate-fragment',
+            encoded,
+          );
+          data.setData(
+            'text/x-slate-fragment',
+            encoded,
+          );
+          data.setData(
+            'text/plain',
+            plainText,
+          );
+          data.setData(
+            'text/html',
+            `<div data-slate-fragment="${encoded}">${escapeHtml(
+              plainText,
+            )}</div>`,
+          );
+
+          await writeFormattedData(
+            data,
+          );
+        } catch (error) {
+          console.error(
+            '무기 카드 복사 실패',
+            error,
+          );
+          alert(
+            '무기 카드 복사에 실패했습니다.',
+          );
+        } finally {
+          setContextMenuPos(
+            null,
+          );
+        }
+      },
+      [
+        editor,
+        path,
+      ],
+    );
+
+  const insertParagraphAfterWeaponCard =
+    React.useCallback(
+      () => {
+        try {
+          if (
+            !Editor.hasPath(
+              editor,
+              path,
+            )
+          ) {
+            return;
+          }
+
+          const node =
+            SlateNode.get(
+              editor,
+              path,
+            );
+
+          if (
+            !isWeaponCardElement(
+              node,
+            )
+          ) {
+            return;
+          }
+
+          const insertPath =
+            Path.next(path);
+
+          Transforms.insertNodes(
+            editor,
+            {
+              type: 'paragraph',
+              children: [
+                { text: '' },
+              ],
+            } as any,
+            {
+              at: insertPath,
+            },
+          );
+          Transforms.select(
+            editor,
+            Editor.start(
+              editor,
+              insertPath,
+            ),
+          );
+          ReactEditor.focus(
+            editor,
+          );
+        } catch (error) {
+          console.error(
+            '무기 카드 아래 빈 문단 생성 실패',
+            error,
+          );
+        } finally {
+          setContextMenuPos(
+            null,
+          );
+        }
+      },
+      [
+        editor,
+        path,
+      ],
+    );
+
+  const deleteWeaponCard =
+    React.useCallback(
+      () => {
+        try {
+          if (
+            !Editor.hasPath(
+              editor,
+              path,
+            )
+          ) {
+            return;
+          }
+
+          const node =
+            SlateNode.get(
+              editor,
+              path,
+            );
+
+          if (
+            !isWeaponCardElement(
+              node,
+            )
+          ) {
+            return;
+          }
+
+          Editor.withoutNormalizing(
+            editor,
+            () => {
+              Transforms.removeNodes(
+                editor,
+                {
+                  at: path,
+                },
+              );
+
+              if (
+                editor.children
+                  .length === 0
+              ) {
+                Transforms.insertNodes(
+                  editor,
+                  {
+                    type: 'paragraph',
+                    children: [
+                      { text: '' },
+                    ],
+                  } as any,
+                  {
+                    at: [0],
+                  },
+                );
+              }
+            },
+          );
+
+          const nextPath =
+            Editor.hasPath(
+              editor,
+              path,
+            )
+              ? path
+              : null;
+          const previousPath =
+            path[
+              path.length - 1
+            ] > 0
+              ? Path.previous(
+                  path,
+                )
+              : null;
+          const focusPath =
+            nextPath ??
+            (
+              previousPath &&
+              Editor.hasPath(
+                editor,
+                previousPath,
+              )
+                ? previousPath
+                : []
+            );
+
+          Transforms.select(
+            editor,
+            Editor.start(
+              editor,
+              focusPath,
+            ),
+          );
+          ReactEditor.focus(
+            editor,
+          );
+        } catch (error) {
+          console.error(
+            '무기 카드 삭제 실패',
+            error,
+          );
+        } finally {
+          setContextMenuPos(
+            null,
+          );
+        }
+      },
+      [
+        editor,
+        path,
+      ],
+    );
+
   const content = (
     <>
       <WeaponCardRenderer
@@ -549,21 +962,89 @@ export default function WeaponEditorAdapter({
           >
             <button
               type="button"
+              onMouseDown={(
+                event,
+              ) => {
+                event.preventDefault();
+              }}
               onClick={(
                 event,
               ) => {
                 event.stopPropagation();
 
-                Transforms.removeNodes(
-                  editor,
-                  {
-                    at: path,
-                  },
+                void copyWeaponCard(
                 );
+              }}
+              style={{
+                width: '100%',
+                textAlign: 'left',
+                padding:
+                  '6px 12px',
+                border: 'none',
+                borderRadius: 8,
+                background:
+                  'transparent',
+                color: '#e5e7eb',
+                fontSize: 13,
+                cursor: 'pointer',
+              }}
+            >
+              무기 카드 복사
+            </button>
 
-                setContextMenuPos(
-                  null,
-                );
+            <button
+              type="button"
+              onMouseDown={(
+                event,
+              ) => {
+                event.preventDefault();
+              }}
+              onClick={(
+                event,
+              ) => {
+                event.stopPropagation();
+
+                insertParagraphAfterWeaponCard();
+              }}
+              style={{
+                width: '100%',
+                textAlign: 'left',
+                padding:
+                  '6px 12px',
+                border: 'none',
+                borderRadius: 8,
+                background:
+                  'transparent',
+                color: '#e5e7eb',
+                fontSize: 13,
+                cursor: 'pointer',
+              }}
+            >
+              아래에 빈 문단 생성
+            </button>
+
+            <div
+              style={{
+                height: 1,
+                margin: '4px 6px',
+                background:
+                  '#334155',
+              }}
+            />
+
+            <button
+              type="button"
+              onMouseDown={(
+                event,
+              ) => {
+                event.preventDefault();
+              }}
+              onClick={(
+                event,
+              ) => {
+                event.stopPropagation();
+
+                deleteWeaponCard();
               }}
               style={{
                 width: '100%',

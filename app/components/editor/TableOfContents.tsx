@@ -25,7 +25,6 @@ type Props = {
 export default function TableOfContents({
   headings,
   headerOffset = 72,
-  right = 20,
   top = 100,
   width = 240,
   title = '목차',
@@ -162,16 +161,10 @@ export default function TableOfContents({
 
   // ----- UI -----
   const boxStyle: React.CSSProperties = {
-    position: 'fixed',
-    right,
-    top,
-    width,
-    background: 'var(--toc-bg, #fff)',
-    border: '1px solid var(--toc-border, #eef1f5)',
-    borderRadius: 12,
-    boxShadow: '0 2px 14px rgba(0,0,0,.05)',
-    padding: '12px 10px',
-    zIndex: 50,
+    position: 'static',
+    width: '100%',
+    maxWidth: width,
+    padding: '14px 12px',
     maxHeight: `calc(100vh - ${top + 20}px)`,
     overflowY: 'auto',
   };
@@ -197,7 +190,7 @@ export default function TableOfContents({
   const titleStyle: React.CSSProperties = {
     fontSize: 14,
     fontWeight: 800,
-    color: 'var(--toc-title-color, #0f172a)',
+    color: 'var(--editor-text)',
     margin: '0 0 10px 8px',
   };
 
@@ -212,60 +205,28 @@ export default function TableOfContents({
 
   if (!indexed.length) {
     return (
-      <>
-        <style jsx global>{`
-          :root {
-            --toc-bg: #ffffff;
-            --toc-border: #eef1f5;
-            --toc-title-color: #0f172a;
-          }
-
-          html.dark,
-          body.dark,
-          html[data-theme='dark'],
-          body[data-theme='dark'] {
-            --toc-bg: #111827;
-            --toc-border: #374151;
-            --toc-title-color: #e5e7eb;
-          }
-        `}</style>
-
-        <aside
-          role="navigation"
-          aria-label="Table of contents"
-          style={{
-            ...boxStyle,
-            display: 'grid',
-            placeItems: 'center',
-            color: '#9aa1ad',
-          }}
-        >
-          목차 없음
-        </aside>
-      </>
+      <aside
+        role="navigation"
+        aria-label="Table of contents"
+        className="editor-toc-card editor-toc-empty"
+        style={{
+          ...boxStyle,
+          display: 'grid',
+          placeItems: 'center',
+        }}
+      >
+        목차 없음
+      </aside>
     );
   }
 
   return (
-    <>
-      <style jsx global>{`
-        :root {
-          --toc-bg: #ffffff;
-          --toc-border: #eef1f5;
-          --toc-title-color: #0f172a;
-        }
-
-        html.dark,
-        body.dark,
-        html[data-theme='dark'],
-        body[data-theme='dark'] {
-          --toc-bg: #111827;
-          --toc-border: #374151;
-          --toc-title-color: #e5e7eb;
-        }
-      `}</style>
-
-      <aside role="navigation" aria-label="Table of contents" style={boxStyle}>
+      <aside
+        role="navigation"
+        aria-label="Table of contents"
+        className="editor-toc-card"
+        style={boxStyle}
+      >
         <p style={titleStyle}>
           <FontAwesomeIcon icon={faAlignLeft} />
           &nbsp;&nbsp;
@@ -284,6 +245,10 @@ export default function TableOfContents({
                   onClick={() => scrollToId(h.id, h.__occ)}
                   title={h.text}
                   aria-current={active ? 'true' : undefined}
+                  className={[
+                    'editor-toc-item',
+                    active ? 'is-active' : '',
+                  ].filter(Boolean).join(' ')}
                   style={{
                     display: 'flex',
                     alignItems: 'center',
@@ -291,9 +256,13 @@ export default function TableOfContents({
                     width: '100%',
                     cursor: 'pointer',
                     border: 0,
-                    background: active ? '#eff6ff' : 'transparent',
-                    borderLeft: `3px solid ${active ? '#2563eb' : 'transparent'}`,
-                    color: active ? '#2563eb' : '#4b5563',
+                    background: active ? 'var(--editor-accent-soft)' : 'transparent',
+                    borderLeft: `3px solid ${
+                      active ? 'var(--editor-accent)' : 'transparent'
+                    }`,
+                    color: active
+                      ? 'var(--editor-accent-strong)'
+                      : 'var(--editor-muted)',
                     padding: '6px 8px',
                     paddingLeft: padLeft,
                     borderRadius: 8,
@@ -332,6 +301,5 @@ export default function TableOfContents({
           })}
         </ul>
       </aside>
-    </>
   );
 }

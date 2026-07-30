@@ -217,7 +217,9 @@ export default function PriceItemSelectModal({ open, initialQuery, onClose, onSe
       }
     >
       <div onKeyDown={onModalKeyDown}>
-        <div style={{ fontSize: 13, color: '#64748b', marginBottom: 10 }}>{helperText}</div>
+        <div style={{ fontSize: 13, color: 'var(--editor-muted)', marginBottom: 10 }}>
+          {helperText}
+        </div>
 
         <div style={{ position: 'relative' }}>
           <input
@@ -238,12 +240,13 @@ export default function PriceItemSelectModal({ open, initialQuery, onClose, onSe
               width: '100%',
               height: 40,
               borderRadius: 10,
-              border: '1px solid #d1d5db',
+              color: 'var(--editor-text)',
+              background: 'var(--editor-panel)',
+              border: '1px solid var(--editor-border)',
               padding: '0 12px',
               outline: 'none',
               fontSize: 14,
               fontWeight: 700,
-              color: '#0f172a',
             }}
           />
 
@@ -256,8 +259,8 @@ export default function PriceItemSelectModal({ open, initialQuery, onClose, onSe
                 right: 0,
                 top: 46,
                 zIndex: 50,
-                background: '#fff',
-                border: '1px solid #e5e7eb',
+                background: 'var(--editor-panel-elevated)',
+                border: '1px solid var(--editor-border)',
                 borderRadius: 12,
                 boxShadow: '0 18px 40px rgba(15,23,42,0.10)',
                 overflow: 'hidden',
@@ -277,7 +280,9 @@ export default function PriceItemSelectModal({ open, initialQuery, onClose, onSe
                       width: '100%',
                       textAlign: 'left',
                       padding: '10px 12px',
-                      background: active ? '#eff6ff' : '#fff',
+                      background: active
+                        ? 'var(--editor-accent-soft)'
+                        : 'var(--editor-panel-elevated)',
                       border: 'none',
                       cursor: 'pointer',
                       display: 'flex',
@@ -291,7 +296,7 @@ export default function PriceItemSelectModal({ open, initialQuery, onClose, onSe
                         style={{
                           fontSize: 14,
                           fontWeight: 900,
-                          color: '#0f172a',
+                          color: 'var(--editor-text)',
                           overflow: 'hidden',
                           textOverflow: 'ellipsis',
                           whiteSpace: 'nowrap',
@@ -299,12 +304,25 @@ export default function PriceItemSelectModal({ open, initialQuery, onClose, onSe
                       >
                         {s.name}
                       </div>
-                      <div style={{ fontSize: 12, color: '#64748b', fontWeight: 700 }}>
+                      <div
+                        style={{
+                          fontSize: 12,
+                          color: 'var(--editor-muted)',
+                          fontWeight: 700,
+                        }}
+                      >
                         {s.mode} · {s.name_key}
                       </div>
                     </div>
 
-                    <div style={{ flex: '0 0 auto', fontSize: 12, color: '#94a3b8', fontWeight: 800 }}>
+                    <div
+                      style={{
+                        flex: '0 0 auto',
+                        fontSize: 12,
+                        color: 'var(--editor-muted-soft)',
+                        fontWeight: 800,
+                      }}
+                    >
                       #{s.id}
                     </div>
                   </button>
@@ -315,8 +333,10 @@ export default function PriceItemSelectModal({ open, initialQuery, onClose, onSe
         </div>
 
         <div style={{ height: 6 }} />
-        <div style={{ fontSize: 12, color: '#94a3b8' }}>• 선택하면 해당 카드의 형식/시세가 자동으로 채워집니다.</div>
+        <div style={{ fontSize: 12, color: 'var(--editor-muted-soft)' }}>
+          • 선택하면 해당 카드의 형식/시세가 자동으로 채워집니다.
+        </div>
       </div>
     </ModalCard>
   );
-}   
+}

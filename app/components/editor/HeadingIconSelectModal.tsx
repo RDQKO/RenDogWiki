@@ -66,7 +66,7 @@ export default function HeadingIconSelectModal({ open, onClose, onSubmit }: Prop
       style={{
         position: 'fixed',
         left: 0, top: 0, right: 0, bottom: 0, zIndex: 1200,
-        background: 'rgba(0,0,0,0.18)',
+        background: 'var(--editor-overlay)',
         display: 'flex',
         alignItems: 'center',
         justifyContent: 'center',
@@ -79,12 +79,14 @@ export default function HeadingIconSelectModal({ open, onClose, onSubmit }: Prop
         aria-modal="true"
         aria-labelledby={titleId}
         style={{
-          background: '#fff',
+          color: 'var(--editor-text)',
+          background: 'var(--editor-panel-elevated)',
+          border: '1px solid var(--editor-border)',
           borderRadius: 12,
           padding: 30,
           minWidth: 320,
           minHeight: 120,
-          boxShadow: '0 2px 16px 0 #0002',
+          boxShadow: 'var(--editor-shadow)',
           position: 'relative',
         }}
         // 배경 클릭 닫힘 방지
@@ -143,16 +145,17 @@ export default function HeadingIconSelectModal({ open, onClose, onSubmit }: Prop
             }}
             aria-label="이모지 입력"
           />
-          <span style={{ fontSize: 14, color: '#aaa' }}>또는</span>
+          <span style={{ fontSize: 14, color: 'var(--editor-muted)' }}>또는</span>
           <button
             ref={imgBtnRef}
             type="button"
             aria-label="이미지로 아이콘 선택"
             style={{
               padding: '4px 18px',
-              border: '1px solid #ccc',
+              color: 'var(--editor-text)',
+              border: '1px solid var(--editor-border)',
               borderRadius: 6,
-              background: '#f8f8f8',
+              background: 'var(--editor-panel)',
               cursor: 'pointer',
               fontSize: 17,
             }}
@@ -167,10 +170,10 @@ export default function HeadingIconSelectModal({ open, onClose, onSubmit }: Prop
             ref={cancelBtnRef}
             type="button"
             style={{
-              background: '#222',
-              color: '#fff',
+              background: 'var(--editor-panel-soft)',
+              color: 'var(--editor-text)',
+              border: '1px solid var(--editor-border)',
               padding: '7px 22px',
-              border: 'none',
               borderRadius: 8,
               fontSize: 15,
               marginRight: 10,
@@ -184,10 +187,10 @@ export default function HeadingIconSelectModal({ open, onClose, onSubmit }: Prop
             ref={applyBtnRef}
             type="button"
             style={{
-              background: '#3ed47e',
+              background: 'var(--editor-accent)',
               color: '#fff',
               padding: '7px 22px',
-              border: 'none',
+              border: '1px solid var(--editor-accent)',
               borderRadius: 8,
               fontSize: 15,
               cursor: emoji.trim() ? 'pointer' : 'not-allowed',

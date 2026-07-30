@@ -1,245 +1,556 @@
+// =============================================
 // File: app/components/wiki/FaqUpsertModal.tsx
+// 전체 코드
+//
+// - 질문 생성 / 편집 공용 모달
+// - 기존 /api/faq API 계약 유지
+// - PUT 미지원 환경에서는 PATCH로 자동 재시도
+// =============================================
+
 'use client';
 
-import React, { useEffect, useState, useRef } from 'react';
+import {
+  useEffect,
+  useId,
+  useMemo,
+  useRef,
+  useState,
+  type FormEvent,
+} from 'react';
+
+type FaqInitial = {
+  id: number;
+  title: string;
+  content: string;
+  tags?: string[] | string;
+  uploader?: string;
+};
 
 type Props = {
   open: boolean;
   mode: 'create' | 'edit';
-  initial?: { id?: number; title?: string; content?: string; tags?: string[] | string };
+  initial?: FaqInitial | null;
   onClose: () => void;
-  onSaved: () => void; // 저장 성공 후 상위에서 리스트 refresh 등
+  onSaved: () => void | Promise<void>;
 };
 
-export default function FaqUpsertModal({ open, mode, initial, onClose, onSaved }: Props) {
-  const [title, setTitle] = useState(initial?.title ?? '');
-  const [content, setContent] = useState(initial?.content ?? '');
-  const [tags, setTags] = useState<string>(
-    Array.isArray(initial?.tags) ? (initial?.tags as string[]).join(',') : (initial?.tags as string) ?? ''
-  );
-  const [saving, setSaving] = useState(false);
+type FormState = {
+  title: string;
+  content: string;
+  tags: string;
+};
 
-  const downOnBackdrop = useRef(false);
+function initialToForm(
+  initial?: FaqInitial | null,
+): FormState {
+  const rawTags =
+    initial?.tags;
+
+  const tags =
+    Array.isArray(rawTags)
+      ? rawTags.join(', ')
+      : typeof rawTags === 'string'
+        ? rawTags
+        : '';
+
+  return {
+    title:
+      initial?.title ??
+      '',
+    content:
+      initial?.content ??
+      '',
+    tags,
+  };
+}
+
+async function readResponseError(
+  response: Response,
+) {
+  const data =
+    await response
+      .json()
+      .catch(() => null);
+
+  return String(
+    data?.error ??
+    data?.message ??
+    '저장에 실패했습니다.',
+  );
+}
+
+async function updateFaq(
+  id: number,
+  body: string,
+) {
+  const methods = [
+    'PUT',
+    'PATCH',
+  ] as const;
+
+  let lastResponse:
+    Response | null = null;
+
+  for (
+    const method of methods
+  ) {
+    const response = await fetch(
+      `/api/faq/${id}`,
+      {
+        method,
+        headers: {
+          'Content-Type':
+            'application/json',
+        },
+        credentials: 'include',
+        body,
+      },
+    );
+
+    lastResponse = response;
+
+    if (
+      response.status !== 405
+    ) {
+      return response;
+    }
+  }
+
+  return lastResponse ??
+    new Response(
+      null,
+      {
+        status: 500,
+      },
+    );
+}
+
+export default function FaqUpsertModal({
+  open,
+  mode,
+  initial,
+  onClose,
+  onSaved,
+}: Props) {
+  const titleId =
+    useId();
+
+  const [
+    form,
+    setForm,
+  ] = useState<FormState>(
+    () =>
+      initialToForm(
+        initial,
+      ),
+  );
+
+  const [
+    saving,
+    setSaving,
+  ] = useState(false);
+
+  const [
+    error,
+    setError,
+  ] = useState('');
+
+  const titleInputRef =
+    useRef<HTMLInputElement | null>(
+      null,
+    );
 
   useEffect(() => {
     if (!open) return;
-    setTitle(initial?.title ?? '');
-    setContent(initial?.content ?? '');
-    setTags(Array.isArray(initial?.tags) ? (initial?.tags as string[]).join(',') : (initial?.tags as string) ?? '');
-  }, [open, initial?.title, initial?.content, initial?.tags]);
 
-  const handleSave = async () => {
-    if (!title.trim() || !content.trim()) {
-      alert('제목과 내용을 입력해주세요.');
+    setForm(
+      initialToForm(
+        initial,
+      ),
+    );
+    setError('');
+    setSaving(false);
+
+    const focusTimer =
+      window.setTimeout(
+        () => {
+          titleInputRef.current?.focus();
+        },
+        40,
+      );
+
+    return () => {
+      window.clearTimeout(
+        focusTimer,
+      );
+    };
+  }, [
+    open,
+    mode,
+    initial?.id,
+    initial?.title,
+    initial?.content,
+  ]);
+
+  useEffect(() => {
+    if (!open) return;
+
+    const previousOverflow =
+      document.body.style.overflow;
+
+    document.body.style.overflow =
+      'hidden';
+
+    const onKeyDown = (
+      event: KeyboardEvent,
+    ) => {
+      if (
+        event.key === 'Escape' &&
+        !saving
+      ) {
+        onClose();
+      }
+    };
+
+    window.addEventListener(
+      'keydown',
+      onKeyDown,
+    );
+
+    return () => {
+      window.removeEventListener(
+        'keydown',
+        onKeyDown,
+      );
+
+      document.body.style.overflow =
+        previousOverflow;
+    };
+  }, [
+    open,
+    saving,
+    onClose,
+  ]);
+
+  const parsedTags =
+    useMemo(
+      () =>
+        form.tags
+          .split(',')
+          .map((tag) =>
+            tag.trim(),
+          )
+          .filter(Boolean)
+          .slice(0, 12),
+      [form.tags],
+    );
+
+  if (!open) return null;
+
+  const setField = (
+    field: keyof FormState,
+    value: string,
+  ) => {
+    setForm((current) => ({
+      ...current,
+      [field]: value,
+    }));
+
+    if (error) {
+      setError('');
+    }
+  };
+
+  const submit = async (
+    event: FormEvent<HTMLFormElement>,
+  ) => {
+    event.preventDefault();
+
+    const title =
+      form.title.trim();
+
+    const content =
+      form.content.trim();
+
+    if (!title) {
+      setError(
+        '질문 제목을 입력해주세요.',
+      );
+      titleInputRef.current?.focus();
       return;
     }
+
+    if (!content) {
+      setError(
+        '답변 내용을 입력해주세요.',
+      );
+      return;
+    }
+
     setSaving(true);
+    setError('');
+
     try {
-      if (mode === 'create') {
-        const r = await fetch('/api/faq', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ title: title.trim(), content: content.trim(), tags }),
+      const body =
+        JSON.stringify({
+          title,
+          content,
+          tags:
+            parsedTags.join(','),
         });
-        if (!r.ok) throw 0;
-      } else {
-        const id = initial?.id!;
-        const r = await fetch(`/api/faq/${id}`, {
-          method: 'PUT',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ title: title.trim(), content: content.trim(), tags }),
-        });
-        if (!r.ok) throw 0;
+
+      const response =
+        mode === 'edit'
+          ? initial?.id
+            ? await updateFaq(
+                initial.id,
+                body,
+              )
+            : new Response(
+                null,
+                {
+                  status: 400,
+                },
+              )
+          : await fetch(
+              '/api/faq',
+              {
+                method: 'POST',
+                headers: {
+                  'Content-Type':
+                    'application/json',
+                },
+                credentials:
+                  'include',
+                body,
+              },
+            );
+
+      if (!response.ok) {
+        throw new Error(
+          await readResponseError(
+            response,
+          ),
+        );
       }
-      onSaved();
-    } catch {
-      alert('저장에 실패했습니다.');
+
+      await onSaved();
+    } catch (saveError) {
+      setError(
+        saveError instanceof Error
+          ? saveError.message
+          : '저장에 실패했습니다.',
+      );
     } finally {
       setSaving(false);
     }
   };
 
-  // Ctrl(or Cmd)+Enter 로 빠른 저장
-  useEffect(() => {
-    if (!open) return;
-    const onKey = (e: KeyboardEvent) => {
-      if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'enter') {
-        e.preventDefault();
-        if (!saving) handleSave();
-      }
-      if (e.key === 'Escape') onClose();
-    };
-    window.addEventListener('keydown', onKey);
-    return () => window.removeEventListener('keydown', onKey);
-  }, [open, saving, title, content, tags]);
-
-  if (!open) return null;
-
   return (
     <div
       className="faq-upsert-backdrop"
-      onMouseDown={(e) => { downOnBackdrop.current = e.target === e.currentTarget; }}
-      onMouseUp={(e) => {
-        if (downOnBackdrop.current && e.target === e.currentTarget) onClose();
-        downOnBackdrop.current = false;
-      }}
-      onTouchStart={(e) => { downOnBackdrop.current = e.target === e.currentTarget; }}
-      onTouchEnd={(e) => {
-        if (downOnBackdrop.current) onClose();
-        downOnBackdrop.current = false;
+      role="presentation"
+      onMouseDown={(event) => {
+        if (
+          event.target ===
+          event.currentTarget &&
+          !saving
+        ) {
+          onClose();
+        }
       }}
     >
-      <div className="faq-upsert-modal" onClick={(e) => e.stopPropagation()}>
-        <header className="upsert-header">
-          <div className="upsert-title">
-            <span className="upsert-chip">{mode === 'create' ? '새 질문' : '질문 수정'}</span>
-            <h3>{mode === 'create' ? '질문 추가' : '질문 수정'}</h3>
+      <section
+        className="faq-upsert-dialog"
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby={titleId}
+      >
+        <header className="faq-upsert-header">
+          <div className="faq-upsert-heading">
+            <span
+              className="faq-upsert-icon"
+              aria-hidden="true"
+            >
+              Q
+            </span>
+
+            <div>
+              <span className="faq-upsert-eyebrow">
+                FAQ 관리
+              </span>
+
+              <h2 id={titleId}>
+                {mode === 'create'
+                  ? '질문 추가'
+                  : '질문 편집'}
+              </h2>
+
+              <p>
+                자주 찾는 정보를 짧고 명확하게 정리합니다.
+              </p>
+            </div>
           </div>
-          <button className="upsert-close" onClick={onClose} aria-label="close">
-            <svg className="x-ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.8">
-              <path d="M6 6L18 18M18 6L6 18" strokeLinecap="round" />
+
+          <button
+            type="button"
+            className="faq-modal-close"
+            onClick={onClose}
+            disabled={saving}
+            aria-label="질문 편집 닫기"
+          >
+            <svg
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="2"
+            >
+              <path
+                d="m6 6 12 12M18 6 6 18"
+                strokeLinecap="round"
+              />
             </svg>
           </button>
         </header>
 
-        <div className="upsert-body">
-          <div className="field">
-            <label>제목</label>
-            <input
-              className="input"
-              value={title}
-              onChange={(e) => setTitle(e.target.value)}
-              placeholder="질문을 입력하세요"
-            />
+        <form
+          className="faq-upsert-form"
+          onSubmit={submit}
+        >
+          <div className="faq-upsert-body">
+            <label className="faq-form-field">
+              <span>
+                질문
+                <em>필수</em>
+              </span>
+
+              <input
+                ref={titleInputRef}
+                value={form.title}
+                onChange={(event) =>
+                  setField(
+                    'title',
+                    event.target.value,
+                  )
+                }
+                maxLength={160}
+                placeholder="질문 제목을 입력하세요"
+                disabled={saving}
+              />
+
+              <small>
+                {form.title.length}/160
+              </small>
+            </label>
+
+            <label className="faq-form-field">
+              <span>
+                답변
+                <em>필수</em>
+              </span>
+
+              <textarea
+                value={form.content}
+                onChange={(event) =>
+                  setField(
+                    'content',
+                    event.target.value,
+                  )
+                }
+                rows={8}
+                maxLength={5000}
+                placeholder="사용자가 바로 이해할 수 있도록 답변을 작성하세요"
+                disabled={saving}
+              />
+
+              <small>
+                {form.content.length}/5000
+              </small>
+            </label>
+
+            <label className="faq-form-field">
+              <span>
+                태그
+                <b>선택</b>
+              </span>
+
+              <input
+                value={form.tags}
+                onChange={(event) =>
+                  setField(
+                    'tags',
+                    event.target.value,
+                  )
+                }
+                placeholder="뉴비, 설정, 시스템"
+                disabled={saving}
+              />
+
+              <small>
+                쉼표로 구분해 최대 12개까지 입력할 수 있습니다.
+              </small>
+            </label>
+
+            {parsedTags.length > 0 && (
+              <div className="faq-form-tag-preview">
+                {parsedTags.map(
+                  (tag) => (
+                    <span key={tag}>
+                      #{tag}
+                    </span>
+                  ),
+                )}
+              </div>
+            )}
+
+            <div
+              className={
+                'faq-form-message' +
+                (
+                  error
+                    ? ' is-error'
+                    : ''
+                )
+              }
+              aria-live="polite"
+            >
+              {error || (
+                mode === 'create'
+                  ? '저장하면 질문 목록에 바로 반영됩니다.'
+                  : '기존 질문의 내용이 변경됩니다.'
+              )}
+            </div>
           </div>
 
-          <div className="field">
-            <label>내용</label>
-            <textarea
-              className="textarea"
-              value={content}
-              onChange={(e) => setContent(e.target.value)}
-              placeholder="답변 내용을 입력하세요"
-            />
-          </div>
+          <footer className="faq-upsert-actions">
+            <button
+              type="button"
+              className="faq-upsert-cancel"
+              onClick={onClose}
+              disabled={saving}
+            >
+              취소
+            </button>
 
-          <div className="field">
-            <label>태그(쉼표로 구분)</label>
-            <input
-              className="input"
-              value={tags}
-              onChange={(e) => setTags(e.target.value)}
-              placeholder="예: 완전체정수, 2차전직"
-            />
-          </div>
-        </div>
-
-        <footer className="upsert-footer">
-          {/* 🔵 세련된 단일 저장 버튼 */}
-          <button className="upsert-save" onClick={handleSave} disabled={saving} aria-label="save">
-            <svg className="save-ic" viewBox="0 0 24 24" fill="none">
-              <path d="M5 13l4 4L19 7" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" />
-            </svg>
-            {saving ? '저장 중…' : '저장'}
-          </button>
-        </footer>
-      </div>
-
-      <style jsx>{`
-        .faq-upsert-backdrop{
-          position: fixed; inset: 0; z-index: 21000;
-          background: rgba(15, 23, 42, 0.45);
-          display: grid; place-items: center; padding: 16px;
-          backdrop-filter: blur(2px);
-        }
-        .faq-upsert-modal{
-          width: min(720px, 100%); background: #fff;
-          border: 1px solid #e5e7eb;
-          border-radius: 16px;
-          box-shadow: 0 22px 80px rgba(0,0,0,0.22);
-          overflow: hidden;
-        }
-        .upsert-header{
-          display: flex; align-items: center; justify-content: space-between;
-          padding: 14px 16px; border-bottom: 1px solid #f1f5f9;
-          background: linear-gradient(180deg,#ffffff, #fafbfc);
-        }
-        .upsert-title{ display: flex; align-items: center; gap: 10px; }
-        .upsert-title h3{ margin: 0; font-size: 18px; font-weight: 800; color: #0f172a; }
-        .upsert-chip{
-          display: inline-flex; align-items:center; justify-content:center;
-          height: 26px; padding: 0 10px; border-radius: 999px;
-          font-size: 12px; font-weight: 700; color: #065f46; background: #ecfdf5; border: 1px solid #b7f0d0;
-        }
-        .upsert-close{
-          width: 34px; height: 34px;
-          display: grid; place-items: center;
-          background: transparent; border: 0; border-radius: 0;
-          color: #ef4444;           /* 빨간색 */
-          cursor: pointer;
-          transition: transform .12s ease;
-        }
-        .upsert-close:hover{ transform: scale(1.06); }
-        .upsert-close:focus{ outline: none; }
-        .upsert-close .x-ic{ width: 18px; height: 18px; }
-        .upsert-body{ padding: 16px; display: grid; gap: 12px; }
-        .field label{
-          display:block; font-size: 12px; color:#6b7280; margin-bottom: 6px; font-weight:600;
-        }
-        .input, .textarea{
-          width: 100%;
-          border: 1px solid #e5e7eb; border-radius: 12px;
-          padding: 10px 12px; font-size: 15px; color: #0f172a;
-          outline: none; background: #fff;
-          transition: border-color .15s, box-shadow .15s, background .15s;
-        }
-        .input:focus, .textarea:focus{
-          border-color: #93c5fd;
-          box-shadow: 0 0 0 4px rgba(59,130,246,0.12);
-        }
-        .textarea{ height: 160px; resize: vertical; }
-
-        .upsert-footer{
-          display:flex; justify-content:flex-end;
-          padding: 12px 16px; border-top: 1px solid #f1f5f9; background:#fff;
-        }
-
-        /* 🔵 저장 버튼 – 블루 그라디언트 + 은은한 글로우 */
-        .upsert-save{
-          position: relative;
-          display: inline-flex; align-items: center; gap: 8px;
-          height: 40px; padding: 0 16px;
-          border-radius: 12px;
-          border: 1px solid #93c5fd;
-          color: #fff; font-weight: 800; letter-spacing: .2px;
-          background: linear-gradient(135deg, #3b82f6 0%, #2563eb 50%, #1d4ed8 100%);
-          box-shadow:
-            0 10px 22px rgba(37, 99, 235, 0.25),
-            inset 0 1px 0 rgba(255,255,255,.28);
-          transition: transform .12s ease, box-shadow .2s ease, filter .2s ease;
-          cursor: pointer;
-        }
-        .upsert-save:hover{
-          transform: translateY(-1px);
-          box-shadow:
-            0 14px 28px rgba(37, 99, 235, 0.32),
-            inset 0 1px 0 rgba(255,255,255,.35);
-          filter: saturate(1.05);
-        }
-        .upsert-save:active{
-          transform: translateY(0);
-          box-shadow:
-            0 8px 18px rgba(37, 99, 235, 0.22),
-            inset 0 1px 0 rgba(255,255,255,.25);
-        }
-        .upsert-save:disabled{
-          cursor: default;
-          background: linear-gradient(135deg, #cbd5e1, #94a3b8);
-          border-color: #cbd5e1;
-          box-shadow: none;
-        }
-        .save-ic{ width: 18px; height: 18px; }
-      `}</style>
+            <button
+              type="submit"
+              className="faq-upsert-submit"
+              disabled={saving}
+            >
+              {saving ? (
+                <>
+                  <span className="faq-button-spinner" />
+                  저장 중
+                </>
+              ) : (
+                mode === 'create'
+                  ? '질문 추가'
+                  : '변경 사항 저장'
+              )}
+            </button>
+          </footer>
+        </form>
+      </section>
     </div>
   );
 }

@@ -1,0 +1,780 @@
+/* =============================================
+ * File: app/wiki/css/categoryTree.css
+ * 전체 코드
+ *
+ * 문서 화면 왼쪽 카테고리 영역을
+ * 홈 화면의 초록·민트·크림 계열 디자인으로 정리한다.
+ *
+ * 적용 범위
+ * - 카테고리 사이드바 표면
+ * - 루트 카테고리 카드
+ * - 하위 카테고리와 문서
+ * - 활성/hover 상태
+ * - 라이트/다크 모드
+ *
+ * CategoryTree.tsx의 구조와 동작은 변경하지 않는다.
+ * ============================================= */
+
+/* ---------------------------------------------
+ * 1. 카테고리 전용 디자인 토큰
+ * --------------------------------------------- */
+
+.wiki-sidebar,
+.wiki-nav-scroll {
+  --category-home-surface:
+    rgba(255, 255, 252, 0.97);
+  --category-home-surface-soft:
+    rgba(246, 251, 243, 0.96);
+  --category-home-hover:
+    rgba(238, 248, 234, 0.96);
+  --category-home-active:
+    linear-gradient(
+      135deg,
+      rgba(237, 248, 232, 0.99),
+      rgba(226, 243, 225, 0.99)
+    );
+  --category-home-border:
+    rgba(91, 139, 96, 0.18);
+  --category-home-border-strong:
+    rgba(78, 151, 88, 0.31);
+  --category-home-text:
+    #19231b;
+  --category-home-muted:
+    #667269;
+  --category-home-accent:
+    #54a663;
+  --category-home-accent-strong:
+    #347d43;
+  --category-home-line:
+    #dcebd8;
+  --category-home-icon-bg:
+    rgba(234, 247, 229, 0.96);
+  --category-home-shadow:
+    0 14px 34px
+    rgba(32, 62, 37, 0.08);
+  --category-home-shadow-hover:
+    0 8px 20px
+    rgba(42, 82, 49, 0.08);
+}
+
+/* ---------------------------------------------
+ * 2. 사이드바와 전체 카테고리 카드
+ * --------------------------------------------- */
+
+.wiki-sidebar {
+  background:
+    linear-gradient(
+      180deg,
+      #fbfdf9 0%,
+      #f5faf2 100%
+    ) !important;
+}
+
+.wiki-sidebar
+.wiki-nav-scroll {
+  position: relative;
+  box-sizing: border-box;
+  width: 100%;
+  min-width: 0;
+  min-height: 100%;
+  padding:
+    14px
+    12px
+    30px;
+  border:
+    1px solid
+    var(--category-home-border);
+  border-radius: 18px;
+  background:
+    linear-gradient(
+      180deg,
+      var(--category-home-surface) 0%,
+      var(--category-home-surface-soft) 100%
+    );
+  box-shadow:
+    var(--category-home-shadow);
+  scrollbar-width: thin;
+  scrollbar-color:
+    rgba(79, 143, 88, 0.28)
+    transparent;
+}
+
+/*
+ * 데스크톱 카테고리 패널의 스크롤 기능은 유지하되,
+ * 바깥 사이드바와 내부 트리의 스크롤바만 숨긴다.
+ *
+ * 실제 화면에서는 .wiki-nav-scroll이 아니라
+ * .wiki-sidebar가 스크롤 컨테이너가 될 수 있으므로
+ * 두 요소를 함께 처리한다.
+ */
+.wiki-sidebar,
+.wiki-sidebar .wiki-nav-scroll {
+  -ms-overflow-style: none;
+  scrollbar-width: none !important;
+}
+
+.wiki-sidebar {
+  scrollbar-gutter: auto !important;
+}
+
+.wiki-sidebar::-webkit-scrollbar,
+.wiki-sidebar
+.wiki-nav-scroll::-webkit-scrollbar {
+  display: none !important;
+  width: 0 !important;
+  height: 0 !important;
+}
+
+.wiki-sidebar
+.wiki-nav-scroll::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.wiki-sidebar
+.wiki-nav-scroll::-webkit-scrollbar-thumb {
+  border:
+    2px solid transparent;
+  border-radius: 999px;
+  background:
+    rgba(79, 143, 88, 0.28);
+  background-clip:
+    padding-box;
+}
+
+.wiki-sidebar
+.wiki-nav-list {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+/* ---------------------------------------------
+ * 3. 루트 카테고리
+ * --------------------------------------------- */
+
+.wiki-sidebar
+.wiki-nav-list
+> li
+> .wiki-nav-item {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content:
+    space-between;
+  box-sizing: border-box;
+  width: 100%;
+  min-height: 52px;
+  margin:
+    0
+    0
+    4px;
+  padding:
+    7px
+    9px;
+  border:
+    1px solid transparent !important;
+  border-radius: 15px;
+  background:
+    transparent !important;
+  box-shadow: none;
+  color:
+    var(--category-home-text) !important;
+  font-family: inherit;
+  font-size: 15px;
+  font-weight: 800;
+  line-height: 1.25;
+  text-align: left;
+  transition:
+    border-color 0.16s ease,
+    background-color 0.16s ease,
+    box-shadow 0.16s ease,
+    color 0.16s ease,
+    transform 0.16s ease;
+}
+
+.wiki-sidebar
+.wiki-nav-list
+> li
+> .wiki-nav-item:hover {
+  border-color:
+    var(--category-home-border) !important;
+  background:
+    var(--category-home-hover) !important;
+  box-shadow:
+    var(--category-home-shadow-hover);
+  color:
+    var(
+      --category-home-accent-strong
+    ) !important;
+  transform:
+    translateY(-1px);
+}
+
+.wiki-sidebar
+.wiki-nav-list
+> li
+> .wiki-nav-item.active {
+  border-color:
+    var(
+      --category-home-border-strong
+    ) !important;
+  background:
+    var(--category-home-active) !important;
+  box-shadow:
+    0 9px 21px
+    rgba(55, 108, 64, 0.1);
+  color:
+    var(
+      --category-home-accent-strong
+    ) !important;
+}
+
+/*
+ * 기존 wiki.css의 보라색 active 표시를
+ * 처음부터 초록색으로 덮어쓴다.
+ */
+.wiki-sidebar
+.wiki-nav-item::before,
+.wiki-sidebar
+.wiki-doc-item::before {
+  background:
+    var(
+      --category-home-accent
+    ) !important;
+  background-color:
+    var(
+      --category-home-accent
+    ) !important;
+}
+
+.wiki-sidebar
+.wiki-nav-item.active::before,
+.wiki-sidebar
+.wiki-doc-item.active::before {
+  background:
+    var(
+      --category-home-accent
+    ) !important;
+  background-color:
+    var(
+      --category-home-accent
+    ) !important;
+  opacity: 1;
+}
+
+.wiki-sidebar
+.wiki-nav-item.active
+.wiki-category-label-text,
+.wiki-sidebar
+.wiki-doc-item.active
+.doc-title {
+  color:
+    var(
+      --category-home-accent-strong
+    ) !important;
+}
+
+/* ---------------------------------------------
+ * 4. 카테고리 아이콘과 화살표
+ * --------------------------------------------- */
+
+.wiki-sidebar
+.wiki-category-main {
+  display: flex;
+  align-items: center;
+  min-width: 0;
+}
+
+.wiki-sidebar
+.wiki-nav-list
+> li
+> .wiki-nav-item
+.wiki-cat-icon-token {
+  display: grid;
+  place-items: center;
+  flex:
+    0 0
+    39px;
+  width: 39px;
+  height: 39px;
+  margin-right: 10px;
+  overflow: hidden;
+  border:
+    1px solid
+    rgba(96, 149, 101, 0.18);
+  border-radius: 12px;
+  background:
+    var(--category-home-icon-bg);
+  box-shadow:
+    inset 0 1px 0
+    rgba(255, 255, 255, 0.82);
+}
+
+.wiki-sidebar
+.wiki-nav-list
+> li
+> .wiki-nav-item.active
+.wiki-cat-icon-token {
+  border-color:
+    rgba(78, 151, 88, 0.28);
+  background:
+    rgba(224, 242, 219, 0.98);
+}
+
+.wiki-sidebar
+.wiki-category-icon-img {
+  width: 27px;
+  height: 27px;
+  border-radius: 7px;
+  object-fit: contain;
+}
+
+.wiki-sidebar
+.wiki-category-icon-emoji {
+  display: grid;
+  place-items: center;
+  min-width: 27px;
+  min-height: 27px;
+  font-size: 22px;
+  line-height: 1;
+}
+
+.wiki-sidebar
+.wiki-category-label-text {
+  overflow: hidden;
+  color:
+    var(--category-home-text);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.wiki-sidebar
+.wiki-category-arrow {
+  display: grid !important;
+  place-items: center;
+  flex:
+    0 0
+    30px;
+  width: 30px;
+  height: 30px;
+  margin-left: 6px;
+  border:
+    1px solid transparent;
+  border-radius: 10px;
+  color:
+    #6f7d72;
+  transition:
+    border-color 0.16s ease,
+    background-color 0.16s ease,
+    color 0.16s ease,
+    transform 0.2s ease;
+}
+
+.wiki-sidebar
+.wiki-nav-item:hover
+.wiki-category-arrow {
+  border-color:
+    rgba(81, 149, 91, 0.2);
+  background:
+    rgba(226, 242, 222, 0.78);
+  color:
+    var(
+      --category-home-accent
+    );
+}
+
+.wiki-sidebar
+.wiki-nav-item.active
+.wiki-category-arrow {
+  color:
+    var(
+      --category-home-accent-strong
+    ) !important;
+}
+
+/* ---------------------------------------------
+ * 5. 하위 카테고리와 문서
+ * --------------------------------------------- */
+
+.wiki-sidebar
+.wiki-doc-list,
+.wiki-sidebar
+.wiki-sub-nav-list {
+  position: relative;
+  margin:
+    2px
+    0
+    8px
+    20px;
+  padding:
+    2px
+    0
+    2px
+    16px;
+  border-left:
+    2px solid
+    var(--category-home-line) !important;
+}
+
+.wiki-sidebar
+.wiki-doc-list
+.wiki-nav-item {
+  box-sizing: border-box;
+  min-height: 38px;
+  margin: 2px 0;
+  padding:
+    6px
+    8px;
+  border:
+    1px solid transparent !important;
+  border-radius: 11px;
+  background:
+    transparent !important;
+  color:
+    #2b372e !important;
+  font-size: 14px;
+  font-weight: 750;
+  transition:
+    border-color 0.15s ease,
+    background-color 0.15s ease,
+    color 0.15s ease;
+}
+
+.wiki-sidebar
+.wiki-doc-list
+.wiki-nav-item:hover {
+  border-color:
+    rgba(91, 142, 97, 0.14) !important;
+  background:
+    rgba(238, 247, 235, 0.92) !important;
+  color:
+    var(
+      --category-home-accent-strong
+    ) !important;
+}
+
+.wiki-sidebar
+.wiki-doc-list
+.wiki-cat-icon-token {
+  display: grid;
+  place-items: center;
+  flex:
+    0 0
+    30px;
+  width: 30px;
+  height: 30px;
+  margin-right: 7px;
+  overflow: hidden;
+  border:
+    1px solid
+    rgba(96, 149, 101, 0.13);
+  border-radius: 9px;
+  background:
+    rgba(242, 249, 239, 0.9);
+  box-shadow: none;
+}
+
+.wiki-sidebar
+.wiki-doc-list
+.wiki-category-icon-img {
+  width: 21px;
+  height: 21px;
+  border-radius: 5px;
+}
+
+.wiki-sidebar
+.wiki-doc-list
+.wiki-category-icon-emoji {
+  min-width: 21px;
+  min-height: 21px;
+  font-size: 18px;
+}
+
+.wiki-sidebar
+.wiki-doc-item {
+  position: relative;
+  display: flex;
+  align-items: center;
+  box-sizing: border-box;
+  min-height: 36px;
+  margin: 2px 0;
+  padding:
+    7px
+    9px;
+  border:
+    1px solid transparent !important;
+  border-radius: 10px;
+  background:
+    transparent !important;
+  box-shadow: none;
+  color:
+    #303b33 !important;
+  font-size: 14px;
+  font-weight: 650;
+  transition:
+    border-color 0.15s ease,
+    background-color 0.15s ease,
+    color 0.15s ease,
+    transform 0.15s ease;
+}
+
+.wiki-sidebar
+.wiki-doc-item:hover {
+  border-color:
+    rgba(90, 141, 96, 0.16) !important;
+  background:
+    rgba(238, 247, 235, 0.92) !important;
+  color:
+    var(
+      --category-home-accent-strong
+    ) !important;
+  transform:
+    translateX(2px);
+}
+
+.wiki-sidebar
+.wiki-doc-item.active {
+  border-color:
+    rgba(77, 151, 87, 0.23) !important;
+  background:
+    rgba(231, 245, 227, 0.98) !important;
+  box-shadow:
+    inset 3px 0 0
+    var(
+      --category-home-accent
+    );
+  color:
+    var(
+      --category-home-accent-strong
+    ) !important;
+  font-weight: 800;
+}
+
+.wiki-sidebar
+.wiki-doc-item
+.doc-title {
+  overflow: hidden;
+  color: inherit;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* ---------------------------------------------
+ * 6. 비활성 상태
+ * --------------------------------------------- */
+
+.wiki-sidebar
+.wiki-nav-item.is-disabled,
+.wiki-sidebar
+.wiki-doc-item.is-disabled {
+  cursor: wait;
+  filter:
+    saturate(0.72);
+}
+
+/* ---------------------------------------------
+ * 7. 다크 모드
+ * --------------------------------------------- */
+
+:root[data-theme='dark']
+.wiki-sidebar,
+:root[data-theme='dark']
+.wiki-nav-scroll {
+  --category-home-surface:
+    rgba(14, 25, 40, 0.96);
+  --category-home-surface-soft:
+    rgba(16, 31, 43, 0.94);
+  --category-home-hover:
+    rgba(37, 69, 48, 0.34);
+  --category-home-active:
+    linear-gradient(
+      135deg,
+      rgba(44, 86, 54, 0.5),
+      rgba(25, 59, 50, 0.46)
+    );
+  --category-home-border:
+    rgba(135, 188, 146, 0.18);
+  --category-home-border-strong:
+    rgba(126, 202, 141, 0.31);
+  --category-home-text:
+    #edf5ef;
+  --category-home-muted:
+    #9caeb2;
+  --category-home-accent:
+    #87ca94;
+  --category-home-accent-strong:
+    #afe2b7;
+  --category-home-line:
+    rgba(117, 170, 127, 0.2);
+  --category-home-icon-bg:
+    rgba(43, 76, 50, 0.44);
+  --category-home-shadow:
+    0 18px 42px
+    rgba(0, 0, 0, 0.27);
+  --category-home-shadow-hover:
+    0 10px 23px
+    rgba(0, 0, 0, 0.2);
+}
+
+:root[data-theme='dark']
+.wiki-sidebar {
+  background:
+    linear-gradient(
+      180deg,
+      rgba(11, 21, 35, 0.98),
+      rgba(13, 29, 40, 0.97)
+    ) !important;
+}
+
+:root[data-theme='dark']
+.wiki-sidebar
+.wiki-nav-scroll {
+  background:
+    linear-gradient(
+      180deg,
+      var(--category-home-surface),
+      var(
+        --category-home-surface-soft
+      )
+    );
+  box-shadow:
+    var(--category-home-shadow);
+}
+
+:root[data-theme='dark']
+.wiki-sidebar
+.wiki-nav-list
+> li
+> .wiki-nav-item.active {
+  background:
+    var(
+      --category-home-active
+    ) !important;
+}
+
+:root[data-theme='dark']
+.wiki-sidebar
+.wiki-cat-icon-token {
+  border-color:
+    rgba(135, 191, 146, 0.16);
+  background:
+    var(
+      --category-home-icon-bg
+    );
+  box-shadow:
+    inset 0 1px 0
+    rgba(255, 255, 255, 0.035);
+}
+
+:root[data-theme='dark']
+.wiki-sidebar
+.wiki-nav-list
+> li
+> .wiki-nav-item.active
+.wiki-cat-icon-token {
+  border-color:
+    rgba(128, 202, 141, 0.25);
+  background:
+    rgba(53, 92, 60, 0.5);
+}
+
+:root[data-theme='dark']
+.wiki-sidebar
+.wiki-doc-list
+.wiki-nav-item,
+:root[data-theme='dark']
+.wiki-sidebar
+.wiki-doc-item {
+  color:
+    #cbd8d0 !important;
+}
+
+:root[data-theme='dark']
+.wiki-sidebar
+.wiki-doc-list
+.wiki-nav-item:hover,
+:root[data-theme='dark']
+.wiki-sidebar
+.wiki-doc-item:hover {
+  border-color:
+    rgba(133, 198, 145, 0.14) !important;
+  background:
+    rgba(39, 68, 49, 0.31) !important;
+  color:
+    var(
+      --category-home-accent-strong
+    ) !important;
+}
+
+:root[data-theme='dark']
+.wiki-sidebar
+.wiki-doc-list
+.wiki-cat-icon-token {
+  background:
+    rgba(34, 62, 42, 0.4);
+}
+
+:root[data-theme='dark']
+.wiki-sidebar
+.wiki-doc-item.active {
+  border-color:
+    rgba(126, 204, 141, 0.23) !important;
+  background:
+    rgba(49, 98, 60, 0.31) !important;
+}
+
+/* ---------------------------------------------
+ * 8. 반응형
+ * --------------------------------------------- */
+
+@media (max-width: 1024px) {
+  .wiki-sidebar
+  .wiki-nav-scroll {
+    padding:
+      12px
+      10px
+      26px;
+    border-radius: 15px;
+  }
+
+  .wiki-sidebar
+  .wiki-nav-list
+  > li
+  > .wiki-nav-item {
+    min-height: 48px;
+    border-radius: 13px;
+  }
+}
+
+@media (max-width: 768px) {
+  .wiki-mobile-drawer
+  .wiki-nav-scroll {
+    min-height: 100%;
+    padding:
+      12px
+      10px
+      24px;
+    border: 0;
+    border-radius: 0;
+    box-shadow: none;
+  }
+}
+
+/* ---------------------------------------------
+ * 9. 모션 최소화
+ * --------------------------------------------- */
+
+@media (
+  prefers-reduced-motion:
+  reduce
+) {
+  .wiki-sidebar
+  .wiki-nav-item,
+  .wiki-sidebar
+  .wiki-doc-item {
+    transition: none !important;
+  }
+}

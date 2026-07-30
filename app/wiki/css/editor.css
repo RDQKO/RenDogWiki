@@ -1,603 +1,1105 @@
-// =============================================
-// File: app/wiki/css/editor.css
-// =============================================
-/**
- * 위키 에디터 전용 스타일 시트
- * - 문서 에디터의 전체 레이아웃, 툴바, 입력 필드, 버튼, 드롭다운, 본문 스크롤/고정 구조, 인덴트 등
- * - 각 영역별 역할과 구조가 명확하게 드러나도록 클래스 설계
- * - 중복/불필요한 선언 제거 (최적화 완료)
- */
+/* =============================================
+ * File: app/wiki/css/editor.css
+ *
+ * 렌독위키 문서 에디터 전용 디자인
+ * - 홈/본문의 초록·민트 계열 디자인 언어 공유
+ * - 편집 UI와 공통 문서 렌더러의 라이트/다크모드 연결
+ * - 페이지 전역을 라이트모드로 고정하는 규칙은 두지 않는다.
+ * ============================================= */
 
-/* ----- 공통 레이아웃/기본값 ----- */
-
-/* === GLOBAL: 모든 이미지 픽셀 보존 & 필터 해제 === */
-:where(img) {
-  /* 픽셀 아트/도트 이미지가 리사이즈될 때 또렷하게 */
-  image-rendering: pixelated;         /* Chrome/Edge/Firefox */
-  image-rendering: crisp-edges;       /* Safari/일부 브라우저 */
-  image-rendering: -moz-crisp-edges;  /* 구형 Firefox 호환 */
-  -ms-interpolation-mode: nearest-neighbor; /* 구형 IE 호환 */
-
-  /* 혹시 전역/상속 필터가 걸려 있으면 제거 */
-  filter: none !important;
+:root {
+  --editor-page-background: #f7faf6;
+  --editor-panel: #fbfdf9;
+  --editor-panel-elevated: #ffffff;
+  --editor-panel-soft: #f1f7ef;
+  --editor-canvas: #ffffff;
+  --editor-border: rgba(96, 139, 99, 0.2);
+  --editor-border-strong: rgba(74, 139, 82, 0.36);
+  --editor-text: #1b291e;
+  --editor-muted: #68766b;
+  --editor-muted-soft: #91a095;
+  --editor-accent: #519b5d;
+  --editor-accent-strong: #337c42;
+  --editor-accent-soft: #e8f4e4;
+  --editor-accent-softer: #f1f8ee;
+  --editor-danger: #c64f58;
+  --editor-danger-soft: #fff0f1;
+  --editor-focus-ring: rgba(81, 155, 93, 0.18);
+  --editor-shadow:
+    0 14px 34px rgba(37, 70, 42, 0.075);
+  --editor-shadow-soft:
+    0 7px 20px rgba(37, 70, 42, 0.055);
+  --editor-overlay: rgba(20, 35, 24, 0.42);
 }
 
-/* === 예외: 부드럽게 보고 싶은 이미지에 class="smooth" 지정 === */
-:where(img.smooth) {
-  image-rendering: auto !important;
-  filter: initial !important;
+:root[data-theme='dark'] {
+  color-scheme: dark;
+
+  --editor-page-background: #0b1220;
+  --editor-panel: #101a29;
+  --editor-panel-elevated: #111c2b;
+  --editor-panel-soft: #142133;
+  --editor-canvas: #0f1928;
+  --editor-border: rgba(120, 174, 128, 0.17);
+  --editor-border-strong: rgba(123, 201, 137, 0.32);
+  --editor-text: #e7f0e9;
+  --editor-muted: #aab9ae;
+  --editor-muted-soft: #7f9184;
+  --editor-accent: #7bc989;
+  --editor-accent-strong: #9cdaa7;
+  --editor-accent-soft: rgba(91, 164, 104, 0.16);
+  --editor-accent-softer: rgba(91, 164, 104, 0.09);
+  --editor-danger: #f08b92;
+  --editor-danger-soft: rgba(198, 79, 88, 0.13);
+  --editor-focus-ring: rgba(123, 201, 137, 0.16);
+  --editor-shadow:
+    0 16px 38px rgba(0, 0, 0, 0.23);
+  --editor-shadow-soft:
+    0 8px 22px rgba(0, 0, 0, 0.18);
+  --editor-overlay: rgba(2, 8, 18, 0.7);
 }
 
-/* 모든 레이아웃 영역의 position/z-index 고정 해제 (중복 방지) */
-.editor-layout, .wiki-main, body, html {
-  z-index: auto !important;
-  position: static !important;
+/* ===== 작성 페이지 ===== */
+
+.wiki-editor-page {
+  min-height: 100vh;
+  padding: 92px clamp(18px, 3vw, 52px) 32px;
+  color: var(--editor-text);
+  background:
+    radial-gradient(
+      circle at 18% 0%,
+      color-mix(in srgb, var(--editor-accent-soft) 64%, transparent),
+      transparent 30%
+    ),
+    var(--editor-page-background);
+
+  /* 공통 문서 렌더러도 에디터와 동일한 초록 계열 토큰을 사용한다. */
+  --accent: var(--editor-accent);
+  --accent-hover: var(--editor-accent-strong);
+  --accent-soft: var(--editor-accent-soft);
+  --surface: var(--editor-panel);
+  --surface-elevated: var(--editor-panel-elevated);
+  --surface-soft: var(--editor-panel-soft);
+  --border: var(--editor-border);
+  --border-soft: var(--editor-border);
+  --border-strong: var(--editor-border-strong);
+  --muted: var(--editor-muted);
+  --muted-2: var(--editor-muted-soft);
+  --wiki-chrome-panel: var(--editor-panel-elevated);
+  --wiki-chrome-text: var(--editor-text);
+  --wiki-chrome-muted: var(--editor-muted);
+  --wiki-chrome-accent: var(--editor-accent);
+  --wiki-chrome-accent-strong: var(--editor-accent-strong);
+  --wiki-chrome-active: var(--editor-accent-soft);
+  --wiki-chrome-hover: var(--editor-accent-softer);
+  --wiki-chrome-border: var(--editor-border);
+  --wiki-chrome-border-strong: var(--editor-border-strong);
 }
 
-/* ---- 입력 필드/버튼/폼 관련 ---- */
-.editor-form-group { margin-bottom: 1.5rem; }
-.editor-label { display: block; font-weight: bold; margin-bottom: 0.5rem; }
-.editor-input {
-  width: 100%; padding: 0.75rem; background: #f8fafc;
-  color: #222; border: 1px solid #e5e7eb; border-radius: 0.375rem;
-}
-.editor-btn-group { display: flex; gap: 0.5rem; margin: 1rem 0; }
-.editor-btn-save {
-  background: #2563eb; color: #fff; font-weight: bold;
-  border: none; border-radius: 0.375rem;
-  padding: 0.75rem 1.5rem; cursor: pointer;
-}
-.editor-btn-save:hover { background: #1e40af; }
-
-/* ----- 전체 레이아웃: 3단 그리드 ----- */
 .editor-layout {
   display: grid;
-  grid-template-columns: 220px 1fr 220px;
-  gap: 32px;
-  max-width: 1500px;
-  margin: 40px auto 0 auto;
-  height: 82vh;
-  min-height: 550px;
-  background: #fff;
+  grid-template-columns: minmax(220px, 248px) minmax(0, 1fr) minmax(220px, 252px);
+  gap: clamp(18px, 1.8vw, 28px);
+  width: 100%;
+  max-width: 1660px;
+  min-height: calc(100vh - 124px);
+  margin: 0 auto;
 }
 
-/* ----- 사이드 영역: 좌/우 문서 정보/목차 고정 ----- */
-.editor-left, .editor-right {
-  position: sticky;
-  top: 92px;
-  align-self: flex-start;
-  height: fit-content;
-  max-height: calc(82vh - 20px);
-  overflow-y: auto;
-  background: #fff;
-  z-index: 2;
-  padding-bottom: 16px;
-}
-.editor-left {
-  display: flex; flex-direction: column; gap: 24px; align-items: flex-start;
-}
+.editor-left,
 .editor-right {
-  padding-left: 14px;
-  align-items: flex-end;
-  background: rgba(0,0,0,0.0);
-  z-index: 10;
+  position: sticky;
+  top: 88px;
+  align-self: start;
+  min-width: 0;
+  max-height: calc(100vh - 112px);
 }
 
-/* ----- 가운데: 툴바(고정) + 본문(스크롤) ----- */
-.editor-center {
+.editor-left {
   display: flex;
   flex-direction: column;
-  min-width: 0;
-  height: 82vh; /* 전체 영역에 맞춤 */
-  background: #fff;
+  gap: 16px;
 }
 
-/* 툴바 고정 (상단) */
-.editor-toolbar-wrapper {
-  position: sticky;
-  top: 0;
-  z-index: 11;
-  background: #fff;
-  border-bottom: 1px solid #eee;
-}
-
-/* 본문 영역만 스크롤 */
-.editor-content-scroll {
-  flex: 1 1 0;
-  min-height: 0;
+.editor-right {
   overflow-y: auto;
-  max-height: unset;
-  padding-right: 2px;
-  position: relative;
+  scrollbar-width: thin;
+  scrollbar-color: var(--editor-border-strong) transparent;
 }
 
-/* 에디터 본문(슬레이트) */
-.editor-slate-content {
-  min-height: 550px;
-  height: 95%;
-  box-sizing: border-box;
-  padding: 1rem;
-  border: 1px solid #ccc;
-  border-radius: 6px;
-  background: #fff;
-  font-size: 19px;
-  overflow: auto;
-}
-
-/* ----- 툴바 및 드롭다운 ----- */
-.editor-toolbar {
+.editor-center {
   display: flex;
-  flex-wrap: wrap;
-  gap: 0.5rem;
-  border-bottom: 1px solid #ddd;
-  margin-bottom: 1rem;
-}
-.editor-toolbar-btn {
-  background: #f2f2f2; border: 1px solid #ccc;
-  padding: 5px 8px; border-radius: 5px; cursor: pointer;
-}
-.editor-toolbar-btn:hover { background: #f0f0f0; }
-.mark-button.active {
-  background: #dbeafe; font-weight: bold; border-color: #60a5fa;
+  min-width: 0;
+  min-height: 0;
+  height: calc(100vh - 124px);
+  flex-direction: column;
 }
 
-/* ----- 드롭다운 메뉴 ----- */
-.toolbar-dropdown { position: relative; }
-.dropdown-menu {
-  position: absolute; top: 110%; left: 0; background: #fff;
-  border: 1px solid #ccc; border-radius: 6px;
-  box-shadow: 0 2px 5px rgba(0,0,0,0.1);
-  padding: 6px; display: flex; flex-direction: column; z-index: 999;
-}
-.dropdown-menu button {
-  background: none; border: none; padding: 4px 10px;
-  cursor: pointer; text-align: left;
-}
-.dropdown-menu button:hover { background: #eee; }
-
-/* ----- 인덴트 라인 스타일(본문 내) ----- */
-.slate-indent-line {
-  border-left: 4px solid #aaa;
-  padding-left: 16px;
-  margin: 0;
-  border-radius: 0;
-  min-height: 1.6em;
-  background: none;
-}
-.slate-indent-line.start { margin-top: 8px; }
-.slate-indent-line.end { margin-bottom: 8px; }
-
-/* Firefox */
-* {
-  scrollbar-width: none !important;   /* UI만 제거 */
+.editor-content-scroll {
+  position: relative;
+  flex: 1 1 auto;
+  min-height: 0;
+  padding: 0 3px 24px;
+  overflow-x: hidden;
+  overflow-y: auto;
+  overflow-anchor: none;
+  overscroll-behavior: contain;
+  scrollbar-width: thin;
+  scrollbar-color: var(--editor-border-strong) transparent;
 }
 
-/* IE/구형 Edge */
-* {
-  -ms-overflow-style: none !important; /* UI만 제거 */
+.editor-content-scroll::-webkit-scrollbar,
+.editor-right::-webkit-scrollbar {
+  width: 7px;
 }
 
-/* Chromium/WebKit (Chrome, Edge, Safari 등) */
-*::-webkit-scrollbar {
-  width: 0 !important;
-  height: 0 !important;
-}
-*::-webkit-scrollbar-track {
-  background: transparent !important;
-}
-*::-webkit-scrollbar-thumb {
-  background: transparent !important;
-  border: none !important;
+.editor-content-scroll::-webkit-scrollbar-track,
+.editor-right::-webkit-scrollbar-track {
+  background: transparent;
 }
 
-/* ===== Left Meta Panel – 로그인 페이지 톤으로 리메이크 ===== */
-:root {
-  --brand: #2563eb;
-  --card-bg: #ffffff;
-  --card-bd: #e9eef5;
-  --text-strong: #111827;
-  --text-muted: #6b7280;
+.editor-content-scroll::-webkit-scrollbar-thumb,
+.editor-right::-webkit-scrollbar-thumb {
+  border: 2px solid transparent;
+  border-radius: 999px;
+  background: var(--editor-border-strong);
+  background-clip: padding-box;
 }
 
-/* 왼쪽 패널 카드 */
+/* ===== 왼쪽 문서 정보 ===== */
+
 .meta-card {
-  background: var(--card-bg);
-  border: 1px solid var(--card-bd);
-  border-radius: 18px;
-  box-shadow: 0 12px 30px rgba(30, 41, 59, 0.08);
-  padding: 16px;
+  width: 100%;
+  box-sizing: border-box;
+  padding: 18px;
+  color: var(--editor-text);
+  background:
+    linear-gradient(
+      145deg,
+      color-mix(in srgb, var(--editor-panel) 94%, var(--editor-accent-soft)),
+      var(--editor-panel)
+    );
+  border: 1px solid var(--editor-border);
+  border-radius: 20px;
+  box-shadow: var(--editor-shadow-soft);
 }
 
-/* 카드 헤더 */
-.meta-card .meta-title {
-  font-size: 16px;
-  font-weight: 800;
-  color: var(--text-strong);
-  margin: 2px 0 10px;
-  letter-spacing: 0.2px;
-}
-.meta-card .meta-sub {
-  font-size: 12.5px;
-  color: var(--text-muted);
-  margin-bottom: 14px;
+.meta-title {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  margin: 0 0 18px;
+  color: var(--editor-text);
+  font-family:
+    'NanumSquareNeo',
+    'NanumSquareRound',
+    system-ui,
+    sans-serif;
+  font-size: 17px;
+  font-weight: 850;
+  letter-spacing: -0.02em;
 }
 
-/* 필드 공통 */
-.meta-field { margin-bottom: 14px; }
+.meta-title::before {
+  content: '';
+  display: block;
+  width: 9px;
+  height: 9px;
+  border-radius: 3px;
+  background: var(--editor-accent);
+  box-shadow:
+    0 0 0 4px var(--editor-accent-soft);
+  transform: rotate(8deg);
+}
+
+.meta-field {
+  margin-bottom: 15px;
+}
+
 .meta-label {
   display: block;
+  margin-bottom: 7px;
+  color: var(--editor-muted);
   font-size: 12.5px;
-  font-weight: 700;
-  color: #475569;
-  margin-bottom: 6px;
+  font-weight: 800;
+  letter-spacing: -0.01em;
 }
-.meta-input {
+
+.meta-input,
+.editor-input {
   width: 100%;
+  min-width: 0;
+  box-sizing: border-box;
   padding: 11px 12px;
+  color: var(--editor-text);
+  font: inherit;
+  line-height: 1.45;
+  background: var(--editor-panel-elevated);
+  border: 1px solid var(--editor-border);
   border-radius: 12px;
-  border: 1px solid #e5e7eb;
-  background: #f8fafc;
-  color: #111827;
-  transition: box-shadow .15s ease, border-color .15s ease, background .15s ease;
   outline: none;
-}
-.meta-input::placeholder { color: #9aa4b2; }
-.meta-input:focus {
-  background: #fff;
-  border-color: var(--brand);
-  box-shadow: 0 0 0 4px rgba(37, 99, 235, 0.18);
+  transition:
+    border-color 0.16s ease,
+    background-color 0.16s ease,
+    box-shadow 0.16s ease;
 }
 
-/* 태그 힌트/도움말 */
-.meta-hint {
-  font-size: 12px;
-  color: #94a3b8;
-  margin-top: 6px;
+.meta-input::placeholder,
+.editor-input::placeholder {
+  color: var(--editor-muted-soft);
 }
 
-/* 저장 버튼 – 풀빛 진하게 & 가운데 꽉 차게 (override) */
+.meta-input:hover,
+.editor-input:hover {
+  border-color: var(--editor-border-strong);
+}
+
+.meta-input:focus,
+.editor-input:focus {
+  background: var(--editor-panel-elevated);
+  border-color: var(--editor-accent);
+  box-shadow: 0 0 0 4px var(--editor-focus-ring);
+}
+
+.meta-icon-row {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+}
+
+.meta-icon-input {
+  flex: 1 1 auto;
+}
+
+.meta-icon-action {
+  flex: 0 0 auto;
+}
+
+.meta-icon-preview {
+  display: block;
+  flex: 0 0 38px;
+  width: 38px;
+  height: 38px;
+  object-fit: cover;
+  background: var(--editor-panel-soft);
+  border: 1px solid var(--editor-border);
+  border-radius: 10px;
+}
+
+.meta-icon-emoji,
+.meta-icon-fallback {
+  display: grid;
+  flex: 0 0 38px;
+  min-width: 38px;
+  min-height: 38px;
+  place-items: center;
+  font-size: 30px;
+  line-height: 1;
+}
+
 .editor-btn-save,
 .meta-save {
-  display: block;               /* 왼쪽 쏠림 방지 */
-  width: 100%;                  /* 카드 너비와 대칭 */
-  height: 52px;                 /* 살짝 더 크게 */
-  margin: 14px 0 0;             /* 위쪽 여백만 */
+  display: block;
+  width: 100%;
+  height: 50px;
+  margin: 4px 0 0;
+  color: var(--editor-accent-strong);
+  font-size: 15.5px;
+  font-weight: 850;
+  background: var(--editor-accent-soft);
+  border: 1px solid var(--editor-border-strong);
   border-radius: 14px;
-
-  background-color: #d1fae5;    /* green-100 (더 진하게) */
-  color: #15803d;               /* green-700 글자 */
-  border: 1px solid #86efac;    /* 윤곽선 추가 */
-  font-weight: 800;
-  font-size: 16px;
-
   cursor: pointer;
   transition:
-    background-color .2s ease,
-    border-color .2s ease,
-    color .2s ease,
-    box-shadow .2s ease,
-    transform .06s ease;
+    color 0.16s ease,
+    background-color 0.16s ease,
+    border-color 0.16s ease,
+    box-shadow 0.16s ease,
+    transform 0.08s ease;
 }
 
 .editor-btn-save:hover,
 .meta-save:hover {
-  background-color: #16a34a;          /* green-600 */
-  border-color: #16a34a;
   color: #fff;
-  box-shadow: 0 0 0 6px rgba(34, 197, 94, 0.22); /* 외곽 글로우 */
+  background: var(--editor-accent);
+  border-color: var(--editor-accent);
+  box-shadow:
+    0 8px 18px color-mix(in srgb, var(--editor-accent) 20%, transparent);
 }
 
 .editor-btn-save:active,
-.meta-save:active { transform: translateY(1px); }
+.meta-save:active {
+  transform: translateY(1px);
+}
 
 .editor-btn-save:focus-visible,
 .meta-save:focus-visible {
   outline: none;
-  box-shadow:
-    0 0 0 3px #fff,
-    0 0 0 6px rgba(34, 197, 94, 0.45);
+  box-shadow: 0 0 0 4px var(--editor-focus-ring);
 }
 
-.editor-btn-save[disabled],
-.meta-save[disabled] {
-  opacity: .6;
+.editor-btn-save:disabled,
+.meta-save:disabled {
+  opacity: 0.55;
   cursor: not-allowed;
   box-shadow: none;
 }
 
-/* 왼쪽 패널 간격/정돈 */
-.editor-left {
-  gap: 16px;               /* 좀 더 타이트하게 */
-  align-items: stretch;    /* 카드 폭 100% */
+.meta-drafts {
+  margin-top: 14px;
+  padding: 12px;
+  background: var(--editor-panel-elevated);
+  border: 1px solid var(--editor-border);
+  border-radius: 14px;
 }
 
-
-/* ===== Toolbar – 카드형 + divide-x, 은은한 호버 ===== */
-
-/* sticky wrapper 살짝 정리 */
-.editor-toolbar-wrapper {
-  background: #fff;
-  border-bottom: none;
-  padding: 6px 0;
+.meta-drafts-title {
+  margin-bottom: 9px;
+  color: var(--editor-muted);
+  font-size: 12px;
+  font-weight: 800;
 }
 
-/* 툴바 본체: 둥근 카드 + 테두리 + 그림자 */
-.editor-toolbar {
+.meta-drafts-list {
   display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: 0; /* divide-x 구현을 위해 gap 0 */
-  background: #fff;
-  border: 1px solid #e5e7eb;
-  border-radius: 12px;
-  overflow: hidden;
-  box-shadow: 0 4px 12px rgba(2, 6, 23, 0.04);
-  padding: 0; /* 버튼 padding으로 통일 */
+  gap: 8px;
 }
 
-/* 각 섹션 사이 구분선(divide-x) */
-.editor-toolbar > * {
-  display: flex;
-  align-items: center;
-  border-right: 1px solid #eef2f7;
-}
-.editor-toolbar > *:last-child { border-right: none; }
-
-/* 버튼 공통(마크/드롭다운/프레인 버튼) */
-.mark-button,
-.editor-toolbar-btn,
-.editor-dropdown > button,
-.editor-toolbar-btn-plain {
-  background: transparent;
-  border: none;
-  padding: 10px 12px;
-  font-size: 16px;
-  color: #475569;               /* slate-600 */
-  cursor: pointer;
-  transition: background .15s ease, color .15s ease;
-}
-
-/* 호버 */
-.mark-button:hover,
-.editor-toolbar-btn:hover,
-.editor-dropdown > button:hover,
-.editor-toolbar-btn-plain:hover {
-  background: #f1f5f9;          /* slate-100 */
-  color: #1f2937;               /* slate-800 */
-}
-
-/* 활성화된 마크(굵게/기울임 등) 표시 */
-.mark-button.active {
-  background: #e0f2fe;          /* sky-100 */
-  color: #0284c7;                /* sky-600 */
-  border: none;
-}
-
-/* 드롭다운 메뉴는 카드 느낌 유지 */
-.editor-dropdown-menu {
-  margin-top: 6px;
-  border: 1px solid #e5e7eb;
+.meta-draft-slot {
+  width: 36px;
+  height: 36px;
+  padding: 0;
+  color: var(--editor-muted-soft);
+  font-size: 14px;
+  font-weight: 850;
+  background: var(--editor-panel-soft);
+  border: 1px solid var(--editor-border);
   border-radius: 10px;
-  box-shadow: 0 8px 20px rgba(2, 6, 23, 0.08);
-  overflow: hidden;
+  cursor: default;
+  transition:
+    color 0.15s ease,
+    background-color 0.15s ease,
+    border-color 0.15s ease;
 }
 
-/* 드롭다운 항목 */
-.editor-dropdown-menu li,
-.editor-dropdown-menu button {
-  padding: 8px 14px;
-  font-size: 14.5px;
-}
-.editor-dropdown-menu li:hover,
-.editor-dropdown-menu button:hover {
-  background: #f1f5f9;
-  color: #2563eb;
+.meta-draft-slot.is-active {
+  color: var(--editor-accent-strong);
+  background: var(--editor-accent-softer);
+  border-color: var(--editor-border-strong);
+  cursor: pointer;
 }
 
-/* 드롭다운이 툴바 밖으로 자연스럽게 나오도록 수정 */
-.editor-toolbar {
-  overflow: visible !important;   /* ← 핵심: hidden 제거 */
-  position: relative;             /* 기준 컨테이너 */
+.meta-draft-slot.is-active:hover {
+  background: var(--editor-accent-soft);
 }
 
-/* 툴바가 주변 요소보다 위에 오도록 */
+/* ===== 가운데 편집 영역 ===== */
+
 .editor-toolbar-wrapper {
-  z-index: 50;                    /* sticky 컨텍스트 위로 */
+  position: sticky;
+  top: 0;
+  z-index: 50;
+  padding: 0 0 13px;
+  background:
+    linear-gradient(
+      180deg,
+      var(--editor-page-background) 0%,
+      var(--editor-page-background) 78%,
+      transparent 100%
+    );
 }
 
-/* 드롭다운 메뉴가 겹침 없이 가장 위로 */
-.editor-dropdown-menu {
-  z-index: 10000;                 /* 다른 카드/보더 위 */
-  top: calc(100% + 6px);          /* 살짝 띄워 그림자 안잘리게 */
+.editor-slate-content {
+  min-height: max(640px, calc(100vh - 188px));
+  box-sizing: border-box;
+  padding: clamp(22px, 2.2vw, 34px);
+  overflow: visible;
+  color: var(--editor-text);
+  caret-color: var(--editor-accent);
+  background: var(--editor-canvas);
+  border: 1px solid var(--editor-border);
+  border-radius: 20px;
+  box-shadow: var(--editor-shadow);
+  font-size: 19px;
+  line-height: 1.72;
+  outline: none;
+  transition:
+    border-color 0.16s ease,
+    box-shadow 0.16s ease;
 }
 
-.infobox {
-  --ibox-bg: #f5f8ff;
-  --ibox-bd: #dbe6ff;
-  --ibox-tx: #1c1d1f;
-  --ibox-accent: #2563eb; /* 아이콘 색 */
-  --ibox-mask: url("https://ka-p.fontawesome.com/releases/v6.6.0/svgs/regular/circle-exclamation.svg?v=2&token=a463935e93");
-  --ibox-va: center;
-
-  align-items: var(--ibox-va, center);
-  padding: 12px 16px;
-  display: flex;
-  gap: 12px;
-  border-radius: 12px;
-  border: 1px solid var(--ibox-bd);
-  background: var(--ibox-bg);           /* ← 컨테이너 배경 유지 */
-  color: var(--ibox-tx);
-  box-shadow: 0 1px 0 rgba(0,0,0,.02);
+.editor-slate-content:focus {
+  border-color: var(--editor-border-strong);
+  box-shadow:
+    var(--editor-shadow),
+    0 0 0 4px var(--editor-focus-ring);
 }
 
-/* 아이콘: 백플레이트(흰 타일) 제거, 마스크만 남김 */
-.infobox__icon {
-  flex: 0 0 auto;
-  width: 28px;
-  height: 28px;
-  /* ↓ 타일·그림자 제거 */
-  background: transparent !important;
-  box-shadow: none !important;
-  border-radius: 0 !important;
+.editor-slate-content::selection,
+.editor-slate-content *::selection {
+  color: inherit;
+  background:
+    color-mix(in srgb, var(--editor-accent) 26%, transparent);
+}
 
-  display: grid;
+.editor-slate-content [data-slate-placeholder='true'] {
+  color: var(--editor-muted-soft) !important;
+  opacity: 1 !important;
+}
+
+.slate-indent-line {
+  min-height: 1.6em;
+  margin: 0;
+  padding-left: 16px;
+  background: transparent;
+  border-left: 3px solid var(--editor-border-strong);
+}
+
+.slate-indent-line.start {
+  margin-top: 8px;
+}
+
+.slate-indent-line.end {
+  margin-bottom: 8px;
+}
+
+/* 편집 전용 DB 요소 자리표시자 */
+.wiki-embed-placeholder {
+  margin: 14px 0;
+  padding: 14px 16px;
+  color: var(--editor-text);
+  background: var(--editor-panel-soft);
+  border: 1px dashed var(--editor-border-strong);
+  border-radius: 14px;
+}
+
+.wiki-embed-placeholder strong {
+  color: var(--editor-accent-strong);
+}
+
+.wiki-embed-placeholder div {
+  margin-top: 3px;
+  color: var(--editor-muted);
+  font-size: 13px;
+}
+
+/* 편집 중 블록 조작 버튼 */
+.wiki-editor-floating-action {
+  display: inline-grid;
+  width: 32px;
+  height: 32px;
+  padding: 0;
   place-items: center;
-  position: relative;
-}
-.infobox__icon::before {
-  content: "";
-  width: 16px;               /* 정사각형 아이콘 */
-  height: 16px;
-  background-color: var(--ibox-accent);
-  /* mask (크로스브라우징) */
-  -webkit-mask-image: var(--ibox-mask);
-  mask-image: var(--ibox-mask);
-  -webkit-mask-repeat: no-repeat;
-  mask-repeat: no-repeat;
-  -webkit-mask-position: center;
-  mask-position: center;
-  -webkit-mask-size: contain;
-  mask-size: contain;
+  color: var(--editor-accent-strong);
+  background: var(--editor-panel-elevated);
+  border: 1px solid var(--editor-border-strong);
+  border-radius: 999px;
+  box-shadow: var(--editor-shadow-soft);
+  cursor: pointer;
+  transition:
+    color 0.14s ease,
+    background-color 0.14s ease,
+    border-color 0.14s ease;
 }
 
-.infobox__body {
-  flex: 1 1 auto;
-  min-width: 0;
-  line-height: 1.55;
-  font-weight: 560;
-  color: #1c1d1f;
+.wiki-editor-floating-action:hover {
+  background: var(--editor-accent-soft);
+  border-color: var(--editor-accent);
 }
 
-/* ───────── 톤별 테마 ───────── */
-/* 정보(파랑): i 아이콘 */
-.infobox--note{
-  --ibox-bg:#f2f6ff;
-  --ibox-bd:#dbeafe;
-  --ibox-accent:#2563eb;
-  --ibox-mask:url("https://ka-p.fontawesome.com/releases/v6.6.0/svgs/regular/circle-info.svg?v=2&token=a463935e93");
+.wiki-editor-media-size-action {
+  position: absolute;
+  z-index: 2;
+  top: 8px;
+  right: 8px;
 }
 
-/* 안내/주의(주황): 원형 느낌의 ! */
-.infobox--warn{
-  --ibox-bg:#fff7ea;
-  --ibox-bd:#ffe3b3;
-  --ibox-accent:#f59e0b;
-  --ibox-mask:url("https://ka-p.fontawesome.com/releases/v6.6.0/svgs/regular/circle-exclamation.svg?v=2&token=a463935e93");
+.wiki-editor-floating-action--small {
+  width: 27px;
+  height: 27px;
+  font-size: 16px;
+  font-weight: 900;
 }
 
-/* 경고/위험(빨강): 삼각형 느낌의 ! */
-.infobox--danger{
-  --ibox-bg:#fff3f3;
-  --ibox-bd:#ffd8d8;
-  --ibox-accent:#ef4444;
-  --ibox-mask:url("https://ka-p.fontawesome.com/releases/v6.6.0/svgs/regular/triangle-exclamation.svg?v=2&token=a463935e93");
+.wiki-editor-floating-action--danger {
+  color: var(--editor-danger);
+  border-color:
+    color-mix(in srgb, var(--editor-danger) 36%, var(--editor-border));
 }
 
-/* 팁(초록): 체크 or 원형 i 중 택1 — 여기선 체크 */
-.infobox--tip{
-  --ibox-bg:#eefdf6;
-  --ibox-bd:#c9f1de;
-  --ibox-accent:#10b981;
-  --ibox-mask:url("https://ka-p.fontawesome.com/releases/v6.6.0/svgs/regular/circle-check.svg?v=2&token=a463935e93");
+.wiki-editor-floating-action--danger:hover {
+  color: var(--editor-danger);
+  background: var(--editor-danger-soft);
+  border-color: var(--editor-danger);
 }
 
-/* ── 강제 라이트 스킴 (Auto Dark 무력화) ───────────────── */
-:root { color-scheme: light; }
+/* ===== 에디터 목차 ===== */
 
-/* 전체 기본 텍스트/배경 톤 고정 */
-html, body { background:#fff; color:#0f172a; }
+.editor-toc-card {
+  width: 100%;
+  box-sizing: border-box;
+  color: var(--editor-text);
+  background:
+    linear-gradient(
+      145deg,
+      color-mix(in srgb, var(--editor-panel) 95%, var(--editor-accent-soft)),
+      var(--editor-panel)
+    );
+  border: 1px solid var(--editor-border);
+  border-radius: 20px;
+  box-shadow: var(--editor-shadow-soft);
+}
 
-.editor-content-scroll { overflow-anchor: none; }
+.editor-toc-empty {
+  color: var(--editor-muted-soft);
+}
 
-.ptc-price-text { word-break: keep-all; }
+.editor-toc-item {
+  color: var(--editor-muted);
+}
 
-/* ====== Table (Slate) ====== */
+.editor-toc-item:hover {
+  color: var(--editor-accent-strong) !important;
+  background: var(--editor-accent-softer) !important;
+}
+
+.editor-toc-item.is-active {
+  color: var(--editor-accent-strong) !important;
+  background: var(--editor-accent-soft) !important;
+}
+
+/* ===== 에디터 표 ===== */
+
 .slate-table {
-  border-collapse: collapse;
   width: 100%;
   min-width: 420px;
-  table-layout: fixed;
-  border: 1px solid #e5e7eb;
-}
-
-.slate-table-row {}
-
-.slate-table-cell {
-  border: 1px solid #e5e7eb;
-  vertical-align: top;
-  padding: 8px 10px;
-  background: #fff;
-  /* 셀 내부 문단 간격 */
-}
-.slate-table-cell p { margin: 0; line-height: 1.6; }
-
-/* ====== 표 크기 선택기 ====== */
-.tbl-pick { user-select: none; }
-.tbl-pick-grid {
-  display: grid;
-  grid-auto-rows: 18px;
-  gap: 3px;
-}
-.tbl-pick-cell {
-  width: 18px; height: 18px;
-  border: 1px solid #e5e7eb;
-  border-radius: 3px;
-  background: #fff;
-}
-.tbl-pick-cell.is-active { background: #dbeafe; border-color: #93c5fd; }
-.tbl-pick-info {
-  text-align: center;
-  margin-top: 6px;
-  font-size: 12px;
-  color: #6b7280;
-}
-
-/* --- Slate 테이블 --- */
-.slate-table {
-  border-collapse: collapse;
-  width: 100%;
-  table-layout: fixed;       /* 커서 위치 시각 안정화 */
   margin: 8px 0;
+  table-layout: fixed;
+  border-collapse: separate;
+  border-spacing: 0;
+  color: var(--editor-text);
 }
-.slate-table__cell {
-  border: 1px solid #e5e7eb;
-  vertical-align: top;
-  padding: 8px;
-  min-width: 120px;
-  height: 40px;
-  position: relative;
-  font-size: 16px;
 
+.slate-table-cell,
+.slate-table__cell {
+  min-width: 120px;
+  min-height: 40px;
+  padding: 9px 11px;
+  color: inherit;
+  vertical-align: top;
+  background: var(--editor-panel-elevated);
+  border: 1px solid var(--editor-border);
 }
-.slate-table__cell-inner {
-  min-height: 20px;
-  line-height: 1.45;
+
+.slate-table-cell p,
+.slate-table__cell p {
+  margin: 0;
+  line-height: 1.6;
 }
+
 .slate-table td:focus-within {
-  outline: 2px solid #93c5fd;
+  outline: 2px solid var(--editor-accent);
   outline-offset: -2px;
 }
 
-/* --- 테이블 피커(6x6) --- */
-.table-picker-popover {
-  background: #fff;
-  border: 1px solid #e5e7eb;
-  border-radius: 10px;
-  box-shadow: 0 8px 30px rgba(0,0,0,.12);
-  padding: 12px 12px 8px;
-  z-index: 9999;
+.slate-table-wrap {
+  margin: 2px 0 10px;
+}
+
+.slate-table-colbar,
+.slate-table-rowbar {
   user-select: none;
 }
-.table-picker-grid { display: grid; gap: 2px; }
-.table-picker-row { display: grid; grid-template-columns: repeat(6, 24px); gap: 2px; }
-.table-picker-cell {
-  width: 24px; height: 24px; border: 1px solid #e5e7eb; background: #fff; border-radius: 4px;
-}
-.table-picker-cell.selected { background: #dbeafe; border-color: #bfdbfe; }
-.table-picker-caption {
-  margin-top: 8px; text-align: center; font-size: 12px; color: #6b7280;
+
+.ptc-price-text {
+  word-break: keep-all;
 }
 
-.slate-table-wrap { margin: 2px 0 10px; }
-.slate-table-colbar, .slate-table-rowbar { user-select: none; }
+/* ===== 표 우클릭 메뉴 ===== */
 
+.editor-table-context-menu {
+  min-width: 168px;
+  max-width: 248px;
+  box-sizing: border-box;
+  padding: 6px;
+  color: var(--editor-text);
+  font-size: 13px;
+  background: var(--editor-panel-elevated);
+  border: 1px solid var(--editor-border);
+  border-radius: 12px;
+  box-shadow: var(--editor-shadow);
+}
+
+.editor-table-context-divider {
+  margin: 5px 4px;
+  border-top: 1px solid var(--editor-border);
+}
+
+.editor-table-context-item {
+  width: 100%;
+  padding: 7px 9px;
+  color: var(--editor-text);
+  font-size: 13px;
+  font-weight: 500;
+  line-height: 1.25;
+  text-align: left;
+  background: transparent;
+  border: 0;
+  border-radius: 8px;
+  cursor: pointer;
+}
+
+.editor-table-context-item:hover {
+  background: var(--editor-accent-softer);
+}
+
+.editor-table-context-item.is-danger {
+  color: var(--editor-danger);
+}
+
+/* ===== 텍스트 선택 우클릭 메뉴 ===== */
+
+.editor-text-context-menu {
+  position: fixed;
+  z-index: 100000;
+  width: 276px;
+  box-sizing: border-box;
+  padding: 6px;
+  color: var(--editor-text);
+  font-size: 13px;
+  background: var(--editor-panel-elevated);
+  border: 1px solid var(--editor-border);
+  border-radius: 12px;
+  box-shadow: var(--editor-shadow);
+}
+
+.editor-text-context-divider {
+  margin: 5px 4px;
+  border-top: 1px solid var(--editor-border);
+}
+
+.editor-text-context-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 14px;
+  width: 100%;
+  min-height: 34px;
+  padding: 7px 9px;
+  color: var(--editor-text);
+  font-family: inherit;
+  font-size: 13px;
+  font-weight: 600;
+  line-height: 1.25;
+  text-align: left;
+  background: transparent;
+  border: 0;
+  border-radius: 8px;
+  cursor: pointer;
+}
+
+.editor-text-context-item:not(:disabled):hover,
+.editor-text-context-item:not(:disabled):focus-visible {
+  background: var(--editor-accent-softer);
+  outline: none;
+}
+
+.editor-text-context-item:disabled {
+  color: var(--editor-muted-soft);
+  cursor: not-allowed;
+}
+
+.editor-text-context-item.is-danger {
+  color: var(--editor-danger);
+}
+
+.editor-text-context-item.is-danger:not(:disabled):hover,
+.editor-text-context-item.is-danger:not(:disabled):focus-visible {
+  background: var(--editor-danger-soft);
+}
+
+.editor-text-context-color-value {
+  display: inline-flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 6px;
+  min-width: 82px;
+  color: var(--editor-muted);
+  font-size: 11.5px;
+  font-weight: 500;
+  white-space: nowrap;
+}
+
+.editor-text-context-item:disabled .editor-text-context-color-value {
+  color: var(--editor-muted-soft);
+}
+
+.editor-text-context-swatch {
+  flex: 0 0 auto;
+  width: 13px;
+  height: 13px;
+  box-sizing: border-box;
+  border: 1px solid var(--editor-border-strong);
+  border-radius: 50%;
+  box-shadow: 0 0 0 1px var(--editor-panel-elevated);
+}
+
+.editor-text-context-swatch.is-background {
+  border-radius: 4px;
+}
+
+/* ===== 헤딩 우클릭 메뉴 ===== */
+
+.editor-heading-context-menu {
+  position: fixed;
+  z-index: 100001;
+  width: 224px;
+  box-sizing: border-box;
+  padding: 6px;
+  color: var(--editor-text);
+  font-size: 13px;
+  background: var(--editor-panel-elevated);
+  border: 1px solid var(--editor-border);
+  border-radius: 12px;
+  box-shadow: var(--editor-shadow);
+}
+
+.editor-heading-context-label {
+  padding: 5px 8px 7px;
+  color: var(--editor-muted);
+  font-size: 11.5px;
+  font-weight: 750;
+  line-height: 1.2;
+}
+
+.editor-heading-context-levels {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 4px;
+}
+
+.editor-heading-context-level {
+  min-width: 0;
+  height: 32px;
+  padding: 0 6px;
+  color: var(--editor-text);
+  font-family: inherit;
+  font-size: 12.5px;
+  font-weight: 750;
+  background: var(--editor-panel-soft);
+  border: 1px solid transparent;
+  border-radius: 8px;
+  cursor: pointer;
+}
+
+.editor-heading-context-level:hover,
+.editor-heading-context-level:focus-visible {
+  background: var(--editor-accent-softer);
+  border-color: var(--editor-border-strong);
+  outline: none;
+}
+
+.editor-heading-context-level.is-active {
+  color: var(--editor-accent-strong);
+  background: var(--editor-accent-soft);
+  border-color: var(--editor-border-strong);
+}
+
+.editor-heading-context-divider {
+  margin: 5px 4px;
+  border-top: 1px solid var(--editor-border);
+}
+
+.editor-heading-context-item {
+  width: 100%;
+  min-height: 34px;
+  padding: 7px 9px;
+  color: var(--editor-text);
+  font-family: inherit;
+  font-size: 13px;
+  font-weight: 600;
+  line-height: 1.25;
+  text-align: left;
+  background: transparent;
+  border: 0;
+  border-radius: 8px;
+  cursor: pointer;
+}
+
+.editor-heading-context-item:hover,
+.editor-heading-context-item:focus-visible {
+  background: var(--editor-accent-softer);
+  outline: none;
+}
+
+.editor-heading-context-item.is-danger {
+  color: var(--editor-danger);
+}
+
+.editor-heading-context-item.is-danger:hover,
+.editor-heading-context-item.is-danger:focus-visible {
+  background: var(--editor-danger-soft);
+}
+
+/* ===== 링크 / 구분선 / 정보박스 / 이미지 / 시세표 우클릭 메뉴 ===== */
+
+.wiki-divider-edit {
+  position: relative;
+  cursor: context-menu;
+}
+
+.wiki-divider-edit::before {
+  content: '';
+  position: absolute;
+  inset: -14px 0;
+  background: transparent;
+  cursor: context-menu;
+}
+
+.editor-link-context-menu,
+.editor-divider-context-menu,
+.editor-image-context-menu,
+.editor-price-table-context-menu,
+.editor-info-box-context-menu,
+.editor-info-box-context-submenu {
+  position: fixed;
+  z-index: 100002;
+  width: 224px;
+  box-sizing: border-box;
+  padding: 6px;
+  color: var(--editor-text);
+  font-size: 13px;
+  background: var(--editor-panel-elevated);
+  border: 1px solid var(--editor-border);
+  border-radius: 12px;
+  box-shadow: var(--editor-shadow);
+}
+
+.editor-info-box-context-menu,
+.editor-info-box-context-submenu {
+  z-index: 100003;
+}
+
+.editor-info-box-context-submenu {
+  width: 168px;
+  max-height: calc(100vh - 16px);
+  overflow-y: auto;
+}
+
+.editor-link-context-divider,
+.editor-image-context-divider,
+.editor-info-box-context-divider {
+  margin: 5px 4px;
+  border-top: 1px solid var(--editor-border);
+}
+
+.editor-link-context-item,
+.editor-divider-context-item,
+.editor-image-context-item,
+.editor-price-table-context-item,
+.editor-info-box-context-item,
+.editor-info-box-context-type {
+  width: 100%;
+  min-height: 34px;
+  padding: 7px 9px;
+  color: var(--editor-text);
+  font-family: inherit;
+  font-size: 13px;
+  font-weight: 600;
+  line-height: 1.25;
+  text-align: left;
+  background: transparent;
+  border: 0;
+  border-radius: 8px;
+  cursor: pointer;
+}
+
+.editor-link-context-item:hover,
+.editor-link-context-item:focus-visible,
+.editor-divider-context-item:hover,
+.editor-divider-context-item:focus-visible,
+.editor-image-context-item:hover,
+.editor-image-context-item:focus-visible,
+.editor-price-table-context-item:hover,
+.editor-price-table-context-item:focus-visible,
+.editor-info-box-context-item:hover,
+.editor-info-box-context-item:focus-visible,
+.editor-info-box-context-type:hover,
+.editor-info-box-context-type:focus-visible {
+  background: var(--editor-accent-softer);
+  outline: none;
+}
+
+.editor-link-context-item.is-danger,
+.editor-divider-context-item.is-danger,
+.editor-image-context-item.is-danger,
+.editor-price-table-context-item.is-danger,
+.editor-info-box-context-item.is-danger {
+  color: var(--editor-danger);
+}
+
+.editor-link-context-item.is-danger:hover,
+.editor-link-context-item.is-danger:focus-visible,
+.editor-divider-context-item.is-danger:hover,
+.editor-divider-context-item.is-danger:focus-visible,
+.editor-image-context-item.is-danger:hover,
+.editor-image-context-item.is-danger:focus-visible,
+.editor-price-table-context-item.is-danger:hover,
+.editor-price-table-context-item.is-danger:focus-visible,
+.editor-info-box-context-item.is-danger:hover,
+.editor-info-box-context-item.is-danger:focus-visible {
+  background: var(--editor-danger-soft);
+}
+
+.editor-info-box-context-item,
+.editor-info-box-context-type {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.editor-info-box-context-arrow {
+  color: var(--editor-muted);
+  font-size: 19px;
+  font-weight: 700;
+  line-height: 1;
+}
+
+.editor-info-box-context-type.is-active {
+  color: var(--editor-accent-strong);
+  font-weight: 750;
+  background: var(--editor-accent-soft);
+}
+
+/* ===== 공통 모달을 에디터 톤에 맞춤 ===== */
+
+.rd-card {
+  color: var(--editor-text);
+  background: var(--editor-panel-elevated);
+  border: 1px solid var(--editor-border);
+  box-shadow: var(--editor-shadow);
+}
+
+.rd-card-heading {
+  color: var(--editor-text);
+}
+
+.rd-card-description {
+  color: var(--editor-muted);
+}
+
+.rd-input {
+  color: var(--editor-text);
+  background: var(--editor-panel);
+  border-color: var(--editor-border);
+}
+
+.rd-input::placeholder {
+  color: var(--editor-muted-soft);
+}
+
+.rd-input:focus {
+  border-color: var(--editor-accent);
+  box-shadow: 0 0 0 4px var(--editor-focus-ring);
+}
+
+.rd-btn.primary {
+  color: #fff;
+  background: var(--editor-accent);
+}
+
+.rd-btn.primary:hover {
+  background: var(--editor-accent-strong);
+}
+
+.rd-btn.secondary {
+  color: var(--editor-text);
+  background: var(--editor-panel-soft);
+  border: 1px solid var(--editor-border);
+}
+
+.rd-btn.secondary:hover {
+  background: var(--editor-accent-softer);
+}
+
+/* ===== 반응형 ===== */
+
+@media (max-width: 1280px) {
+  .wiki-editor-page {
+    padding-right: 20px;
+    padding-left: 20px;
+  }
+
+  .editor-layout {
+    grid-template-columns: 218px minmax(0, 1fr) 220px;
+    gap: 16px;
+  }
+}
+
+@media (max-width: 1024px) {
+  .wiki-editor-page {
+    padding-top: 84px;
+  }
+
+  .editor-layout {
+    grid-template-columns: 210px minmax(0, 1fr);
+  }
+
+  .editor-right {
+    display: none;
+  }
+
+  .editor-center {
+    height: calc(100vh - 108px);
+  }
+}
+
+@media (max-width: 760px) {
+  .wiki-editor-page {
+    padding: 76px 12px 24px;
+  }
+
+  .editor-layout {
+    display: flex;
+    min-height: 0;
+    flex-direction: column;
+  }
+
+  .editor-left {
+    position: static;
+    max-height: none;
+  }
+
+  .editor-center {
+    width: 100%;
+    height: auto;
+    min-height: 70vh;
+  }
+
+  .editor-content-scroll {
+    overflow: visible;
+  }
+
+  .editor-toolbar-wrapper {
+    top: 64px;
+  }
+
+  .editor-slate-content {
+    min-height: 68vh;
+    padding: 18px 15px;
+    border-radius: 16px;
+    font-size: 17px;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .meta-input,
+  .editor-input,
+  .editor-btn-save,
+  .meta-save,
+  .editor-slate-content,
+  .wiki-editor-floating-action {
+    transition: none;
+  }
+}

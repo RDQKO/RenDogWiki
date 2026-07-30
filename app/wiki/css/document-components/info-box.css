@@ -1,0 +1,296 @@
+/* =============================================
+ * File: app/wiki/css/document-components/info-box.css
+ *
+ * 담당 범위
+ * - 정보박스 공통 디자인
+ * - 정보/경고/위험/팁 및 색상형 정보박스
+ *
+ * 문서 최상단 제목과 링크 카드에는 적용하지 않는다.
+ * ============================================= */
+
+.info-box {
+  --info-box-accent: #4d83c4;
+  --info-box-border: rgba(87, 135, 190, 0.24);
+  --info-box-background: rgba(236, 245, 255, 0.82);
+  --info-box-icon-background: rgba(255, 255, 255, 0.64);
+
+  position: relative;
+  isolation: isolate;
+  display: flex;
+  width: 100%;
+  min-width: 0;
+  align-items: flex-start;
+  gap: 11px;
+  box-sizing: border-box;
+  margin: 12px 0;
+  padding: 13px 15px;
+  overflow: visible;
+  color: var(--foreground);
+  background:
+    linear-gradient(
+      135deg,
+      color-mix(
+        in srgb,
+        var(--info-box-background) 96%,
+        white
+      ),
+      var(--info-box-background)
+    );
+  border: 1px solid var(--info-box-border);
+  border-radius: 12px;
+  box-shadow:
+    0 1px 2px rgba(35, 49, 38, 0.025),
+    0 5px 14px rgba(35, 49, 38, 0.035);
+}
+
+.info-box::before {
+  content: '';
+  position: absolute;
+  top: 12px;
+  bottom: 12px;
+  left: -1px;
+  width: 3px;
+  border-radius: 0 999px 999px 0;
+  background:
+    color-mix(
+      in srgb,
+      var(--info-box-accent) 78%,
+      transparent
+    );
+}
+
+.info-box--without-icon {
+  gap: 0;
+}
+
+.info-box--info {
+  --info-box-accent: #4d83c4;
+  --info-box-border: rgba(87, 135, 190, 0.24);
+  --info-box-background: rgba(236, 245, 255, 0.84);
+}
+
+.info-box--warning {
+  --info-box-accent: #bd7d18;
+  --info-box-border: rgba(199, 142, 42, 0.27);
+  --info-box-background: rgba(255, 247, 220, 0.88);
+}
+
+.info-box--danger {
+  --info-box-accent: #c14f4f;
+  --info-box-border: rgba(196, 80, 80, 0.25);
+  --info-box-background: rgba(255, 237, 237, 0.88);
+}
+
+.info-box--tip {
+  --info-box-accent:
+    var(--wiki-chrome-accent, #4d9b5c);
+  --info-box-border: rgba(76, 154, 91, 0.24);
+  --info-box-background: rgba(232, 247, 229, 0.88);
+}
+
+.info-box--white {
+  --info-box-accent:
+    var(--wiki-chrome-muted, #6c786e);
+  --info-box-border:
+    var(--wiki-chrome-border, var(--border));
+  --info-box-background:
+    var(--wiki-chrome-panel, var(--surface-elevated));
+}
+
+.info-box--yellow {
+  --info-box-accent: #ad8517;
+  --info-box-border: rgba(199, 157, 43, 0.24);
+  --info-box-background: rgba(255, 249, 222, 0.9);
+}
+
+.info-box--lime {
+  --info-box-accent:
+    var(--wiki-chrome-accent, #4d9b5c);
+  --info-box-border: rgba(75, 159, 91, 0.23);
+  --info-box-background: rgba(231, 247, 228, 0.9);
+}
+
+.info-box--pink {
+  --info-box-accent: #b65c82;
+  --info-box-border: rgba(190, 93, 136, 0.22);
+  --info-box-background: rgba(255, 238, 246, 0.9);
+}
+
+.info-box--red {
+  --info-box-accent: #bd4a4a;
+  --info-box-border: rgba(191, 73, 73, 0.24);
+  --info-box-background: rgba(255, 235, 235, 0.9);
+}
+
+.info-box__icon {
+  display: block;
+  flex: 0 0 18px;
+  width: 18px;
+  height: 18px;
+  margin-top: 2px;
+}
+
+.info-box__content {
+  flex: 1 1 auto;
+  min-width: 0;
+  color: var(--foreground);
+  font-size: inherit;
+  font-weight: 700;
+  line-height: 1.62;
+  letter-spacing: -0.008em;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+
+.info-box__controls {
+  display: flex;
+  flex: 0 0 auto;
+  align-items: center;
+  margin-left: 6px;
+}
+
+.info-box--edit {
+  transition:
+    border-color 0.14s ease,
+    box-shadow 0.14s ease;
+}
+
+.info-box--edit:focus-within {
+  border-color:
+    color-mix(
+      in srgb,
+      var(--info-box-accent) 48%,
+      var(--info-box-border)
+    );
+  box-shadow:
+    0 0 0 3px
+    color-mix(
+      in srgb,
+      var(--info-box-accent) 10%,
+      transparent
+    ),
+    0 5px 14px rgba(35, 49, 38, 0.04);
+}
+
+:root[data-theme='dark']
+.info-box,
+.dark
+.info-box {
+  --info-box-icon-background:
+    rgba(255, 255, 255, 0.045);
+
+  background:
+    linear-gradient(
+      135deg,
+      color-mix(
+        in srgb,
+        var(--info-box-background) 88%,
+        var(--surface-elevated)
+      ),
+      color-mix(
+        in srgb,
+        var(--info-box-background) 76%,
+        var(--surface-elevated)
+      )
+    );
+  box-shadow:
+    0 1px 2px rgba(0, 0, 0, 0.11),
+    0 7px 18px rgba(0, 0, 0, 0.11);
+}
+
+:root[data-theme='dark']
+.info-box--info,
+.dark
+.info-box--info {
+  --info-box-accent: #76ace6;
+  --info-box-border: rgba(118, 172, 230, 0.28);
+  --info-box-background: rgba(24, 55, 82, 0.72);
+}
+
+:root[data-theme='dark']
+.info-box--warning,
+.dark
+.info-box--warning {
+  --info-box-accent: #dfaa52;
+  --info-box-border: rgba(223, 170, 82, 0.3);
+  --info-box-background: rgba(73, 55, 23, 0.7);
+}
+
+:root[data-theme='dark']
+.info-box--danger,
+:root[data-theme='dark']
+.info-box--red,
+.dark
+.info-box--danger,
+.dark
+.info-box--red {
+  --info-box-accent: #e17b7b;
+  --info-box-border: rgba(225, 123, 123, 0.28);
+  --info-box-background: rgba(74, 32, 39, 0.7);
+}
+
+:root[data-theme='dark']
+.info-box--tip,
+:root[data-theme='dark']
+.info-box--lime,
+.dark
+.info-box--tip,
+.dark
+.info-box--lime {
+  --info-box-accent: #7bc98a;
+  --info-box-border: rgba(123, 201, 138, 0.28);
+  --info-box-background: rgba(28, 65, 42, 0.7);
+}
+
+:root[data-theme='dark']
+.info-box--white,
+.dark
+.info-box--white {
+  --info-box-accent:
+    var(--wiki-chrome-muted, #9dafb3);
+  --info-box-border:
+    var(--wiki-chrome-border, var(--border));
+  --info-box-background:
+    var(--wiki-chrome-panel, var(--surface-elevated));
+}
+
+:root[data-theme='dark']
+.info-box--yellow,
+.dark
+.info-box--yellow {
+  --info-box-accent: #d8b653;
+  --info-box-border: rgba(216, 182, 83, 0.28);
+  --info-box-background: rgba(69, 59, 24, 0.7);
+}
+
+:root[data-theme='dark']
+.info-box--pink,
+.dark
+.info-box--pink {
+  --info-box-accent: #dc8aac;
+  --info-box-border: rgba(220, 138, 172, 0.27);
+  --info-box-background: rgba(72, 35, 55, 0.7);
+}
+
+@media (max-width: 768px) {
+  .info-box {
+    gap: 9px;
+    padding: 11px 12px;
+    border-radius: 11px;
+  }
+
+  .info-box::before {
+    top: 10px;
+    bottom: 10px;
+  }
+
+  .info-box__content {
+    line-height: 1.58;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .info-box--edit {
+    transition: none;
+  }
+}

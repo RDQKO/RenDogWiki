@@ -1,0 +1,1133 @@
+/* =============================================
+ * File: app/wiki/css/wikiChromeRefresh.css
+ * 전체 코드
+ *
+ * 렌독위키 문서 화면의 좌우 탐색 영역을
+ * 홈 화면과 같은 초록·민트·크림 계열로 정리한다.
+ *
+ * 적용 범위
+ * - 왼쪽 카테고리 트리
+ * - 오른쪽 문서 목차
+ * - 문서 화면 오른쪽 끝 배경 이미지
+ *
+ * 기존 CategoryTree / TableOfContents의 동작과
+ * DOM 구조는 변경하지 않고 디자인만 덮어쓴다.
+ * ============================================= */
+
+/* ---------- 문서 화면 공통 색상 ---------- */
+
+#rdwiki-page,
+#wiki-scroll-root {
+  --wiki-chrome-bg:
+    #f7faf6;
+  --wiki-chrome-panel:
+    rgba(255, 255, 252, 0.94);
+  --wiki-chrome-panel-soft:
+    rgba(245, 250, 242, 0.92);
+  --wiki-chrome-border:
+    rgba(99, 139, 102, 0.18);
+  --wiki-chrome-border-strong:
+    rgba(91, 155, 99, 0.32);
+  --wiki-chrome-text:
+    #18231b;
+  --wiki-chrome-muted:
+    #66756a;
+  --wiki-chrome-accent:
+    #4d9b5c;
+  --wiki-chrome-accent-strong:
+    #327b42;
+  --wiki-chrome-active:
+    #e9f5e4;
+  --wiki-chrome-hover:
+    #f0f8ed;
+  --wiki-chrome-line:
+    #d9e8d6;
+  --wiki-chrome-shadow:
+    0 14px 36px
+    rgba(31, 55, 36, 0.08);
+}
+
+/*
+ * 홈에서 사용하는 오른쪽 배경을 재사용한다.
+ * 본문 쪽은 기존 배경색으로 유지하고,
+ * 화면 오른쪽 끝에서만 사진이 은은하게 보인다.
+ */
+#wiki-scroll-root {
+  background-color:
+    var(--wiki-chrome-bg);
+  background-image:
+    linear-gradient(
+      to right,
+      var(--wiki-chrome-bg) 0%,
+      var(--wiki-chrome-bg) 73%,
+      rgba(247, 250, 246, 0.98) 79%,
+      rgba(247, 250, 246, 0.78) 88%,
+      rgba(247, 250, 246, 0.36) 100%
+    ),
+    url(
+      '/images/home/home-side-background-right.png'
+    );
+  background-position:
+    center,
+    right top;
+  background-repeat:
+    no-repeat,
+    no-repeat;
+  background-size:
+    100% 100%,
+    clamp(
+      300px,
+      25vw,
+      440px
+    )
+    100%;
+  background-attachment:
+    local,
+    local;
+}
+
+/* ---------- 왼쪽 카테고리 영역 ---------- */
+
+#wiki-scroll-root
+.wiki-nav-scroll {
+  position: relative;
+  padding:
+    18px
+    14px
+    40px;
+  border-right:
+    1px solid
+    var(--wiki-chrome-border);
+  background:
+    linear-gradient(
+      180deg,
+      rgba(255, 255, 252, 0.97) 0%,
+      rgba(247, 251, 244, 0.96) 42%,
+      rgba(241, 248, 239, 0.94) 100%
+    );
+  box-shadow:
+    inset -1px 0 0
+    rgba(255, 255, 255, 0.66);
+  scrollbar-width: thin;
+  scrollbar-color:
+    rgba(92, 144, 99, 0.28)
+    transparent;
+}
+
+#wiki-scroll-root
+.wiki-nav-scroll::-webkit-scrollbar {
+  width: 7px;
+}
+
+#wiki-scroll-root
+.wiki-nav-scroll::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+#wiki-scroll-root
+.wiki-nav-scroll::-webkit-scrollbar-thumb {
+  border:
+    2px solid transparent;
+  border-radius: 999px;
+  background:
+    rgba(92, 144, 99, 0.28);
+  background-clip:
+    padding-box;
+}
+
+#wiki-scroll-root
+.wiki-nav-list {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+/*
+ * 루트 카테고리는 홈의 카테고리 카드처럼
+ * 아이콘, 제목, 화살표가 한 덩어리로 보이게 한다.
+ */
+#wiki-scroll-root
+.wiki-nav-list
+> li
+> .wiki-nav-item {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content:
+    space-between;
+  width: 100%;
+  min-height: 52px;
+  margin: 0 0 4px;
+  padding:
+    7px
+    9px;
+  border:
+    1px solid transparent;
+  border-radius: 15px;
+  background: transparent;
+  color:
+    var(--wiki-chrome-text);
+  font-family: inherit;
+  font-size: 15px;
+  font-weight: 800;
+  line-height: 1.25;
+  text-align: left;
+  cursor: pointer;
+  transition:
+    border-color 0.16s ease,
+    background-color 0.16s ease,
+    box-shadow 0.16s ease,
+    color 0.16s ease,
+    transform 0.16s ease;
+}
+
+#wiki-scroll-root
+.wiki-nav-list
+> li
+> .wiki-nav-item:hover {
+  border-color:
+    var(--wiki-chrome-border);
+  background:
+    var(--wiki-chrome-hover);
+  box-shadow:
+    0 7px 18px
+    rgba(39, 78, 46, 0.06);
+  color:
+    var(
+      --wiki-chrome-accent-strong
+    );
+  transform:
+    translateY(-1px);
+}
+
+#wiki-scroll-root
+.wiki-nav-list
+> li
+> .wiki-nav-item.active {
+  border-color:
+    var(
+      --wiki-chrome-border-strong
+    );
+  background:
+    linear-gradient(
+      135deg,
+      #eef8e9,
+      #e4f3e5
+    );
+  box-shadow:
+    0 9px 21px
+    rgba(61, 113, 69, 0.11);
+  color:
+    var(
+      --wiki-chrome-accent-strong
+    );
+}
+
+/* 기존 보라색 세로 active 바를 홈 초록색으로 변경한다. */
+#wiki-scroll-root
+.wiki-nav-item.active::before,
+#wiki-scroll-root
+.wiki-doc-item.active::before {
+  background:
+    var(
+      --wiki-chrome-accent
+    ) !important;
+}
+
+/* 루트 카테고리 아이콘 카드 */
+#wiki-scroll-root
+.wiki-nav-list
+> li
+> .wiki-nav-item
+.wiki-cat-icon-token {
+  display: grid;
+  place-items: center;
+  flex:
+    0 0
+    39px;
+  width: 39px;
+  height: 39px;
+  margin-right: 10px;
+  border:
+    1px solid
+    rgba(103, 151, 105, 0.18);
+  border-radius: 12px;
+  background:
+    rgba(238, 248, 233, 0.95);
+  box-shadow: none;
+}
+
+#wiki-scroll-root
+.wiki-nav-list
+> li
+> .wiki-nav-item.active
+.wiki-cat-icon-token {
+  border-color:
+    rgba(83, 151, 94, 0.28);
+  background:
+    rgba(226, 243, 221, 0.98);
+}
+
+#wiki-scroll-root
+.wiki-category-main {
+  display: flex;
+  align-items: center;
+  min-width: 0;
+}
+
+#wiki-scroll-root
+.wiki-category-label-text {
+  overflow: hidden;
+  color: inherit;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+#wiki-scroll-root
+.wiki-category-icon-img {
+  width: 27px;
+  height: 27px;
+  object-fit: contain;
+}
+
+#wiki-scroll-root
+.wiki-category-icon-emoji {
+  display: grid;
+  place-items: center;
+  min-width: 27px;
+  min-height: 27px;
+  font-size: 22px;
+  line-height: 1;
+}
+
+#wiki-scroll-root
+.wiki-category-arrow {
+  display: grid !important;
+  place-items: center;
+  flex:
+    0 0
+    30px;
+  width: 30px;
+  height: 30px;
+  margin-left: 6px;
+  border:
+    1px solid
+    transparent;
+  border-radius: 10px;
+  color:
+    #6e7c71;
+  transition:
+    border-color 0.16s ease,
+    background-color 0.16s ease,
+    color 0.16s ease,
+    transform 0.2s ease;
+}
+
+#wiki-scroll-root
+.wiki-nav-item:hover
+.wiki-category-arrow {
+  border-color:
+    rgba(92, 151, 99, 0.2);
+  background:
+    rgba(229, 243, 226, 0.74);
+  color:
+    var(
+      --wiki-chrome-accent
+    );
+}
+
+/* ---------- 펼쳐진 하위 문서/카테고리 ---------- */
+
+#wiki-scroll-root
+.wiki-doc-list {
+  position: relative;
+  margin:
+    2px
+    0
+    8px
+    20px;
+  padding:
+    2px
+    0
+    2px
+    16px;
+  border-left:
+    2px solid
+    var(--wiki-chrome-line);
+}
+
+#wiki-scroll-root
+.wiki-doc-list
+.wiki-nav-item {
+  min-height: 38px;
+  margin: 2px 0;
+  padding:
+    6px
+    8px;
+  border:
+    1px solid transparent;
+  border-radius: 11px;
+  background: transparent;
+  color:
+    #2b362e;
+  font-size: 14px;
+  font-weight: 750;
+  transition:
+    border-color 0.15s ease,
+    background-color 0.15s ease,
+    color 0.15s ease;
+}
+
+#wiki-scroll-root
+.wiki-doc-list
+.wiki-nav-item:hover {
+  border-color:
+    rgba(99, 145, 103, 0.14);
+  background:
+    rgba(239, 247, 236, 0.9);
+  color:
+    var(
+      --wiki-chrome-accent-strong
+    );
+}
+
+/*
+ * 하위 카테고리는 루트보다 아이콘 배경을 작게 해서
+ * 계층 구조가 한눈에 보이도록 한다.
+ */
+#wiki-scroll-root
+.wiki-doc-list
+.wiki-cat-icon-token {
+  display: grid;
+  place-items: center;
+  flex:
+    0 0
+    30px;
+  width: 30px;
+  height: 30px;
+  margin-right: 6px;
+  border:
+    1px solid
+    rgba(102, 149, 105, 0.13);
+  border-radius: 9px;
+  background:
+    rgba(244, 249, 241, 0.88);
+}
+
+#wiki-scroll-root
+.wiki-doc-list
+.wiki-category-icon-img {
+  width: 21px;
+  height: 21px;
+}
+
+#wiki-scroll-root
+.wiki-doc-list
+.wiki-category-icon-emoji {
+  min-width: 21px;
+  min-height: 21px;
+  font-size: 18px;
+}
+
+/* 개별 문서 항목 */
+#wiki-scroll-root
+.wiki-doc-item {
+  position: relative;
+  display: flex;
+  align-items: center;
+  min-height: 36px;
+  margin: 2px 0;
+  padding:
+    7px
+    9px;
+  border:
+    1px solid transparent;
+  border-radius: 10px;
+  background: transparent;
+  color:
+    #303b32;
+  font-size: 14px;
+  font-weight: 650;
+  cursor: pointer;
+  transition:
+    border-color 0.15s ease,
+    background-color 0.15s ease,
+    color 0.15s ease,
+    transform 0.15s ease;
+}
+
+#wiki-scroll-root
+.wiki-doc-item:hover {
+  border-color:
+    rgba(96, 145, 101, 0.16);
+  background:
+    rgba(239, 247, 236, 0.9);
+  color:
+    var(
+      --wiki-chrome-accent-strong
+    );
+  transform:
+    translateX(2px);
+}
+
+#wiki-scroll-root
+.wiki-doc-item.active {
+  border-color:
+    rgba(86, 155, 96, 0.23);
+  background:
+    var(--wiki-chrome-active);
+  color:
+    var(
+      --wiki-chrome-accent-strong
+    );
+  font-weight: 800;
+  box-shadow:
+    inset 3px 0 0
+    var(
+      --wiki-chrome-accent
+    );
+}
+
+#wiki-scroll-root
+.wiki-doc-item
+.doc-title {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* ---------- 오른쪽 목차 카드 ---------- */
+
+/*
+ * 프로젝트의 기존 명시적 클래스와,
+ * 오른쪽 마지막 aside 구조를 둘 다 지원한다.
+ * TableOfContents의 로직이나 마크업 수정은 필요 없다.
+ */
+#wiki-scroll-root
+:is(
+  .wiki-toc,
+  .wiki-toc-card,
+  .wiki-toc-container,
+  .table-of-contents,
+  .toc-container
+),
+#wiki-scroll-root
+aside:last-of-type
+> div:first-child {
+  border:
+    1px solid
+    var(--wiki-chrome-border) !important;
+  border-radius:
+    19px !important;
+  background:
+    color-mix(
+      in srgb,
+      var(--wiki-chrome-panel)
+      92%,
+      transparent
+    ) !important;
+  box-shadow:
+    var(
+      --wiki-chrome-shadow
+    ) !important;
+  backdrop-filter:
+    blur(14px);
+  -webkit-backdrop-filter:
+    blur(14px);
+}
+
+/* 목차 카드 내부 여백 */
+#wiki-scroll-root
+:is(
+  .wiki-toc,
+  .wiki-toc-card,
+  .wiki-toc-container,
+  .table-of-contents,
+  .toc-container
+),
+#wiki-scroll-root
+aside:last-of-type
+> div:first-child {
+  padding:
+    14px
+    14px
+    15px !important;
+}
+
+/* 목차 제목 */
+#wiki-scroll-root
+:is(
+  .wiki-toc,
+  .wiki-toc-card,
+  .wiki-toc-container,
+  .table-of-contents,
+  .toc-container
+)
+:is(
+  h2,
+  h3,
+  .toc-title,
+  .wiki-toc-title
+),
+#wiki-scroll-root
+aside:last-of-type
+> div:first-child
+> :first-child {
+  color:
+    var(--wiki-chrome-text);
+  font-size:
+    14px !important;
+  font-weight:
+    900 !important;
+  letter-spacing:
+    -0.02em;
+}
+
+/* 목차 리스트 */
+#wiki-scroll-root
+:is(
+  .wiki-toc,
+  .wiki-toc-card,
+  .wiki-toc-container,
+  .table-of-contents,
+  .toc-container
+)
+:is(
+  ul,
+  ol
+),
+#wiki-scroll-root
+aside:last-of-type
+:is(
+  ul,
+  ol
+) {
+  margin:
+    10px
+    0
+    0;
+  padding: 0;
+  list-style: none;
+}
+
+/* 목차 링크 */
+#wiki-scroll-root
+:is(
+  .wiki-toc,
+  .wiki-toc-card,
+  .wiki-toc-container,
+  .table-of-contents,
+  .toc-container,
+  aside:last-of-type
+)
+a[href^='#'] {
+  position: relative;
+  display: flex;
+  align-items: center;
+  min-height: 36px;
+  margin: 3px 0;
+  padding:
+    7px
+    9px
+    7px
+    12px;
+  border:
+    1px solid transparent;
+  border-radius: 10px;
+  color:
+    #56635a;
+  font-size: 13px;
+  font-weight: 700;
+  line-height: 1.35;
+  text-decoration: none;
+  transition:
+    border-color 0.15s ease,
+    background-color 0.15s ease,
+    color 0.15s ease,
+    transform 0.15s ease;
+}
+
+#wiki-scroll-root
+:is(
+  .wiki-toc,
+  .wiki-toc-card,
+  .wiki-toc-container,
+  .table-of-contents,
+  .toc-container,
+  aside:last-of-type
+)
+a[href^='#']::before {
+  content: '';
+  flex:
+    0 0
+    5px;
+  width: 5px;
+  height: 5px;
+  margin-right: 9px;
+  border-radius: 999px;
+  background:
+    #b7c9b9;
+  transition:
+    width 0.15s ease,
+    height 0.15s ease,
+    background-color 0.15s ease,
+    box-shadow 0.15s ease;
+}
+
+#wiki-scroll-root
+:is(
+  .wiki-toc,
+  .wiki-toc-card,
+  .wiki-toc-container,
+  .table-of-contents,
+  .toc-container,
+  aside:last-of-type
+)
+a[href^='#']:hover {
+  border-color:
+    rgba(91, 151, 99, 0.16);
+  background:
+    rgba(239, 248, 236, 0.88);
+  color:
+    var(
+      --wiki-chrome-accent-strong
+    );
+  transform:
+    translateX(2px);
+}
+
+/* 현재 읽는 목차 항목 */
+#wiki-scroll-root
+:is(
+  .wiki-toc,
+  .wiki-toc-card,
+  .wiki-toc-container,
+  .table-of-contents,
+  .toc-container,
+  aside:last-of-type
+)
+:is(
+  .active,
+  [aria-current='true'],
+  [aria-current='location'],
+  [data-active='true']
+)
+a[href^='#'],
+#wiki-scroll-root
+:is(
+  .wiki-toc,
+  .wiki-toc-card,
+  .wiki-toc-container,
+  .table-of-contents,
+  .toc-container,
+  aside:last-of-type
+)
+a[href^='#']:is(
+  .active,
+  [aria-current='true'],
+  [aria-current='location'],
+  [data-active='true']
+) {
+  border-color:
+    rgba(83, 155, 94, 0.23);
+  background:
+    linear-gradient(
+      135deg,
+      #edf8e9,
+      #e5f3e6
+    );
+  color:
+    var(
+      --wiki-chrome-accent-strong
+    );
+  font-weight: 850;
+}
+
+#wiki-scroll-root
+:is(
+  .wiki-toc,
+  .wiki-toc-card,
+  .wiki-toc-container,
+  .table-of-contents,
+  .toc-container,
+  aside:last-of-type
+)
+:is(
+  .active,
+  [aria-current='true'],
+  [aria-current='location'],
+  [data-active='true']
+)
+a[href^='#']::before,
+#wiki-scroll-root
+:is(
+  .wiki-toc,
+  .wiki-toc-card,
+  .wiki-toc-container,
+  .table-of-contents,
+  .toc-container,
+  aside:last-of-type
+)
+a[href^='#']:is(
+  .active,
+  [aria-current='true'],
+  [aria-current='location'],
+  [data-active='true']
+)::before {
+  width: 7px;
+  height: 7px;
+  background:
+    var(
+      --wiki-chrome-accent
+    );
+  box-shadow:
+    0 0 0 4px
+    rgba(85, 164, 98, 0.12);
+}
+
+/* 목차 없음 박스 */
+#wiki-scroll-root
+:is(
+  .wiki-toc-empty,
+  .toc-empty,
+  .wiki-toc-placeholder
+) {
+  margin-top: 10px;
+  padding:
+    14px
+    10px;
+  border:
+    1px dashed
+    rgba(99, 139, 102, 0.2);
+  border-radius: 12px;
+  background:
+    rgba(247, 250, 245, 0.72);
+  color:
+    #8a958c;
+  font-size: 12px;
+  font-weight: 750;
+  text-align: center;
+}
+
+/* ---------- 다크 모드 ---------- */
+
+:root[data-theme='dark']
+#rdwiki-page,
+:root[data-theme='dark']
+#wiki-scroll-root {
+  --wiki-chrome-bg:
+    #0b1220;
+  --wiki-chrome-panel:
+    rgba(15, 27, 43, 0.92);
+  --wiki-chrome-panel-soft:
+    rgba(18, 33, 47, 0.9);
+  --wiki-chrome-border:
+    rgba(142, 188, 151, 0.17);
+  --wiki-chrome-border-strong:
+    rgba(128, 202, 143, 0.31);
+  --wiki-chrome-text:
+    #edf5ef;
+  --wiki-chrome-muted:
+    #9dafb3;
+  --wiki-chrome-accent:
+    #87ca94;
+  --wiki-chrome-accent-strong:
+    #a7dfb0;
+  --wiki-chrome-active:
+    rgba(61, 111, 70, 0.24);
+  --wiki-chrome-hover:
+    rgba(35, 64, 45, 0.28);
+  --wiki-chrome-line:
+    rgba(118, 170, 128, 0.2);
+  --wiki-chrome-shadow:
+    0 18px 42px
+    rgba(0, 0, 0, 0.26);
+}
+
+:root[data-theme='dark']
+#wiki-scroll-root {
+  background-image:
+    linear-gradient(
+      to right,
+      #0b1220 0%,
+      #0b1220 73%,
+      rgba(11, 18, 32, 0.98) 79%,
+      rgba(11, 18, 32, 0.76) 88%,
+      rgba(11, 18, 32, 0.3) 100%
+    ),
+    url(
+      '/images/home/home-side-background-right-dark.png'
+    );
+}
+
+:root[data-theme='dark']
+#wiki-scroll-root
+.wiki-nav-scroll {
+  border-right-color:
+    var(--wiki-chrome-border);
+  background:
+    linear-gradient(
+      180deg,
+      rgba(12, 22, 37, 0.98) 0%,
+      rgba(13, 26, 41, 0.97) 48%,
+      rgba(14, 31, 39, 0.95) 100%
+    );
+  box-shadow:
+    inset -1px 0 0
+    rgba(255, 255, 255, 0.025);
+}
+
+:root[data-theme='dark']
+#wiki-scroll-root
+.wiki-nav-list
+> li
+> .wiki-nav-item {
+  color:
+    var(--wiki-chrome-text);
+}
+
+:root[data-theme='dark']
+#wiki-scroll-root
+.wiki-nav-list
+> li
+> .wiki-nav-item:hover {
+  background:
+    var(--wiki-chrome-hover);
+  box-shadow:
+    0 8px 20px
+    rgba(0, 0, 0, 0.15);
+}
+
+:root[data-theme='dark']
+#wiki-scroll-root
+.wiki-nav-list
+> li
+> .wiki-nav-item.active {
+  background:
+    linear-gradient(
+      135deg,
+      rgba(41, 82, 50, 0.46),
+      rgba(25, 54, 48, 0.42)
+    );
+  box-shadow:
+    0 10px 24px
+    rgba(0, 0, 0, 0.19);
+}
+
+:root[data-theme='dark']
+#wiki-scroll-root
+.wiki-nav-list
+> li
+> .wiki-nav-item
+.wiki-cat-icon-token {
+  border-color:
+    rgba(139, 194, 150, 0.16);
+  background:
+    rgba(39, 66, 46, 0.38);
+  box-shadow: none;
+}
+
+:root[data-theme='dark']
+#wiki-scroll-root
+.wiki-doc-list
+.wiki-nav-item,
+:root[data-theme='dark']
+#wiki-scroll-root
+.wiki-doc-item {
+  color:
+    #cbd8d0;
+}
+
+:root[data-theme='dark']
+#wiki-scroll-root
+.wiki-doc-list
+.wiki-nav-item:hover,
+:root[data-theme='dark']
+#wiki-scroll-root
+.wiki-doc-item:hover {
+  border-color:
+    rgba(136, 199, 148, 0.14);
+  background:
+    rgba(39, 68, 49, 0.28);
+  color:
+    var(
+      --wiki-chrome-accent-strong
+    );
+}
+
+:root[data-theme='dark']
+#wiki-scroll-root
+.wiki-doc-list
+.wiki-cat-icon-token {
+  border-color:
+    rgba(135, 190, 145, 0.12);
+  background:
+    rgba(30, 55, 40, 0.32);
+}
+
+:root[data-theme='dark']
+#wiki-scroll-root
+.wiki-doc-item.active {
+  border-color:
+    rgba(128, 204, 142, 0.23);
+  background:
+    rgba(49, 96, 60, 0.3);
+}
+
+:root[data-theme='dark']
+#wiki-scroll-root
+:is(
+  .wiki-toc,
+  .wiki-toc-card,
+  .wiki-toc-container,
+  .table-of-contents,
+  .toc-container
+),
+:root[data-theme='dark']
+#wiki-scroll-root
+aside:last-of-type
+> div:first-child {
+  background:
+    rgba(13, 25, 40, 0.88) !important;
+}
+
+:root[data-theme='dark']
+#wiki-scroll-root
+:is(
+  .wiki-toc,
+  .wiki-toc-card,
+  .wiki-toc-container,
+  .table-of-contents,
+  .toc-container,
+  aside:last-of-type
+)
+a[href^='#'] {
+  color:
+    #aabbb2;
+}
+
+:root[data-theme='dark']
+#wiki-scroll-root
+:is(
+  .wiki-toc,
+  .wiki-toc-card,
+  .wiki-toc-container,
+  .table-of-contents,
+  .toc-container,
+  aside:last-of-type
+)
+a[href^='#']:hover {
+  border-color:
+    rgba(136, 205, 149, 0.17);
+  background:
+    rgba(41, 74, 52, 0.3);
+  color:
+    var(
+      --wiki-chrome-accent-strong
+    );
+}
+
+:root[data-theme='dark']
+#wiki-scroll-root
+:is(
+  .wiki-toc,
+  .wiki-toc-card,
+  .wiki-toc-container,
+  .table-of-contents,
+  .toc-container,
+  aside:last-of-type
+)
+:is(
+  .active,
+  [aria-current='true'],
+  [aria-current='location'],
+  [data-active='true']
+)
+a[href^='#'],
+:root[data-theme='dark']
+#wiki-scroll-root
+:is(
+  .wiki-toc,
+  .wiki-toc-card,
+  .wiki-toc-container,
+  .table-of-contents,
+  .toc-container,
+  aside:last-of-type
+)
+a[href^='#']:is(
+  .active,
+  [aria-current='true'],
+  [aria-current='location'],
+  [data-active='true']
+) {
+  background:
+    linear-gradient(
+      135deg,
+      rgba(45, 86, 54, 0.48),
+      rgba(26, 58, 51, 0.44)
+    );
+}
+
+/* ---------- 화면 폭 대응 ---------- */
+
+@media (max-width: 1280px) {
+  #wiki-scroll-root {
+    background-image: none;
+  }
+}
+
+@media (max-width: 1024px) {
+  #wiki-scroll-root
+  .wiki-nav-scroll {
+    padding:
+      14px
+      10px
+      32px;
+  }
+
+  #wiki-scroll-root
+  .wiki-nav-list
+  > li
+  > .wiki-nav-item {
+    min-height: 48px;
+    border-radius: 13px;
+  }
+}
+
+@media (max-width: 768px) {
+  #wiki-scroll-root {
+    background-image: none;
+  }
+
+  #wiki-scroll-root
+  .wiki-nav-scroll {
+    border-right: 0;
+    background:
+      var(--wiki-chrome-panel);
+  }
+}
+
+@media (
+  prefers-reduced-motion:
+  reduce
+) {
+  #wiki-scroll-root
+  .wiki-nav-item,
+  #wiki-scroll-root
+  .wiki-doc-item,
+  #wiki-scroll-root
+  :is(
+    .wiki-toc,
+    .wiki-toc-card,
+    .wiki-toc-container,
+    .table-of-contents,
+    .toc-container,
+    aside:last-of-type
+  )
+  a[href^='#'] {
+    transition: none;
+  }
+}

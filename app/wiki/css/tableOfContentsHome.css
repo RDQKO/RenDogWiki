@@ -1,0 +1,609 @@
+/* =============================================
+ * File: app/wiki/css/tableOfContentsHome.css
+ * 전체 코드
+ *
+ * 기존 TableOfContents.tsx의 스크롤/활성 추적 로직과
+ * 레이아웃 수치는 유지하고 시각 디자인만 변경한다.
+ *
+ * 적용 범위
+ * - 데스크톱 오른쪽 목차 카드
+ * - 문서 제목 영역
+ * - 목차 없음 영역
+ * - 활성 목차 슬라이딩 강조
+ * - 라이트/다크 모드
+ * ============================================= */
+
+/* ---------------------------------------------
+ * 1. 목차 전용 디자인 토큰
+ * --------------------------------------------- */
+
+.wiki-toc-sidebar {
+  --toc-home-surface:
+    rgba(255, 255, 252, 0.96);
+  --toc-home-surface-soft:
+    rgba(244, 250, 240, 0.92);
+  --toc-home-surface-hover:
+    rgba(235, 247, 230, 0.94);
+  --toc-home-surface-active:
+    linear-gradient(
+      135deg,
+      rgba(237, 248, 232, 0.98),
+      rgba(226, 243, 225, 0.98)
+    );
+  --toc-home-border:
+    rgba(86, 139, 92, 0.19);
+  --toc-home-border-strong:
+    rgba(75, 151, 86, 0.31);
+  --toc-home-text:
+    #17231a;
+  --toc-home-muted:
+    #637067;
+  --toc-home-accent:
+    #56a765;
+  --toc-home-accent-strong:
+    #347d43;
+  --toc-home-accent-soft:
+    rgba(86, 167, 101, 0.13);
+  --toc-home-icon-bg:
+    rgba(231, 245, 226, 0.96);
+  --toc-home-shadow:
+    0 16px 38px
+    rgba(35, 66, 40, 0.09);
+  --toc-home-shadow-hover:
+    0 8px 18px
+    rgba(50, 95, 57, 0.08);
+}
+
+/* ---------------------------------------------
+ * 2. 전체 목차 카드
+ * --------------------------------------------- */
+
+.wiki-toc-sidebar
+> aside[role='navigation'] {
+  box-sizing: border-box !important;
+  padding:
+    14px
+    13px
+    15px !important;
+  border:
+    1px solid
+    var(--toc-home-border) !important;
+  border-radius:
+    18px !important;
+  background:
+    linear-gradient(
+      180deg,
+      var(--toc-home-surface) 0%,
+      rgba(249, 252, 247, 0.95) 100%
+    ) !important;
+  box-shadow:
+    var(--toc-home-shadow) !important;
+  color:
+    var(--toc-home-text) !important;
+  scrollbar-width: thin;
+  scrollbar-color:
+    rgba(76, 143, 85, 0.28)
+    transparent;
+  backdrop-filter:
+    blur(15px);
+  -webkit-backdrop-filter:
+    blur(15px);
+}
+
+.wiki-toc-sidebar
+> aside[role='navigation']::-webkit-scrollbar {
+  width: 6px;
+}
+
+.wiki-toc-sidebar
+> aside[role='navigation']::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.wiki-toc-sidebar
+> aside[role='navigation']::-webkit-scrollbar-thumb {
+  border:
+    2px solid transparent;
+  border-radius: 999px;
+  background:
+    rgba(76, 143, 85, 0.28);
+  background-clip:
+    padding-box;
+}
+
+/* ---------------------------------------------
+ * 3. 목차 제목
+ * --------------------------------------------- */
+
+.wiki-toc-sidebar
+> aside[role='navigation']
+> p:first-child {
+  display: flex !important;
+  align-items: center !important;
+  gap: 8px !important;
+  min-height: 30px;
+  margin:
+    0
+    2px
+    11px !important;
+  padding:
+    0
+    5px !important;
+  color:
+    var(--toc-home-text) !important;
+  font-size:
+    14px !important;
+  font-weight:
+    900 !important;
+  letter-spacing:
+    -0.02em;
+}
+
+.wiki-toc-sidebar
+> aside[role='navigation']
+> p:first-child
+svg {
+  width: 15px;
+  height: 15px;
+  color:
+    var(--toc-home-accent);
+}
+
+/* ---------------------------------------------
+ * 4. 문서 제목 카드
+ * --------------------------------------------- */
+
+/*
+ * 목차가 있는 경우:
+ * 첫 번째 UL 안의 첫 버튼이 문서 제목 버튼이다.
+ */
+.wiki-toc-sidebar
+> aside[role='navigation']
+> ul:first-of-type
+> li:first-child
+> button {
+  box-sizing: border-box !important;
+  min-height: 55px;
+  margin:
+    0
+    0
+    7px !important;
+  padding:
+    9px
+    9px !important;
+  border:
+    1px solid
+    var(--toc-home-border) !important;
+  border-left:
+    1px solid
+    var(--toc-home-border) !important;
+  border-radius:
+    13px !important;
+  background:
+    var(--toc-home-surface-soft) !important;
+  color:
+    var(--toc-home-text) !important;
+  box-shadow: none;
+  transition:
+    border-color 0.16s ease,
+    background-color 0.16s ease,
+    box-shadow 0.16s ease,
+    transform 0.16s ease;
+}
+
+/*
+ * 목차가 없는 경우:
+ * 문서 제목 버튼이 aside의 직접 자식으로 출력된다.
+ */
+.wiki-toc-sidebar
+> aside[role='navigation']
+> button[title] {
+  box-sizing: border-box !important;
+  min-height: 55px;
+  padding:
+    9px
+    9px !important;
+  border:
+    1px solid
+    var(--toc-home-border) !important;
+  border-radius:
+    13px !important;
+  background:
+    var(--toc-home-surface-soft) !important;
+  color:
+    var(--toc-home-text) !important;
+  box-shadow: none;
+  transition:
+    border-color 0.16s ease,
+    background-color 0.16s ease,
+    box-shadow 0.16s ease,
+    transform 0.16s ease;
+}
+
+.wiki-toc-sidebar
+> aside[role='navigation']
+> ul:first-of-type
+> li:first-child
+> button:hover,
+.wiki-toc-sidebar
+> aside[role='navigation']
+> button[title]:hover {
+  border-color:
+    var(--toc-home-border-strong) !important;
+  background:
+    var(--toc-home-surface-hover) !important;
+  box-shadow:
+    var(--toc-home-shadow-hover);
+  transform:
+    translateY(-1px);
+}
+
+/* 문서 제목 아이콘 */
+.wiki-toc-sidebar
+> aside[role='navigation']
+> ul:first-of-type
+> li:first-child
+> button
+> span:first-child,
+.wiki-toc-sidebar
+> aside[role='navigation']
+> button[title]
+> span:first-child {
+  display: grid !important;
+  place-items: center !important;
+  flex:
+    0 0
+    34px !important;
+  width:
+    34px !important;
+  height:
+    34px !important;
+  margin-right:
+    1px !important;
+  border:
+    1px solid
+    rgba(86, 143, 92, 0.16);
+  border-radius:
+    10px;
+  background:
+    var(--toc-home-icon-bg);
+}
+
+.wiki-toc-sidebar
+> aside[role='navigation']
+> ul:first-of-type
+> li:first-child
+> button
+> span:first-child
+img,
+.wiki-toc-sidebar
+> aside[role='navigation']
+> button[title]
+> span:first-child
+img {
+  width:
+    24px !important;
+  height:
+    24px !important;
+}
+
+/* 문서 제목 텍스트 */
+.wiki-toc-sidebar
+> aside[role='navigation']
+> ul:first-of-type
+> li:first-child
+> button
+> span:last-child,
+.wiki-toc-sidebar
+> aside[role='navigation']
+> button[title]
+> span:last-child {
+  color:
+    var(--toc-home-text) !important;
+  font-size:
+    14px !important;
+  font-weight:
+    850 !important;
+  line-height:
+    1.35 !important;
+  letter-spacing:
+    -0.02em !important;
+}
+
+/* ---------------------------------------------
+ * 5. 목차 항목 리스트
+ * --------------------------------------------- */
+
+.wiki-toc-sidebar
+> aside[role='navigation']
+> ul:last-of-type {
+  gap:
+    3px !important;
+  padding:
+    2px
+    0 !important;
+}
+
+/* 개별 목차 버튼 */
+.wiki-toc-sidebar
+> aside[role='navigation']
+> ul:last-of-type
+> li
+> button[data-toc-index] {
+  box-sizing: border-box !important;
+  min-height: 37px;
+  border:
+    1px solid transparent !important;
+  border-left:
+    3px solid transparent !important;
+  border-radius:
+    10px !important;
+  background:
+    transparent !important;
+  color:
+    var(--toc-home-muted) !important;
+  font-size:
+    13px !important;
+  font-weight:
+    700 !important;
+  line-height:
+    1.35 !important;
+  transition:
+    border-color 0.15s ease,
+    background-color 0.15s ease,
+    color 0.15s ease,
+    transform 0.15s ease !important;
+}
+
+.wiki-toc-sidebar
+> aside[role='navigation']
+> ul:last-of-type
+> li
+> button[data-toc-index]:hover {
+  border-color:
+    rgba(84, 147, 92, 0.13) !important;
+  background:
+    var(--toc-home-surface-hover) !important;
+  color:
+    var(--toc-home-accent-strong) !important;
+  transform:
+    translateX(2px);
+}
+
+/* 현재 읽는 항목 */
+.wiki-toc-sidebar
+> aside[role='navigation']
+> ul:last-of-type
+> li
+> button[data-toc-index][aria-current='true'] {
+  color:
+    var(--toc-home-accent-strong) !important;
+  font-weight:
+    850 !important;
+}
+
+/* 항목 아이콘 */
+.wiki-toc-sidebar
+> aside[role='navigation']
+> ul:last-of-type
+> li
+> button[data-toc-index]
+> span:first-child {
+  display: grid !important;
+  place-items: center !important;
+  flex:
+    0 0
+    25px !important;
+  width:
+    25px !important;
+  height:
+    25px !important;
+  margin-right:
+    4px !important;
+  border-radius:
+    8px;
+  background:
+    rgba(238, 247, 234, 0.72);
+}
+
+.wiki-toc-sidebar
+> aside[role='navigation']
+> ul:last-of-type
+> li
+> button[data-toc-index]
+> span:first-child
+img {
+  width:
+    21px !important;
+  height:
+    21px !important;
+}
+
+/*
+ * 기존 컴포넌트가 위치만 계산하는 슬라이딩 indicator.
+ * 색상과 테두리는 홈 디자인의 초록 계열로 교체한다.
+ */
+.wiki-toc-sidebar
+> aside[role='navigation']
+> ul:last-of-type
+> div[aria-hidden] {
+  left:
+    3px !important;
+  right:
+    3px !important;
+  border:
+    1px solid
+    rgba(77, 151, 87, 0.22) !important;
+  border-left:
+    3px solid
+    var(--toc-home-accent) !important;
+  border-radius:
+    10px !important;
+  background:
+    var(--toc-home-surface-active) !important;
+  box-shadow:
+    0 5px 13px
+    rgba(62, 118, 70, 0.08);
+}
+
+/* ---------------------------------------------
+ * 6. 목차 없음
+ * --------------------------------------------- */
+
+.wiki-toc-sidebar
+> aside[role='navigation']
+> div:last-child {
+  margin-top:
+    3px !important;
+  padding:
+    15px
+    10px !important;
+  border:
+    1px dashed
+    rgba(91, 141, 96, 0.24) !important;
+  border-radius:
+    12px !important;
+  background:
+    rgba(246, 250, 243, 0.78) !important;
+  color:
+    #879389 !important;
+  font-size:
+    12px !important;
+  font-weight:
+    750 !important;
+}
+
+/* ---------------------------------------------
+ * 7. 포커스 접근성
+ * --------------------------------------------- */
+
+.wiki-toc-sidebar
+> aside[role='navigation']
+button:focus-visible {
+  outline:
+    2px solid
+    color-mix(
+      in srgb,
+      var(--toc-home-accent)
+      70%,
+      transparent
+    ) !important;
+  outline-offset:
+    2px;
+}
+
+/* ---------------------------------------------
+ * 8. 다크 모드
+ * --------------------------------------------- */
+
+:root[data-theme='dark']
+.wiki-toc-sidebar {
+  --toc-home-surface:
+    rgba(14, 25, 40, 0.94);
+  --toc-home-surface-soft:
+    rgba(24, 43, 42, 0.84);
+  --toc-home-surface-hover:
+    rgba(37, 69, 48, 0.38);
+  --toc-home-surface-active:
+    linear-gradient(
+      135deg,
+      rgba(45, 87, 55, 0.5),
+      rgba(25, 59, 50, 0.47)
+    );
+  --toc-home-border:
+    rgba(135, 188, 146, 0.18);
+  --toc-home-border-strong:
+    rgba(128, 203, 142, 0.32);
+  --toc-home-text:
+    #edf5ef;
+  --toc-home-muted:
+    #a7b8ae;
+  --toc-home-accent:
+    #87ca94;
+  --toc-home-accent-strong:
+    #afe2b7;
+  --toc-home-accent-soft:
+    rgba(113, 188, 128, 0.14);
+  --toc-home-icon-bg:
+    rgba(45, 78, 52, 0.46);
+  --toc-home-shadow:
+    0 18px 42px
+    rgba(0, 0, 0, 0.27);
+  --toc-home-shadow-hover:
+    0 10px 23px
+    rgba(0, 0, 0, 0.2);
+}
+
+:root[data-theme='dark']
+.wiki-toc-sidebar
+> aside[role='navigation'] {
+  background:
+    linear-gradient(
+      180deg,
+      rgba(14, 25, 40, 0.95),
+      rgba(15, 31, 42, 0.93)
+    ) !important;
+}
+
+:root[data-theme='dark']
+.wiki-toc-sidebar
+> aside[role='navigation']
+> ul:first-of-type
+> li:first-child
+> button,
+:root[data-theme='dark']
+.wiki-toc-sidebar
+> aside[role='navigation']
+> button[title] {
+  box-shadow: none;
+}
+
+:root[data-theme='dark']
+.wiki-toc-sidebar
+> aside[role='navigation']
+> ul:last-of-type
+> li
+> button[data-toc-index]
+> span:first-child {
+  background:
+    rgba(43, 72, 49, 0.42);
+}
+
+:root[data-theme='dark']
+.wiki-toc-sidebar
+> aside[role='navigation']
+> div:last-child {
+  border-color:
+    rgba(133, 190, 144, 0.18) !important;
+  background:
+    rgba(18, 32, 44, 0.7) !important;
+  color:
+    #84979d !important;
+}
+
+/* ---------------------------------------------
+ * 9. 반응형 및 모션 최소화
+ * --------------------------------------------- */
+
+@media (max-width: 1023px) {
+  .wiki-toc-sidebar-desktop {
+    display: none !important;
+  }
+}
+
+@media (
+  prefers-reduced-motion:
+  reduce
+) {
+  .wiki-toc-sidebar
+  > aside[role='navigation'],
+  .wiki-toc-sidebar
+  > aside[role='navigation']
+  button,
+  .wiki-toc-sidebar
+  > aside[role='navigation']
+  > ul:last-of-type
+  > div[aria-hidden] {
+    transition: none !important;
+  }
+}

@@ -2,15 +2,6 @@ import React from 'react';
 
 export type WikiTableMode = 'read' | 'edit';
 
-export type WikiTableAlign = 'left' | 'center' | 'right';
-
-export type WikiTableContainerLayoutInput = {
-  maxWidth?: number | null;
-  liveWidth?: number | null;
-  fullWidth?: boolean | null;
-  align?: WikiTableAlign | string | null;
-};
-
 export type WikiTableRendererProps = {
   mode: WikiTableMode;
   attributes?: React.HTMLAttributes<HTMLDivElement>;
@@ -33,8 +24,6 @@ export type WikiTableRendererProps = {
   tableStyle?: React.CSSProperties;
 
   overlay?: React.ReactNode;
-  editControls?: React.ReactNode;
-  readControls?: React.ReactNode;
 
   afterContent?: React.ReactNode;
 

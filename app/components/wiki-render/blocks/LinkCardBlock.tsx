@@ -1,27 +1,24 @@
 import React from 'react';
+
+import '../../../wiki/css/document-components/link-card.css';
+
 import type { WikiRenderMode } from '../types';
 
 type LinkCardBlockProps = {
   mode: WikiRenderMode;
-
   href?: string | null;
   title?: React.ReactNode;
   subtitle?: React.ReactNode;
   metaText?: React.ReactNode;
-
   icon?: React.ReactNode;
   fallbackIcon?: React.ReactNode;
-
   size?: 'normal' | 'small' | 'half' | 'full' | string | null;
   inRow?: boolean;
   isWikiLink?: boolean;
-
   attributes?: React.HTMLAttributes<HTMLDivElement>;
   children?: React.ReactNode;
-
   editControls?: React.ReactNode;
   readControls?: React.ReactNode;
-
   clickableInReadMode?: boolean;
 };
 
@@ -30,17 +27,57 @@ function isHalfSize(size?: LinkCardBlockProps['size']) {
 }
 
 function DefaultIcon({ isWikiLink }: { isWikiLink?: boolean }) {
+  if (isWikiLink) {
+    return (
+      <svg
+        className="wiki-link-card-default-icon-svg"
+        viewBox="0 0 24 24"
+        aria-hidden
+        focusable="false"
+      >
+        <path
+          d="M6.75 3.75h7.1L18 7.9v12.35H6.75V3.75Z"
+          fill="none"
+          stroke="currentColor"
+          strokeWidth="1.7"
+          strokeLinejoin="round"
+        />
+        <path
+          d="M13.5 3.9v4.35h4.35M9.25 12h6.2M9.25 15.25h4.65"
+          fill="none"
+          stroke="currentColor"
+          strokeWidth="1.7"
+          strokeLinecap="round"
+          strokeLinejoin="round"
+        />
+      </svg>
+    );
+  }
+
   return (
-    <span
+    <svg
+      className="wiki-link-card-default-icon-svg"
+      viewBox="0 0 24 24"
       aria-hidden
-      style={{
-        fontSize: 18,
-        lineHeight: 1,
-        color: isWikiLink ? 'var(--accent)' : 'var(--muted)',
-      }}
+      focusable="false"
     >
-      {isWikiLink ? '📄' : '🌐'}
-    </span>
+      <path
+        d="M14.25 4.75h5v5M19 5l-7.1 7.1"
+        fill="none"
+        stroke="currentColor"
+        strokeWidth="1.8"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+      <path
+        d="M18.25 13v5.25H5.75V5.75H11"
+        fill="none"
+        stroke="currentColor"
+        strokeWidth="1.8"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+    </svg>
   );
 }
 
@@ -63,88 +100,37 @@ export default function LinkCardBlock({
 }: LinkCardBlockProps) {
   const half = isHalfSize(size);
   const controls = mode === 'edit' ? editControls : readControls;
-  const [hovered, setHovered] = React.useState(false);
-
   const resolvedIcon =
     icon || fallbackIcon || <DefaultIcon isWikiLink={isWikiLink} />;
 
-  const wrapperStyle: React.CSSProperties =
-    mode === 'edit' && half
-      ? {
-          flex: '1 1 calc(50% - 6px)',
-          width: 'calc(50% - 6px)',
-          maxWidth: 'calc(50% - 6px)',
-          boxSizing: 'border-box',
-          display: 'block',
-        }
-      : {
-          display: 'block',
-          width: '100%',
-          maxWidth: '100%',
-          boxSizing: 'border-box',
-        };
-
-  const border = hovered
-    ? '1.5px solid var(--accent)'
-    : '1.5px solid var(--border)';
-
-  const shadow = hovered ? 'var(--shadow-lg)' : 'var(--shadow-sm)';
-
-  const cardStyle: React.CSSProperties = {
-    position: 'relative',
-    display: 'flex',
-    alignItems: 'center',
-    gap: 12,
-    padding: '14px 14px',
-    border,
-    borderRadius: 12,
-    marginBottom: 10,
-    width: '100%',
-    minHeight: 76,
-    boxSizing: 'border-box',
-    background: 'var(--surface-elevated)',
-    boxShadow: shadow,
-    transition: 'box-shadow .14s ease, border-color .14s ease, transform .14s ease',
-    transform: hovered ? 'translateY(-1px)' : 'translateY(0)',
-    color: 'inherit',
-    textDecoration: 'none',
-    cursor: mode === 'read' && href ? 'pointer' : 'default',
-  };
+  const {
+    className: attributeClassName,
+    style: attributeStyle,
+    ...restAttributes
+  } = attributes ?? {};
 
   const content = (
     <div
-      {...attributes}
+      {...restAttributes}
       className={[
         'wiki-link-card',
         mode === 'edit' ? 'wiki-link-card-edit' : 'wiki-link-card-read',
         half ? 'wiki-link-card-half' : '',
+        inRow ? 'wiki-link-card-in-row' : '',
         isWikiLink ? 'wiki-link-card-wiki' : 'wiki-link-card-external',
-        attributes?.className || '',
+        mode === 'read' && href ? 'wiki-link-card-clickable' : '',
+        attributeClassName || '',
       ]
         .filter(Boolean)
         .join(' ')}
-      style={{
-        ...wrapperStyle,
-        ...(attributes?.style || {}),
-      }}
+      style={attributeStyle}
     >
-      <div
-        className="wiki-link-card-inner"
-        onMouseEnter={() => setHovered(true)}
-        onMouseLeave={() => setHovered(false)}
-        style={cardStyle}
-      >
+      <div className="wiki-link-card-inner">
         {controls ? (
           <span
             className="wiki-link-card-controls"
             contentEditable={false}
             suppressContentEditableWarning
-            style={{
-              position: 'absolute',
-              top: -10,
-              right: -10,
-              zIndex: 2,
-            }}
           >
             {controls}
           </span>
@@ -154,47 +140,12 @@ export default function LinkCardBlock({
           className="wiki-link-card-icon"
           contentEditable={false}
           suppressContentEditableWarning
-          style={{
-            width: 38,
-            height: 38,
-            borderRadius: 12,
-            background: 'var(--accent-soft)',
-            display: 'inline-flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            flex: '0 0 auto',
-            overflow: 'hidden',
-            lineHeight: 1,
-          }}
         >
           {resolvedIcon}
         </span>
 
-        <span
-          className="wiki-link-card-text"
-          style={{
-            flex: '1 1 auto',
-            minWidth: 0,
-            display: 'flex',
-            flexDirection: 'column',
-            gap: 4,
-            justifyContent: 'center',
-          }}
-        >
-          <span
-            className="wiki-link-card-title"
-            style={{
-              fontSize: 16,
-              fontWeight: 750,
-              color: 'var(--foreground)',
-              lineHeight: 1.35,
-              overflow: 'hidden',
-              textOverflow: 'ellipsis',
-              whiteSpace: 'nowrap',
-              minWidth: 0,
-              display: 'block',
-            }}
-          >
+        <span className="wiki-link-card-text">
+          <span className="wiki-link-card-title">
             {title || children || '링크'}
           </span>
 
@@ -203,15 +154,6 @@ export default function LinkCardBlock({
               className="wiki-link-card-subtitle"
               contentEditable={false}
               suppressContentEditableWarning
-              style={{
-                fontSize: 12,
-                fontWeight: 600,
-                color: 'var(--muted)',
-                lineHeight: 1.35,
-                overflow: 'hidden',
-                textOverflow: 'ellipsis',
-                whiteSpace: 'nowrap',
-              }}
             >
               {subtitle}
             </span>
@@ -222,16 +164,6 @@ export default function LinkCardBlock({
               className="wiki-link-card-meta"
               contentEditable={false}
               suppressContentEditableWarning
-              style={{
-                fontSize: 11,
-                fontWeight: 600,
-                color: 'var(--muted)',
-                lineHeight: 1.35,
-                opacity: 0.85,
-                overflow: 'hidden',
-                textOverflow: 'ellipsis',
-                whiteSpace: 'nowrap',
-              }}
             >
               {metaText}
             </span>
@@ -243,14 +175,17 @@ export default function LinkCardBlock({
           aria-hidden
           contentEditable={false}
           suppressContentEditableWarning
-          style={{
-            flex: '0 0 auto',
-            color: 'var(--muted)',
-            fontSize: 18,
-            lineHeight: 1,
-          }}
         >
-          →
+          <svg viewBox="0 0 20 20" focusable="false">
+            <path
+              d="M6.75 10h6.5M10.75 6.5 14.25 10l-3.5 3.5"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="1.7"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+            />
+          </svg>
         </span>
       </div>
     </div>
@@ -258,16 +193,7 @@ export default function LinkCardBlock({
 
   if (mode === 'read' && clickableInReadMode && href) {
     return (
-      <a
-        href={href}
-        className="wiki-link-card-anchor"
-        style={{
-          color: 'inherit',
-          textDecoration: 'none',
-          display: 'block',
-          width: '100%',
-        }}
-      >
+      <a href={href} className="wiki-link-card-anchor">
         {content}
       </a>
     );

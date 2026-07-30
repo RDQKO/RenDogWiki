@@ -35,7 +35,6 @@ type LinkCardRendererProps = {
    * 저장된 데이터는 변경하지 않고 렌더링 경계에서만 해석한다.
    */
   size?: LinkCardInputSize;
-
   docIcon?: string | null;
   labelText?: string;
 
@@ -73,9 +72,34 @@ function ExternalLinkIcon({ size = 18 }: { size?: number }) {
   );
 }
 
-function looksLikeImageIcon(
-  icon: string | null | undefined,
-) {
+function WikiDocumentIcon() {
+  return (
+    <svg
+      className="wiki-link-card-default-wiki-icon"
+      viewBox="0 0 24 24"
+      aria-hidden
+      focusable="false"
+    >
+      <path
+        d="M6.75 3.75h7.1L18 7.9v12.35H6.75V3.75Z"
+        fill="none"
+        stroke="currentColor"
+        strokeWidth="1.7"
+        strokeLinejoin="round"
+      />
+      <path
+        d="M13.5 3.9v4.35h4.35M9.25 12h6.2M9.25 15.25h4.65"
+        fill="none"
+        stroke="currentColor"
+        strokeWidth="1.7"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+    </svg>
+  );
+}
+
+function looksLikeImageIcon(icon: string | null | undefined) {
   const value = String(icon ?? '').trim();
 
   if (!value) return false;
@@ -117,18 +141,14 @@ export default function LinkCardRenderer({
   onClick,
   children,
 }: LinkCardRendererProps) {
-  const { parsedUrl, isWikiLink } = resolveLinkCardTarget(
-    url,
-    isWiki,
-  );
+  const { parsedUrl, isWikiLink } = resolveLinkCardTarget(url, isWiki);
 
   const normalizedHref = React.useMemo(
     () => normalizeToAppHref(url || '#'),
     [url],
   );
 
-  const [faviconFailed, setFaviconFailed] =
-    React.useState(false);
+  const [faviconFailed, setFaviconFailed] = React.useState(false);
 
   /**
    * 문서 아이콘 조회는 이 공통 렌더러에서 처리하지 않는다.
@@ -139,8 +159,7 @@ export default function LinkCardRenderer({
    * 각 adapter가 useResolvedWikiDocIcon을 통해 해석한 아이콘을
    * docIcon prop으로 전달한다.
    */
-  const resolvedDocIcon =
-    String(docIcon ?? '').trim() || null;
+  const resolvedDocIcon = String(docIcon ?? '').trim() || null;
 
   React.useEffect(() => {
     setFaviconFailed(false);
@@ -153,28 +172,21 @@ export default function LinkCardRenderer({
   }
 
   const externalFavicon: string | null =
-    !isWikiLink && parsedUrl
-      ? `${parsedUrl.origin}/favicon.ico`
-      : null;
+    !isWikiLink && parsedUrl ? `${parsedUrl.origin}/favicon.ico` : null;
 
   const isHalf = isHalfLinkCardSize(size);
-  const isCompactTwoColMobile =
-    compactMobile && isHalf;
+  const isCompactTwoColMobile = compactMobile && isHalf;
 
   const fallbackTitleText =
     labelText ||
     (isWikiLink
-      ? decodeTitleForDisplay(wikiTitle) ||
-        sitename ||
-        '문서'
+      ? decodeTitleForDisplay(wikiTitle) || sitename || '문서'
       : displaySitename || url || '링크');
 
   const fallbackSubtitle = isWikiLink
     ? 'RenDog Wiki'
     : displaySitename ||
-      (parsedUrl
-        ? parsedUrl.origin.replace(/^https?:\/\//, '')
-        : '');
+      (parsedUrl ? parsedUrl.origin.replace(/^https?:\/\//, '') : '');
 
   const iconNode = isWikiLink ? (
     resolvedDocIcon ? (
@@ -184,31 +196,15 @@ export default function LinkCardRenderer({
           alt="doc icon"
           width={22}
           height={22}
-          style={{
-            width: 22,
-            height: 22,
-            objectFit: 'contain',
-            display: 'block',
-          }}
+          className="wiki-link-card-doc-image"
         />
       ) : (
-        <span
-          style={{
-            fontSize: 20,
-            lineHeight: 1,
-          }}
-        >
+        <span className="wiki-link-card-doc-symbol">
           {resolvedDocIcon}
         </span>
       )
     ) : (
-      <span
-        style={{
-          fontSize: 18,
-          lineHeight: 1,
-        }}
-        aria-hidden
-      />
+      <WikiDocumentIcon />
     )
   ) : externalFavicon && !faviconFailed ? (
     <img
@@ -220,23 +216,10 @@ export default function LinkCardRenderer({
       height={20}
       referrerPolicy="no-referrer"
       onError={() => setFaviconFailed(true)}
-      style={{
-        width: 20,
-        height: 20,
-        objectFit: 'contain',
-        display: 'block',
-        borderRadius: 4,
-      }}
+      className="wiki-link-card-favicon"
     />
   ) : (
-    <span
-      style={{
-        fontSize: 18,
-        lineHeight: 1,
-        color: 'var(--muted)',
-      }}
-      aria-hidden
-    >
+    <span className="wiki-link-card-external-icon" aria-hidden>
       <ExternalLinkIcon />
     </span>
   );
@@ -248,10 +231,14 @@ export default function LinkCardRenderer({
 
   const titleNode = (
     <span
-      style={{
-        fontSize: isCompactTwoColMobile ? 13 : 16,
-        fontWeight: 750,
-      }}
+      className={[
+        'wiki-link-card-renderer-title',
+        isCompactTwoColMobile
+          ? 'wiki-link-card-renderer-title-compact'
+          : '',
+      ]
+        .filter(Boolean)
+        .join(' ')}
     >
       {renderedTitleContent}
     </span>
@@ -319,28 +306,30 @@ export default function LinkCardRenderer({
     />
   );
 
-  const outerStyle: React.CSSProperties = {
-    position: 'relative',
-    flex: isHalf ? '1 1 calc(50% - 6px)' : undefined,
-    width: isHalf ? 'calc(50% - 6px)' : '100%',
-    maxWidth: isHalf ? 'calc(50% - 6px)' : '100%',
-    boxSizing: 'border-box',
-    display: 'block',
-  };
-
-  const mergedAttributes = attributes ?? {};
+  const {
+    className: attributeClassName,
+    style: attributeStyle,
+    ...restAttributes
+  } = attributes ?? {};
 
   return (
     <div
-      {...mergedAttributes}
+      {...restAttributes}
       data-wiki-block="link-block"
-      data-wiki-link-kind={
-        isWikiLink ? 'internal' : 'external'
-      }
-      style={{
-        ...outerStyle,
-        ...(mergedAttributes.style ?? {}),
-      }}
+      data-wiki-mode={mode}
+      data-wiki-link-kind={isWikiLink ? 'internal' : 'external'}
+      className={[
+        'wiki-link-card-renderer',
+        isHalf ? 'wiki-link-card-renderer-half' : '',
+        inRow ? 'wiki-link-card-renderer-in-row' : '',
+        isCompactTwoColMobile
+          ? 'wiki-link-card-renderer-compact-mobile'
+          : '',
+        attributeClassName || '',
+      ]
+        .filter(Boolean)
+        .join(' ')}
+      style={attributeStyle}
     >
       {mode === 'read' ? (
         <a
@@ -352,11 +341,7 @@ export default function LinkCardRenderer({
               ? undefined
               : 'noopener noreferrer nofollow'
           }
-          style={{
-            textDecoration: 'none',
-            color: 'inherit',
-            display: 'block',
-          }}
+          className="wiki-link-card-renderer-anchor"
           aria-label={
             typeof fallbackTitleText === 'string'
               ? fallbackTitleText
@@ -368,21 +353,14 @@ export default function LinkCardRenderer({
       ) : (
         <div
           onClick={onClick}
-          style={{
-            display: 'block',
-            color: 'inherit',
-          }}
+          className="wiki-link-card-renderer-edit-area"
         >
           {card}
         </div>
       )}
 
       {mode === 'read' && children ? (
-        <span
-          style={{
-            display: 'none',
-          }}
-        >
+        <span className="wiki-link-card-renderer-hidden-children">
           {children}
         </span>
       ) : null}

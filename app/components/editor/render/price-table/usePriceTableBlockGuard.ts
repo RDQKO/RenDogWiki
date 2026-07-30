@@ -11,14 +11,18 @@ export function usePriceTableBlockGuard(editor: any) {
 
       if (!selection || !ReactEditor.isFocused(editor)) return;
 
-      const [node] = Editor.node(editor, selection, { depth: 1 });
+      try {
+        const [node] = Editor.node(editor, selection, { depth: 1 });
 
-      if (
-        SlateElement.isElement(node) &&
-        (node as any).type === 'price-table-card' &&
-        event.key === 'Backspace'
-      ) {
-        event.preventDefault();
+        if (
+          SlateElement.isElement(node) &&
+          (node as any).type === 'price-table-card' &&
+          event.key === 'Backspace'
+        ) {
+          event.preventDefault();
+        }
+      } catch {
+        // DOM 선택과 Slate 문서가 갱신되는 순간의 오래된 경로는 무시한다.
       }
     };
 

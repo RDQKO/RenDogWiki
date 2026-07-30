@@ -5,7 +5,7 @@
 'use client';
 
 /**
- * 외부 링크 삽입 모달
+ * 외부 링크 삽입 및 기존 링크 수정 모달
  * - 1개(large) 또는 2개(small, small) 입력
  * - 카드형 모달 + 드롭다운 자동 닫힘
  * - defaultValue는 모달이 열릴 때만 초기값으로 반영
@@ -22,16 +22,22 @@ type LinkInputModalProps = {
   onSubmit: (items: LinkItem[]) => void;
   /** 모달이 열릴 때만 초기값으로 사용됩니다. (열린 뒤에는 변경 무시) */
   defaultValue?: string[];
+  mode?: 'insert' | 'edit';
 };
 
 // http/https 만 허용하는 간단한 검사(브라우저의 type="url"과 병행)
 const isHttpUrl = (s: string) => /^https?:\/\//i.test(s.trim());
+const isEditableLinkUrl = (s: string) => {
+  const value = s.trim();
+  return isHttpUrl(value) || /^\/wiki(?:[/?#]|$)/i.test(value);
+};
 
 export default function LinkInputModal({
   open,
   onClose,
   onSubmit,
   defaultValue = [],
+  mode = 'insert',
 }: LinkInputModalProps) {
   const [dualMode, setDualMode] = useState<boolean>(false);
   const [urls, setUrls] = useState<string[]>(['', '']);
@@ -43,7 +49,7 @@ export default function LinkInputModal({
   useEffect(() => {
     if (!open) return;
     const [u1 = '', u2 = ''] = defaultValue;
-    setDualMode(!!u2);
+    setDualMode(mode === 'insert' && !!u2);
     setUrls([u1, u2]);
     setErrors({});
     const t = setTimeout(() => firstRef.current?.focus(), 60);
@@ -51,11 +57,17 @@ export default function LinkInputModal({
     // 툴바 드롭다운 닫기
     window.dispatchEvent(new CustomEvent('editor:close-dropdowns'));
     return () => clearTimeout(t);
-    // ✅ 의존성은 open만!
-  }, [open]);
+    // 모달을 새로 열거나 삽입/수정 모드가 바뀔 때 입력값을 초기화한다.
+  }, [open, mode]);
+
+  const isEditMode = mode === 'edit';
 
   // URL 유효성
-  const valid1 = urls[0].trim() ? isHttpUrl(urls[0]) : false;
+  const valid1 = urls[0].trim()
+    ? isEditMode
+      ? isEditableLinkUrl(urls[0])
+      : isHttpUrl(urls[0])
+    : false;
   const valid2 = dualMode ? (urls[1].trim() ? isHttpUrl(urls[1]) : false) : true;
 
   const canSubmit =
@@ -65,7 +77,11 @@ export default function LinkInputModal({
   const handleSubmit = () => {
     if (!canSubmit) {
       setErrors({
-        first: !valid1 ? 'http(s)로 시작하는 올바른 URL을 입력하세요.' : undefined,
+        first: !valid1
+          ? isEditMode
+            ? 'http(s) 주소 또는 /wiki 내부 주소를 입력하세요.'
+            : 'http(s)로 시작하는 올바른 URL을 입력하세요.'
+          : undefined,
         second: dualMode && !valid2 ? 'http(s)로 시작하는 올바른 URL을 입력하세요.' : undefined,
       });
       return;
@@ -95,47 +111,71 @@ export default function LinkInputModal({
     <ModalCard
       open={open}
       onClose={onClose}
-      title="외부 링크 삽입"
+      title={isEditMode ? '링크 수정' : '외부 링크 삽입'}
       width={560}
       actions={
         <>
           <button className="rd-btn secondary" onClick={onClose}>취소</button>
-          <button className="rd-btn primary" onClick={handleSubmit} disabled={!canSubmit}>삽입</button>
+          <button className="rd-btn primary" onClick={handleSubmit} disabled={!canSubmit}>
+            {isEditMode ? '수정' : '삽입'}
+          </button>
         </>
       }
     >
       {/* 1개 / 2개 토글 */}
-      <div style={{ display: 'flex', alignItems: 'center', gap: 10, margin: '6px 0 12px' }}>
-        <button
-          type="button"
-          onClick={() => setDualMode(false)}
-          className="rd-btn"
+      {isEditMode ? (
+        <div
           style={{
-            height: 36, minWidth: 72, borderRadius: 999,
-            background: !dualMode ? '#2563eb' : '#f3f4f6',
-            color: !dualMode ? '#fff' : '#475569',
-            fontWeight: 800,
+            margin: '6px 0 12px',
+            color: 'var(--editor-muted)',
+            fontSize: 13,
           }}
-          aria-pressed={!dualMode}
-          aria-label="링크 1개 모드"
-        >1개</button>
-        <button
-          type="button"
-          onClick={() => setDualMode(true)}
-          className="rd-btn"
-          style={{
-            height: 36, minWidth: 72, borderRadius: 999,
-            background: dualMode ? '#2563eb' : '#f3f4f6',
-            color: dualMode ? '#fff' : '#475569',
-            fontWeight: 800,
-          }}
-          aria-pressed={dualMode}
-          aria-label="링크 2개 모드"
-        >2개</button>
-        <div style={{ marginLeft: 'auto', color: '#6b7280', fontSize: 13 }}>
-          1개는 큰 카드, 2개는 두 칸 카드로 삽입됩니다.
+        >
+          선택한 링크의 주소를 변경합니다.
         </div>
-      </div>
+      ) : (
+        <div style={{ display: 'flex', alignItems: 'center', gap: 10, margin: '6px 0 12px' }}>
+          <button
+            type="button"
+            onClick={() => setDualMode(false)}
+            className="rd-btn"
+            style={{
+              height: 36, minWidth: 72, borderRadius: 999,
+              background: !dualMode
+                ? 'var(--editor-accent)'
+                : 'var(--editor-panel-soft)',
+              color: !dualMode ? '#fff' : 'var(--editor-muted)',
+              border: !dualMode
+                ? '1px solid var(--editor-accent)'
+                : '1px solid var(--editor-border)',
+              fontWeight: 800,
+            }}
+            aria-pressed={!dualMode}
+            aria-label="링크 1개 모드"
+          >1개</button>
+          <button
+            type="button"
+            onClick={() => setDualMode(true)}
+            className="rd-btn"
+            style={{
+              height: 36, minWidth: 72, borderRadius: 999,
+              background: dualMode
+                ? 'var(--editor-accent)'
+                : 'var(--editor-panel-soft)',
+              color: dualMode ? '#fff' : 'var(--editor-muted)',
+              border: dualMode
+                ? '1px solid var(--editor-accent)'
+                : '1px solid var(--editor-border)',
+              fontWeight: 800,
+            }}
+            aria-pressed={dualMode}
+            aria-label="링크 2개 모드"
+          >2개</button>
+          <div style={{ marginLeft: 'auto', color: 'var(--editor-muted)', fontSize: 13 }}>
+            1개는 큰 카드, 2개는 두 칸 카드로 삽입됩니다.
+          </div>
+        </div>
+      )}
 
       {/* URL 입력 */}
       <div style={{ display: 'grid', gap: 10 }}>

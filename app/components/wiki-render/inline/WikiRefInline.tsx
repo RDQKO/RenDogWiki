@@ -59,9 +59,14 @@ export default function WikiRefInline({
         gap: 4,
         borderRadius: 999,
         padding: '1px 7px',
-        border: '1px solid rgba(124,58,237,.25)',
-        background: 'rgba(124,58,237,.08)',
-        color: mode === 'edit' ? '#6d28d9' : 'var(--accent, #6d28d9)',
+        border:
+          '1px solid color-mix(in srgb, var(--editor-accent, var(--accent, #6d28d9)) 28%, transparent)',
+        background:
+          'color-mix(in srgb, var(--editor-accent, var(--accent, #6d28d9)) 10%, transparent)',
+        color:
+          mode === 'edit'
+            ? 'var(--editor-accent-strong, var(--accent, #6d28d9))'
+            : 'var(--accent, #6d28d9)',
         fontWeight: 700,
         lineHeight: 1.35,
         whiteSpace: 'nowrap',

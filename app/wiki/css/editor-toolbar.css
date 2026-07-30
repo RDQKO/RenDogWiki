@@ -1,141 +1,328 @@
-/* app/wiki/css/editor-toolbar.css */
+/* =============================================
+ * File: app/wiki/css/editor-toolbar.css
+ * 에디터 툴바, 드롭다운, 표 선택기
+ * ============================================= */
 
-/* 툴바 전체 래퍼 */
 .editor-toolbar {
   display: flex;
-  flex-wrap: wrap;
-  gap: 0.5rem;
+  flex-wrap: nowrap;
   align-items: center;
-  padding: 0.5rem 0;
-  border-bottom: 1px solid #ddd;
-  margin-bottom: 1rem;
+  gap: 2px;
+  width: 100%;
+  box-sizing: border-box;
+  margin: 0;
+  padding: 6px;
+  color: var(--editor-text);
+  background:
+    color-mix(in srgb, var(--editor-panel) 96%, transparent);
+  border: 1px solid var(--editor-border);
+  border-radius: 16px;
+  box-shadow: var(--editor-shadow-soft);
+  overflow: visible;
 }
 
-/* 툴바 버튼 */
+.editor-toolbar > * {
+  display: inline-flex;
+  flex: 0 0 auto;
+  align-items: center;
+}
+
+.mark-button,
 .editor-toolbar-btn,
-.editor-toolbar-btn-plain {
-  background: #f2f2f2;
-  border: 1px solid #ccc;
-  padding: 5px 10px;
-  border-radius: 5px;
+.editor-toolbar-btn-plain,
+.editor-dropdown > button {
+  display: inline-grid;
+  min-width: 34px;
+  height: 36px;
+  padding: 0 8px;
+  place-items: center;
+  color: var(--editor-muted);
+  font-size: 15.5px;
+  line-height: 1;
+  background: transparent;
+  border: 1px solid transparent;
+  border-radius: 10px;
   cursor: pointer;
-  font-size: 15px;
-  margin-right: 2px;
-  transition: background 0.15s;
+  transition:
+    color 0.14s ease,
+    background-color 0.14s ease,
+    border-color 0.14s ease,
+    transform 0.08s ease;
 }
-.editor-toolbar-btn-plain { background: none; border: none; }
 
-/* 버튼 hover */
+.editor-toolbar-action-icon {
+  display: inline-grid;
+  width: 18px;
+  height: 18px;
+  place-items: center;
+  color: currentColor;
+  font-family:
+    "Segoe UI Symbol",
+    "Arial Unicode MS",
+    sans-serif;
+  font-size: 18px;
+  font-style: normal;
+  font-weight: 800;
+  line-height: 1;
+}
+
+.editor-toolbar-action-icon--wiki-reference {
+  width: 22px;
+  font-family:
+    "NanumSquareNeo",
+    "Pretendard",
+    sans-serif;
+  font-size: 13px;
+  letter-spacing: -1px;
+}
+
+/*
+ * Toolbar.tsx의 기존 기능과 이벤트는 그대로 두고,
+ * title을 기준으로 의미가 불분명했던 단독 버튼 아이콘만 교체한다.
+ */
+.editor-toolbar button:is(
+  [title*="각주"],
+  [title*="퀘스트"][title*="NPC"],
+  [title*="퀘스트"][title*="FAQ"],
+  [title*="퀘스트"][title*="QNA"],
+  [title*="퀘스트"][title*="할당"],
+  [title*="무기"]
+) {
+  font-size: 0;
+}
+
+.editor-toolbar button:is(
+  [title*="각주"],
+  [title*="퀘스트"][title*="NPC"],
+  [title*="퀘스트"][title*="FAQ"],
+  [title*="퀘스트"][title*="QNA"],
+  [title*="퀘스트"][title*="할당"],
+  [title*="무기"]
+) > * {
+  display: none;
+}
+
+.editor-toolbar button[title*="각주"]::before {
+  content: "¹";
+  font-family:
+    "Segoe UI Symbol",
+    "Arial Unicode MS",
+    sans-serif;
+  font-size: 22px;
+  font-weight: 800;
+  line-height: 1;
+}
+
+.editor-toolbar button:is(
+  [title*="퀘스트"][title*="NPC"],
+  [title*="퀘스트"][title*="FAQ"],
+  [title*="퀘스트"][title*="QNA"],
+  [title*="퀘스트"][title*="할당"]
+)::before {
+  content: "Q+";
+  font-family:
+    "NanumSquareNeo",
+    "Pretendard",
+    sans-serif;
+  font-size: 13px;
+  font-weight: 900;
+  letter-spacing: -1px;
+  line-height: 1;
+}
+
+.editor-toolbar button[title*="무기"]::before {
+  content: "⚔";
+  font-family:
+    "Segoe UI Symbol",
+    "Arial Unicode MS",
+    sans-serif;
+  font-size: 19px;
+  font-weight: 700;
+  line-height: 1;
+}
+
+.mark-button:hover,
 .editor-toolbar-btn:hover,
-.editor-toolbar-btn-plain:hover {
-  background: #e0e7ef;
+.editor-toolbar-btn-plain:hover,
+.editor-dropdown > button:hover {
+  color: var(--editor-accent-strong);
+  background: var(--editor-accent-softer);
+  border-color: var(--editor-border);
 }
 
-/* 마크 버튼 활성화 */
+.mark-button:active,
+.editor-toolbar-btn:active,
+.editor-toolbar-btn-plain:active,
+.editor-dropdown > button:active {
+  transform: translateY(1px);
+}
+
+.mark-button:focus-visible,
+.editor-toolbar-btn:focus-visible,
+.editor-toolbar-btn-plain:focus-visible,
+.editor-dropdown > button:focus-visible {
+  outline: none;
+  border-color: var(--editor-accent);
+  box-shadow: 0 0 0 3px var(--editor-focus-ring);
+}
+
 .mark-button.active {
-  background: #dbeafe;
-  font-weight: bold;
-  border-color: #60a5fa;
+  color: var(--editor-accent-strong);
+  font-weight: 800;
+  background: var(--editor-accent-soft);
+  border-color: var(--editor-border-strong);
 }
 
-/* 드롭다운 컨테이너 */
+.mark-button:disabled,
+.editor-toolbar-btn:disabled,
+.editor-toolbar-btn-plain:disabled,
+.editor-dropdown > button:disabled {
+  opacity: 0.42;
+  cursor: not-allowed;
+}
+
 .editor-dropdown {
   position: relative;
   display: inline-block;
 }
 
-/* 드롭다운 메뉴 */
+@keyframes rdw-editor-dropdown-in {
+  from {
+    opacity: 0;
+    transform: translateY(-5px) scale(0.985);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+.editor-dropdown-menu,
+.custom-color-dropdown,
+.table-picker-popover {
+  box-sizing: border-box;
+  color: var(--editor-text);
+  background: var(--editor-panel-elevated) !important;
+  border: 1px solid var(--editor-border) !important;
+  border-radius: 12px !important;
+  box-shadow: var(--editor-shadow) !important;
+}
+
+.editor-dropdown-menu,
+.custom-color-dropdown {
+  transform-origin: top left;
+  animation:
+    rdw-editor-dropdown-in
+    0.18s
+    cubic-bezier(0.2, 0.7, 0.2, 1)
+    both;
+}
+
 .editor-dropdown-menu {
   position: absolute;
-  top: 110%;
-  left: 0;
-  background: #fff;
-  border: 1px solid #ccc;
-  border-radius: 6px;
-  box-shadow: 0 2px 8px rgba(0,0,0,0.11);
-  padding: 5px 0;
-  z-index: 1000;
-  min-width: 112px;
+  z-index: 10000;
+  min-width: 126px;
+  margin: 0;
+  padding: 6px !important;
+  list-style: none;
 }
+
 .editor-dropdown-menu li,
 .editor-dropdown-menu button {
-  display: block;
-  background: none;
-  border: none;
-  padding: 7px 18px;
-  cursor: pointer;
-  text-align: left;
-  font-size: 15px;
+  box-sizing: border-box;
+  color: var(--editor-muted) !important;
+  font-size: 14px;
+  font-weight: 700;
+  background: transparent;
+  border: 0;
+  border-radius: 8px;
   user-select: none;
-  color: #2b2e34;
 }
+
 .editor-dropdown-menu li:hover,
-.editor-dropdown-menu button:hover {
-  background: #f1f5f9;
-  color: #2563eb;
+.editor-dropdown-menu li:focus-visible,
+.editor-dropdown-menu button:hover,
+.editor-dropdown-menu button:focus-visible {
+  color: var(--editor-accent-strong) !important;
+  background: var(--editor-accent-softer) !important;
+  outline: none;
+}
+
+.custom-color-dropdown input {
+  color: var(--editor-text);
+  background: var(--editor-panel);
+  border-color: var(--editor-border) !important;
+  outline: none;
+}
+
+.custom-color-dropdown input:focus {
+  border-color: var(--editor-accent) !important;
+  box-shadow: 0 0 0 3px var(--editor-focus-ring);
+}
+
+.table-picker-popover {
+  padding: 12px !important;
+}
+
+.table-picker-cell {
+  width: 24px;
+  height: 24px;
+  padding: 0;
+  background: var(--editor-panel-soft) !important;
+  border: 1px solid var(--editor-border) !important;
+  border-radius: 5px !important;
+  cursor: pointer;
+}
+
+.table-picker-cell:hover,
+.table-picker-cell.selected {
+  background: var(--editor-accent-soft) !important;
+  border-color: var(--editor-accent) !important;
+}
+
+.table-picker-caption {
+  color: var(--editor-muted) !important;
 }
 
 hr.divider {
-  border: none;
-  border-top: 1.5px solid #bbb;
   margin: 18px 0;
+  border: 0;
+  border-top: 1.5px solid var(--editor-border-strong);
 }
+
 hr.divider-bold {
-  border: none;
-  border-top: 4px solid #222;
   margin: 18px 0;
+  border: 0;
+  border-top: 4px solid var(--editor-text);
 }
+
 hr.divider-dotted {
-  border: none;
-  border-top: 2px dotted #888;
   margin: 18px 0;
+  border: 0;
+  border-top: 2px dotted var(--editor-muted);
 }
 
-/* ===== Dropdown animation & typography ===== */
+@media (max-width: 760px) {
+  .editor-toolbar {
+    gap: 1px;
+    padding: 5px;
+    border-radius: 14px;
+  }
 
-/* 입장 애니메이션 */
-@keyframes rdwDropdownIn {
-  0%   { opacity: 0; transform: translateY(-8px) scale(0.98); }
-  100% { opacity: 1; transform: translateY(0)     scale(1); }
+  .mark-button,
+  .editor-toolbar-btn,
+  .editor-toolbar-btn-plain,
+  .editor-dropdown > button {
+    min-width: 32px;
+    height: 34px;
+    padding: 0 7px;
+  }
 }
 
-/* 공통 드롭다운 컨테이너: 등장할 때 자연스럽게 */
-.editor-dropdown-menu {
-  /* 기존 속성 유지 + 애니메이션만 추가 */
-  opacity: 0;                          /* mount 직후 0에서 시작 */
-  transform: translateY(-8px) scale(.98);
-  transform-origin: top left;
-  animation: rdwDropdownIn .22s cubic-bezier(.2,.7,.2,1) forwards;
-  will-change: opacity, transform;     /* 미세한 뻑뻑함 제거 */
-  overflow: visible;
+@media (prefers-reduced-motion: reduce) {
+  .editor-dropdown-menu,
+  .custom-color-dropdown {
+    animation: none;
+  }
 }
-
-/* (색상 팔레트 등 커스텀 드롭다운에도 동일한 인/아웃 감각 적용)
-   - 컴포넌트에서 클래스명을 custom-color-dropdown / custom-bgcolor-dropdown 로 쓰고 있을 때 커버
-   - 혹시 클래스명이 다르더라도 필요한 곳에 같이 붙여 사용 가능 */
-.custom-color-dropdown,
-.custom-bgcolor-dropdown {
-  opacity: 0;
-  transform: translateY(-8px) scale(.98);
-  transform-origin: top left;
-  animation: rdwDropdownIn .22s cubic-bezier(.2,.7,.2,1) forwards;
-  will-change: opacity, transform;
-}
-
-/* 드롭다운 항목 타이포(텍스트 컬러/굵기) */
-.editor-dropdown-menu li,
-.editor-dropdown-menu button {
-  color: #1c1d1fa3 !important;   /* 요청 색상 (#RRGGBBAA) */
-  font-weight: 600;               /* 살짝 굵게 */
-}
-
-/* hover는 기존 밝은 톤 유지 (배경만 라이트, 텍스트는 기본/브랜드로) */
-.editor-dropdown-menu li:hover,
-.editor-dropdown-menu button:hover {
-  background: #f1f5f9;
-  color: #2563eb;                 /* 기존 테마 유지 */
-}
-
-/* 툴바가 다른 요소에 가려지지 않도록 (이미 있다면 이 라인 유지만 해도 OK) */
-.editor-toolbar-wrapper { z-index: 50; }
-.editor-toolbar        { overflow: visible; }

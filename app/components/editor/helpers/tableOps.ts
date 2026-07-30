@@ -1,14 +1,13 @@
 /**
  * C:\next\rdwiki\app\components\editor\helpers\tableOps.ts
- * 표 조작 유틸(병합/분할/행·열/삭제/너비맞춤/비우기 + 정렬/최대 너비)
+ * 표 조작 유틸(병합/분할/행·열/삭제/내용 비우기)
  * - 스키마: table > table-row[] > table-cell{rowspan?:number, colspan?:number} > paragraph > text
  */
 
-import { Editor, Element as SlateElement, Node, Path, Transforms, Point } from 'slate';
+import { Editor, Element as SlateElement, Node, Path, Transforms, Point, Range } from 'slate';
 import type { TableCellElement } from '@/types/slate';
 
 export type CellPos = { r: number; c: number };
-export type TableAlign = 'left' | 'center' | 'right';
 
 const isTable = (n: any) => SlateElement.isElement(n) && n.type === 'table';
 const isRow   = (n: any) => SlateElement.isElement(n) && n.type === 'table-row';
@@ -44,7 +43,7 @@ export function getTableSize(editor: Editor, tablePath: Path) {
 /** 선택이 복수 셀이면 그 직사각형 반환, 아니면 현재 셀만 */
 export function getSelectedRectOrCell(editor: Editor, fallbackCellPath: Path) {
   const sel = editor.selection;
-  if (!sel) {
+  if (!sel || Range.isCollapsed(sel)) {
     const { r, c } = findCellPos(fallbackCellPath);
     return { r0: r, c0: c, r1: r, c1: c, tablePath: findTablePath(editor, fallbackCellPath) };
   }
@@ -61,6 +60,19 @@ export function getSelectedRectOrCell(editor: Editor, fallbackCellPath: Path) {
   if (Path.equals(tableA, tableB)) {
     const a = findCellPos(anchorCell[1]);
     const b = findCellPos(focusCell[1]);
+
+    // 한 셀 안의 텍스트 선택은 우클릭한 셀 자체에 적용한다.
+    if (a.r === b.r && a.c === b.c) {
+      const fallback = findCellPos(fallbackCellPath);
+      return {
+        r0: fallback.r,
+        c0: fallback.c,
+        r1: fallback.r,
+        c1: fallback.c,
+        tablePath: findTablePath(editor, fallbackCellPath),
+      };
+    }
+
     return {
       r0: Math.min(a.r, b.r), c0: Math.min(a.c, b.c),
       r1: Math.max(a.r, b.r), c1: Math.max(a.c, b.c),
@@ -136,35 +148,6 @@ export function splitCellByCol(editor: Editor, cellPath: Path) {
   });
 }
 
-/** 기존 fullWidth 토글 (호환용) + maxWidth 연동 */
-export function toggleTableFullWidth(editor: Editor, tablePath: Path) {
-  try {
-    const table = Node.get(editor, tablePath) as any;
-    const next = !table.fullWidth;
-    const patch: any = { fullWidth: next };
-    if (next) patch.maxWidth = null; // 전체 너비
-    Transforms.setNodes(editor, patch, { at: tablePath });
-  } catch {}
-}
-
-/** 표 정렬 설정 (left/center/right) */
-export function setTableAlignment(editor: Editor, tablePath: Path, align: TableAlign) {
-  try {
-    Transforms.setNodes(editor, { align } as any, { at: tablePath });
-  } catch {}
-}
-
-/** 표 최대 너비(px 또는 null=100%) 설정 */
-export function setTableMaxWidth(editor: Editor, tablePath: Path, maxWidth: number | null) {
-  try {
-    const normalized =
-      typeof maxWidth === 'number' ? Math.max(240, maxWidth) : null;
-    // fullWidth 플래그도 함께 정리
-    const patch: any = { maxWidth: normalized, fullWidth: normalized == null };
-    Transforms.setNodes(editor, patch, { at: tablePath });
-  } catch {}
-}
-
 /** 표 자체 삭제 */
 export function removeTable(editor: Editor, tablePath: Path) {
   try { Transforms.removeNodes(editor, { at: tablePath }); } catch {}
@@ -178,7 +161,7 @@ export function moveCaretToTopLeftCell(editor: Editor, tablePath: Path, r0 = 0, 
   } catch {}
 }
 
-/** 선택 직사각형의 모든 셀을 '빈 셀'로 치환(내용 삭제) */
+/** 선택 직사각형의 셀 구조는 유지하고 내부 내용만 빈 문단으로 교체 */
 export function clearCellsRect(
   editor: Editor,
   rect: { tablePath: Path; r0: number; c0: number; r1: number; c1: number }
@@ -188,10 +171,27 @@ export function clearCellsRect(
   Editor.withoutNormalizing(editor, () => {
     for (let r = r1; r >= r0; r--) {
       for (let c = c1; c >= c0; c--) {
-        const path = [...tablePath, r, c];
+        const cellPath = [...tablePath, r, c];
         try {
-          Transforms.removeNodes(editor, { at: path });
-          Transforms.insertNodes(editor, makeEmptyCell(), { at: path });
+          const cell = Node.get(editor, cellPath) as any;
+          const childCount = Array.isArray(cell.children)
+            ? cell.children.length
+            : 0;
+
+          for (let index = childCount - 1; index >= 0; index -= 1) {
+            Transforms.removeNodes(editor, {
+              at: [...cellPath, index],
+            });
+          }
+
+          Transforms.insertNodes(
+            editor,
+            {
+              type: 'paragraph',
+              children: [{ text: '' }],
+            } as any,
+            { at: [...cellPath, 0] },
+          );
         } catch {
           // 병합 등으로 실제 셀이 없을 수 있으니 무시
         }

@@ -41,13 +41,7 @@ export default function EmbedPlaceholderEditorAdapter({
     <div
       {...attributes}
       contentEditable={false}
-      style={{
-        border: '1px solid #d0d7de',
-        borderRadius: 8,
-        padding: 12,
-        margin: '12px 0',
-        background: '#f8fafc',
-      }}
+      className="wiki-embed-placeholder"
     >
       <strong>{label} 삽입</strong>
       <div>ID: {String(id ?? '-')}</div>

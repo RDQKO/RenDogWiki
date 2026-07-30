@@ -1,32 +1,68 @@
 // =============================================
 // File: app/components/common/SearchBox.tsx
-// (문서/FAQ 동시 검색, 2열 반반 표시, IME 즉시 반응)
-// + 헤더 내 중앙/왼쪽 정렬 지원 (align prop)
-// + ✅ 문서 태그: 오른쪽에 표시, # 제거
-// + 다크모드 대응
+// 전체 코드
+//
+// - Home과 Wiki Header에서 공통 사용
+// - 문서 / 본문·목차 / 태그 검색
+// - 퀘스트 NPC 검색 및 상위 상세 모달 연결
+// - FAQ 검색, 최신 상세 조회, 열람수 기록
+// - 인기 검색어 칩의 외부 검색 요청 지원
+// - 검색어 선택 집계 유지
+// - 키보드 탐색, 외부 클릭, ESC 동작 유지
+// - 명시적인 검색 초기화 X 버튼 사용
+// - 마우스가 결과 영역을 벗어나면 강조 해제
+// - FAQ 모달은 document.body portal로 렌더링
+// - 홈/문서 헤더의 containing block 영향을 받지 않음
 // =============================================
+
 'use client';
 
-import { useState, useRef, useEffect, useMemo } from 'react';
+import {
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+  type KeyboardEventHandler,
+} from 'react';
 import { useRouter } from 'next/navigation';
-import { toProxyUrl } from '@lib/cdn';
-import { markNextDocViewSource } from '@/wiki/lib/viewSource';
+import { createPortal } from 'react-dom';
 
-// -------------------- types --------------------
+import { toProxyUrl } from '@lib/cdn';
+import {
+  recordFaqView,
+} from '@/wiki/lib/faqView';
+import {
+  createSearchSessionId,
+  recordCommittedSearch,
+  SEARCH_QUERY_REQUEST_EVENT,
+  type SearchCommitResultType,
+} from '@/wiki/lib/searchPopularity';
+import {
+  markNextDocViewSource,
+} from '@/wiki/lib/viewSource';
+
+import '@/wiki/css/searchBox.css';
+
 type DocResult = {
   id: number;
   title: string;
   path: string | number;
   icon?: string;
   tags: string[];
-  match_type: "title" | "tags" | "content";
+  match_type:
+    | 'title'
+    | 'tags'
+    | 'content';
   category_breadcrumb?: string;
-
   section_heading?: string | null;
   section_dom_id?: string | null;
   section_level?: 1 | 2 | 3 | null;
   section_snippet?: string | null;
-  section_match_source?: 'heading' | 'body' | null;
+  section_match_source?:
+    | 'heading'
+    | 'body'
+    | null;
 };
 
 type FaqItem = {
@@ -46,31 +82,100 @@ type QuestNpcResult = {
   village_name?: string | null;
 };
 
-// -------------------- utils --------------------
-function normalizeSearchText(v: string) {
-  return String(v ?? '')
+type SearchResultItem =
+  | {
+      kind: 'doc';
+      id: number;
+      data: DocResult;
+    }
+  | {
+      kind: 'quest';
+      id: number;
+      data: QuestNpcResult;
+    };
+
+type SearchCommitState = {
+  queryKey: string;
+  sessionId: string;
+  committed: boolean;
+};
+
+type SearchQueryRequestDetail = {
+  keyword?: unknown;
+};
+
+type Props = {
+  /** 헤더 안 정렬 */
+  align?: 'center' | 'left';
+
+  /** 검색창 전체 너비 */
+  width?: string;
+
+  /** 기존 호출부 호환용 */
+  paddingLeft?: number;
+
+  /** 퀘스트 NPC 결과 클릭 시 상위 모달 열기 */
+  onQuestNpcClick?: (
+    id: number,
+  ) => void;
+
+  /**
+   * SearchBox 외부에서 열린 상세 모달 상태.
+   * true인 동안 모달 클릭을 검색창 외부 클릭으로 처리하지 않는다.
+   */
+  resultModalOpen?: boolean;
+};
+
+function normalizeSearchText(
+  value: string,
+) {
+  return String(value ?? '')
     .toLowerCase()
     .replace(/\s+/g, '');
 }
 
-function isSectionHeadingHighlighted(heading: string, keyword: string) {
-  const normalizedHeading = normalizeSearchText(heading);
-  const normalizedKeyword = normalizeSearchText(keyword);
+function isSectionHeadingHighlighted(
+  heading: string,
+  keyword: string,
+) {
+  const normalizedHeading =
+    normalizeSearchText(heading);
+  const normalizedKeyword =
+    normalizeSearchText(keyword);
 
-  if (!normalizedHeading || !normalizedKeyword) return false;
-  return normalizedHeading.includes(normalizedKeyword);
+  if (
+    !normalizedHeading ||
+    !normalizedKeyword
+  ) {
+    return false;
+  }
+
+  return normalizedHeading.includes(
+    normalizedKeyword,
+  );
 }
 
-
-function buildCompactIndexMap(text: string) {
+function buildCompactIndexMap(
+  text: string,
+) {
   const compactChars: string[] = [];
   const indexMap: number[] = [];
 
-  for (let i = 0; i < text.length; i++) {
-    const ch = text[i];
-    if (/\s/.test(ch)) continue;
-    compactChars.push(ch.toLowerCase());
-    indexMap.push(i);
+  for (
+    let index = 0;
+    index < text.length;
+    index += 1
+  ) {
+    const character = text[index];
+
+    if (/\s/.test(character)) {
+      continue;
+    }
+
+    compactChars.push(
+      character.toLowerCase(),
+    );
+    indexMap.push(index);
   }
 
   return {
@@ -79,936 +184,1861 @@ function buildCompactIndexMap(text: string) {
   };
 }
 
-function findLooseMatchRange(text: string, keyword: string): { start: number; end: number } | null {
-  if (!text || !keyword) return null;
+function findLooseMatchRange(
+  text: string,
+  keyword: string,
+): {
+  start: number;
+  end: number;
+} | null {
+  if (!text || !keyword) {
+    return null;
+  }
 
-  const normalizedKeyword = normalizeSearchText(keyword);
-  if (!normalizedKeyword) return null;
+  const normalizedKeyword =
+    normalizeSearchText(keyword);
 
-  const { compact, indexMap } = buildCompactIndexMap(text);
-  const idx = compact.indexOf(normalizedKeyword);
-  if (idx < 0) return null;
+  if (!normalizedKeyword) {
+    return null;
+  }
 
-  const start = indexMap[idx];
-  const endCompactIdx = idx + normalizedKeyword.length - 1;
-  const end = (indexMap[endCompactIdx] ?? start) + 1;
+  const {
+    compact,
+    indexMap,
+  } = buildCompactIndexMap(text);
 
-  return { start, end };
+  const compactIndex =
+    compact.indexOf(
+      normalizedKeyword,
+    );
+
+  if (compactIndex < 0) {
+    return null;
+  }
+
+  const start =
+    indexMap[compactIndex];
+
+  const compactEnd =
+    compactIndex +
+    normalizedKeyword.length -
+    1;
+
+  const end =
+    (indexMap[compactEnd] ??
+      start) + 1;
+
+  return {
+    start,
+    end,
+  };
 }
 
-function highlight(text: string, keyword: string) {
-  if (!keyword) return text;
+function highlight(
+  text: string,
+  keyword: string,
+) {
+  if (!keyword) {
+    return text;
+  }
 
-  const range = findLooseMatchRange(text, keyword);
-  if (!range) return text;
+  const range =
+    findLooseMatchRange(
+      text,
+      keyword,
+    );
 
-  const { start, end } = range;
+  if (!range) {
+    return text;
+  }
 
   return (
     <>
-      {start > 0 && <span>{text.slice(0, start)}</span>}
-      <mark style={{ background: 'none', color: 'var(--accent)', fontWeight: 700 }}>
-        {text.slice(start, end)}
+      {range.start > 0
+        ? text.slice(
+            0,
+            range.start,
+          )
+        : null}
+
+      <mark className="search-highlight">
+        {text.slice(
+          range.start,
+          range.end,
+        )}
       </mark>
-      {end < text.length && <span>{text.slice(end)}</span>}
+
+      {range.end < text.length
+        ? text.slice(range.end)
+        : null}
     </>
   );
 }
 
-const isImageLike = (v?: string) => !!v && (/^https?:\/\//i.test(v) || v.startsWith('data:image'));
-const isRemoteHttp = (v?: string) => !!v && /^https?:\/\//i.test(v);
+const isImageLike = (
+  value?: string | null,
+) =>
+  Boolean(
+    value &&
+      (/^https?:\/\//i.test(
+        value,
+      ) ||
+        value.startsWith(
+          'data:image',
+        ) ||
+        value.startsWith('/')),
+  );
 
-// ✅ 태그 정규화: # 제거 + trim + 빈 값 제거
-function normalizeTag(raw: string) {
-  return String(raw ?? '').replace(/^#+\s*/, '').trim();
+const isRemoteHttp = (
+  value?: string | null,
+) =>
+  Boolean(
+    value &&
+      /^https?:\/\//i.test(value),
+  );
+
+function normalizeTag(
+  raw: string,
+) {
+  return String(raw ?? '')
+    .replace(/^#+\s*/, '')
+    .trim();
 }
 
-function escapeRegexChar(ch: string) {
-  return ch.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+function escapeRegexCharacter(
+  character: string,
+) {
+  return character.replace(
+    /[.*+?^${}()|[\]\\]/g,
+    '\\$&',
+  );
 }
 
-function makeLooseRegex(keyword: string) {
-  const compact = normalizeSearchText(keyword);
-  if (!compact) return null;
+function makeLooseRegex(
+  keyword: string,
+) {
+  const compact =
+    normalizeSearchText(keyword);
+
+  if (!compact) {
+    return null;
+  }
 
   try {
-    return new RegExp(compact.split('').map(escapeRegexChar).join('.*'), 'i');
+    return new RegExp(
+      compact
+        .split('')
+        .map(
+          escapeRegexCharacter,
+        )
+        .join('.*'),
+      'i',
+    );
   } catch {
     return null;
   }
 }
 
-function isTagMatched(tag: string, keyword: string) {
-  const cleanTag = normalizeTag(tag);
-  const q = String(keyword ?? '').trim();
+function isTagMatched(
+  tag: string,
+  keyword: string,
+) {
+  const cleanTag =
+    normalizeTag(tag);
+  const query =
+    String(keyword ?? '').trim();
 
-  if (!cleanTag || !q) return false;
+  if (!cleanTag || !query) {
+    return false;
+  }
 
-  const lowerTag = cleanTag.toLowerCase();
-  const lowerQ = q.toLowerCase();
+  const lowerTag =
+    cleanTag.toLowerCase();
+  const lowerQuery =
+    query.toLowerCase();
 
-  // 1) 일반 포함
-  if (lowerTag.includes(lowerQ)) return true;
+  if (
+    lowerTag.includes(lowerQuery)
+  ) {
+    return true;
+  }
 
-  // 2) 공백 제거 포함
-  const compactTag = normalizeSearchText(cleanTag);
-  const compactQ = normalizeSearchText(q);
-  if (compactQ && compactTag.includes(compactQ)) return true;
+  const compactTag =
+    normalizeSearchText(cleanTag);
+  const compactQuery =
+    normalizeSearchText(query);
 
-  // 3) 비연속 글자 매칭
-  if (compactQ.length >= 2) {
-    const loose = makeLooseRegex(q);
-    if (loose && loose.test(compactTag)) return true;
+  if (
+    compactQuery &&
+    compactTag.includes(
+      compactQuery,
+    )
+  ) {
+    return true;
+  }
+
+  if (compactQuery.length >= 2) {
+    const looseRegex =
+      makeLooseRegex(query);
+
+    if (
+      looseRegex &&
+      looseRegex.test(compactTag)
+    ) {
+      return true;
+    }
   }
 
   return false;
 }
 
-// -------------------- component --------------------
-type Props = {
-  /** 헤더 안 정렬: center | left */
-  align?: 'center' | 'left';
-  /** 박스 너비 (CSS 값). 기본: min(720px, 56vw) */
-  width?: string;
-  /** 퀘스트 NPC 클릭 시 상위에서 모달 열기 */
-  paddingLeft?: number;
-  onQuestNpcClick?: (id: number) => void;
-};
+function getDocumentPriority(
+  document: DocResult,
+) {
+  if (
+    document.match_type ===
+    'title'
+  ) {
+    return 0;
+  }
+
+  if (
+    document.match_type ===
+      'content' &&
+    document.section_match_source ===
+      'heading'
+  ) {
+    return 1;
+  }
+
+  if (
+    document.match_type ===
+    'tags'
+  ) {
+    return 2;
+  }
+
+  if (
+    document.match_type ===
+      'content' &&
+    document.section_match_source ===
+      'body'
+  ) {
+    return 3;
+  }
+
+  if (
+    document.match_type ===
+    'content'
+  ) {
+    return 4;
+  }
+
+  return 99;
+}
+
+function SearchIcon() {
+  return (
+    <svg
+      className="search-icon"
+      viewBox="0 0 24 24"
+      aria-hidden="true"
+    >
+      <path d="M10.8 3.5a7.3 7.3 0 1 0 4.55 13.01l4.07 4.07 1.16-1.16-4.07-4.07A7.3 7.3 0 0 0 10.8 3.5Zm0 1.65a5.65 5.65 0 1 1 0 11.3 5.65 5.65 0 0 1 0-11.3Z" />
+    </svg>
+  );
+}
+
+function ClearIcon() {
+  return (
+    <svg
+      viewBox="0 0 24 24"
+      aria-hidden="true"
+    >
+      <path d="M6.5 6.5 17.5 17.5M17.5 6.5 6.5 17.5" />
+    </svg>
+  );
+}
 
 export default function SearchBox({
   align = 'center',
-  width = 'min(720px, 56vw)',
+  width =
+    'min(720px, 56vw)',
   paddingLeft = 100,
   onQuestNpcClick,
+  resultModalOpen = false,
 }: Props) {
-  const [query, setQuery] = useState('');
-  const [open, setOpen] = useState(false);
+  void paddingLeft;
 
-  // 문서
-  const [docs, setDocs] = useState<DocResult[]>([]);
-  const [loadingDocs, setLoadingDocs] = useState(false);
+  const [
+    query,
+    setQuery,
+  ] = useState('');
 
-  const [questNpcs, setQuestNpcs] = useState<QuestNpcResult[]>([]);
-  const [loadingQuestNpcs, setLoadingQuestNpcs] = useState(false);
+  const [
+    open,
+    setOpen,
+  ] = useState(false);
 
-  // FAQ
-  const [faqs, setFaqs] = useState<FaqItem[]>([]);
-  const [loadingFaqs, setLoadingFaqs] = useState(false);
+  const [
+    docs,
+    setDocs,
+  ] = useState<DocResult[]>([]);
 
-  const [activeDocIndex, setActiveDocIndex] = useState<number>(-1);
-  const [faqView, setFaqView] = useState<FaqItem | null>(null);
+  const [
+    loadingDocs,
+    setLoadingDocs,
+  ] = useState(false);
 
-  const inputRef = useRef<HTMLInputElement>(null);
-  const wrapRef = useRef<HTMLDivElement>(null);
+  const [
+    questNpcs,
+    setQuestNpcs,
+  ] = useState<
+    QuestNpcResult[]
+  >([]);
 
-  const abortDocsRef = useRef<AbortController | null>(null);
-  const abortQuestNpcRef = useRef<AbortController | null>(null);
-  const abortFaqRef = useRef<AbortController | null>(null);
-  const timerRef = useRef<number | null>(null);
+  const [
+    loadingQuestNpcs,
+    setLoadingQuestNpcs,
+  ] = useState(false);
+
+  const [
+    faqs,
+    setFaqs,
+  ] = useState<FaqItem[]>([]);
+
+  const [
+    loadingFaqs,
+    setLoadingFaqs,
+  ] = useState(false);
+
+  const [
+    activeDocIndex,
+    setActiveDocIndex,
+  ] = useState(-1);
+
+  const [
+    faqView,
+    setFaqView,
+  ] = useState<FaqItem | null>(
+    null,
+  );
+
+  const [
+    portalReady,
+    setPortalReady,
+  ] = useState(false);
+
+  const inputRef =
+    useRef<HTMLInputElement | null>(
+      null,
+    );
+
+  const wrapRef =
+    useRef<HTMLDivElement | null>(
+      null,
+    );
+
+  const abortDocsRef =
+    useRef<AbortController | null>(
+      null,
+    );
+
+  const abortQuestNpcRef =
+    useRef<AbortController | null>(
+      null,
+    );
+
+  const abortFaqRef =
+    useRef<AbortController | null>(
+      null,
+    );
+
+  const timerRef =
+    useRef<number | null>(null);
+
+  const faqTimerRef =
+    useRef<number | null>(null);
+
+  const searchCommitRef =
+    useRef<SearchCommitState>({
+      queryKey: '',
+      sessionId:
+        createSearchSessionId(),
+      committed: false,
+    });
 
   const router = useRouter();
-  const listId = useMemo(() => `search-list-${Math.random().toString(36).slice(2)}`, []);
 
-  // ===== 우선순위 정렬(제목 > 목차명 매치 > 태그 > 목차 내용 매치 > 기타 내용) =====
-  const sortedDocs = useMemo(() => {
-    const getPriority = (doc: DocResult) => {
-      if (doc.match_type === 'title') return 0;
-      if (doc.match_type === 'content' && doc.section_match_source === 'heading') return 1;
-      if (doc.match_type === 'tags') return 2;
-      if (doc.match_type === 'content' && doc.section_match_source === 'body') return 3;
-      if (doc.match_type === 'content') return 4;
-      return 99;
+  const listId =
+    useMemo(
+      () =>
+        `search-list-${Math.random()
+          .toString(36)
+          .slice(2)}`,
+      [],
+    );
+
+  const syncSearchCommitSession =
+    useCallback(
+      (value: string) => {
+        const queryKey =
+          normalizeSearchText(
+            value,
+          );
+
+        if (
+          queryKey !==
+          searchCommitRef.current
+            .queryKey
+        ) {
+          searchCommitRef.current =
+            {
+              queryKey,
+              sessionId:
+                createSearchSessionId(),
+              committed: false,
+            };
+        }
+
+        return searchCommitRef.current;
+      },
+      [],
+    );
+
+  const updateQuery =
+    useCallback(
+      (value: string) => {
+        syncSearchCommitSession(
+          value,
+        );
+
+        setQuery(value);
+        setActiveDocIndex(-1);
+      },
+      [
+        syncSearchCommitSession,
+      ],
+    );
+
+  const commitCurrentSearch =
+    useCallback(
+      (
+        resultType:
+          SearchCommitResultType,
+      ) => {
+        const keyword =
+          String(query ?? '')
+            .replace(
+              /\s+/g,
+              ' ',
+            )
+            .trim();
+
+        if (
+          normalizeSearchText(
+            keyword,
+          ).length < 2
+        ) {
+          return;
+        }
+
+        const session =
+          syncSearchCommitSession(
+            keyword,
+          );
+
+        if (session.committed) {
+          return;
+        }
+
+        session.committed = true;
+
+        void recordCommittedSearch({
+          keyword,
+          sessionId:
+            session.sessionId,
+          resultType,
+        });
+      },
+      [
+        query,
+        syncSearchCommitSession,
+      ],
+    );
+
+  useEffect(() => {
+    setPortalReady(true);
+
+    return () => {
+      setPortalReady(false);
+    };
+  }, []);
+
+  useEffect(() => {
+    if (!faqView) {
+      return;
+    }
+
+    const previousOverflow =
+      document.body.style.overflow;
+    const previousPaddingRight =
+      document.body.style.paddingRight;
+
+    const scrollbarWidth =
+      window.innerWidth -
+      document.documentElement.clientWidth;
+
+    document.body.style.overflow =
+      'hidden';
+
+    if (scrollbarWidth > 0) {
+      document.body.style.paddingRight =
+        `${scrollbarWidth}px`;
+    }
+
+    const onKeyDown = (
+      event: KeyboardEvent,
+    ) => {
+      if (event.key === 'Escape') {
+        setFaqView(null);
+      }
     };
 
-    return docs
-      .map((doc, index) => ({ doc, index }))
-      .sort((a, b) => {
-        const pa = getPriority(a.doc);
-        const pb = getPriority(b.doc);
-        if (pa !== pb) return pa - pb;
-        return a.index - b.index;
-      })
-      .map(({ doc }) => doc);
-  }, [docs]);
-
-  const renderDocTitle = (res: DocResult) => {
-    if (res.match_type === 'title') {
-      return (
-        <span style={{ color: 'var(--accent)', fontWeight: 800 }}>
-          {res.title}
-        </span>
-      );
-    }
-
-    return highlight(res.title, query);
-  };
-
-  const renderSectionMeta = (res: DocResult) => {
-    const sectionHeading = String(res.section_heading ?? '').trim();
-    const breadcrumb = String(res.category_breadcrumb ?? '').trim();
-
-    if (res.match_type === 'content' && sectionHeading) {
-      const isHighlighted = isSectionHeadingHighlighted(sectionHeading, query);
-
-      return (
-        <div
-          style={{
-            marginTop: 4,
-            fontSize: 12,
-            color: isHighlighted ? 'var(--accent)' : 'var(--muted-2)',
-            fontWeight: isHighlighted ? 700 : 500,
-            overflow: 'hidden',
-            textOverflow: 'ellipsis',
-            whiteSpace: 'nowrap',
-          }}
-          title={sectionHeading}
-        >
-          {sectionHeading}
-        </div>
-      );
-    }
-
-    if (!breadcrumb) return null;
-
-    return (
-      <div
-        style={{
-          marginTop: 4,
-          fontSize: 12,
-          color: 'var(--muted-2)',
-          fontWeight: 500,
-          overflow: 'hidden',
-          textOverflow: 'ellipsis',
-          whiteSpace: 'nowrap',
-        }}
-        title={breadcrumb}
-      >
-        {breadcrumb}
-      </div>
+    window.addEventListener(
+      'keydown',
+      onKeyDown,
     );
-  };
 
-  const combinedDocItems = useMemo(() => {
-    const docItems = sortedDocs.map((doc) => ({
-      kind: 'doc' as const,
-      id: doc.id,
-      data: doc,
-    }));
+    return () => {
+      document.body.style.overflow =
+        previousOverflow;
+      document.body.style.paddingRight =
+        previousPaddingRight;
 
-    const questItems = questNpcs.map((npc) => ({
-      kind: 'quest' as const,
-      id: npc.id,
-      data: npc,
-    }));
+      window.removeEventListener(
+        'keydown',
+        onKeyDown,
+      );
+    };
+  }, [faqView]);
 
-    return [...docItems, ...questItems];
-  }, [sortedDocs, questNpcs]);
-
-  const combinedCount = combinedDocItems.length;
-
-  // ===== 디바운스 & 동시 fetch(문서 + FAQ) =====
   useEffect(() => {
-    const q = query.trim();
-    const compactQuery = normalizeSearchText(q);
+    const onSearchQueryRequest = (
+      event: Event,
+    ) => {
+      const customEvent =
+        event as CustomEvent<
+          SearchQueryRequestDetail
+        >;
 
-    if (compactQuery.length < 2) {
+      const requestedKeyword =
+        String(
+          customEvent.detail
+            ?.keyword ?? '',
+        )
+          .replace(/\s+/g, ' ')
+          .trim();
+
+      if (
+        normalizeSearchText(
+          requestedKeyword,
+        ).length < 2
+      ) {
+        return;
+      }
+
+      updateQuery(
+        requestedKeyword,
+      );
+      setOpen(true);
+
+      window.requestAnimationFrame(
+        () => {
+          inputRef.current?.focus();
+        },
+      );
+    };
+
+    window.addEventListener(
+      SEARCH_QUERY_REQUEST_EVENT,
+      onSearchQueryRequest,
+    );
+
+    return () => {
+      window.removeEventListener(
+        SEARCH_QUERY_REQUEST_EVENT,
+        onSearchQueryRequest,
+      );
+    };
+  }, [updateQuery]);
+
+  const sortedDocs =
+    useMemo(() => {
+      return docs
+        .map(
+          (
+            document,
+            index,
+          ) => ({
+            document,
+            index,
+          }),
+        )
+        .sort(
+          (
+            first,
+            second,
+          ) => {
+            const firstPriority =
+              getDocumentPriority(
+                first.document,
+              );
+
+            const secondPriority =
+              getDocumentPriority(
+                second.document,
+              );
+
+            if (
+              firstPriority !==
+              secondPriority
+            ) {
+              return (
+                firstPriority -
+                secondPriority
+              );
+            }
+
+            return (
+              first.index -
+              second.index
+            );
+          },
+        )
+        .map(
+          ({
+            document,
+          }) => document,
+        );
+    }, [docs]);
+
+  const combinedDocItems =
+    useMemo<
+      SearchResultItem[]
+    >(() => {
+      const documentItems =
+        sortedDocs.map(
+          (document) => ({
+            kind:
+              'doc' as const,
+            id: document.id,
+            data: document,
+          }),
+        );
+
+      const questItems =
+        questNpcs.map(
+          (npc) => ({
+            kind:
+              'quest' as const,
+            id: npc.id,
+            data: npc,
+          }),
+        );
+
+      return [
+        ...documentItems,
+        ...questItems,
+      ];
+    }, [
+      questNpcs,
+      sortedDocs,
+    ]);
+
+  const combinedCount =
+    combinedDocItems.length;
+
+  useEffect(() => {
+    const trimmedQuery =
+      query.trim();
+
+    const compactQuery =
+      normalizeSearchText(
+        trimmedQuery,
+      );
+
+    if (
+      timerRef.current !== null
+    ) {
+      window.clearTimeout(
+        timerRef.current,
+      );
+
+      timerRef.current = null;
+    }
+
+    if (
+      faqTimerRef.current !==
+      null
+    ) {
+      window.clearTimeout(
+        faqTimerRef.current,
+      );
+
+      faqTimerRef.current = null;
+    }
+
+    abortDocsRef.current?.abort();
+    abortQuestNpcRef.current?.abort();
+    abortFaqRef.current?.abort();
+
+    if (
+      compactQuery.length < 2
+    ) {
       setOpen(false);
       setDocs([]);
       setQuestNpcs([]);
       setFaqs([]);
       setActiveDocIndex(-1);
-      if (abortDocsRef.current) abortDocsRef.current.abort();
-      if (abortQuestNpcRef.current) abortQuestNpcRef.current.abort();
-      if (abortFaqRef.current) abortFaqRef.current.abort();
+      setLoadingDocs(false);
+      setLoadingQuestNpcs(false);
+      setLoadingFaqs(false);
       return;
     }
 
-    if (timerRef.current) window.clearTimeout(timerRef.current);
-    timerRef.current = window.setTimeout(async () => {
-      // --- 문서 요청 ---
-      if (abortDocsRef.current) abortDocsRef.current.abort();
-      const acDocs = new AbortController();
-      abortDocsRef.current = acDocs;
-      setLoadingDocs(true);
+    timerRef.current =
+      window.setTimeout(
+        () => {
+          const docsController =
+            new AbortController();
 
-      // --- 퀘스트 NPC 요청 ---
-      if (abortQuestNpcRef.current) abortQuestNpcRef.current.abort();
-      const acQuestNpc = new AbortController();
-      abortQuestNpcRef.current = acQuestNpc;
-      setLoadingQuestNpcs(true);
+          const questController =
+            new AbortController();
 
-      if (compactQuery.length >= 2) {
-        (async () => {
-          try {
-            const res = await fetch(
-              `/api/search/quest?query=${encodeURIComponent(q)}&limit=20`,
-              { signal: acQuestNpc.signal, cache: 'no-store' }
-            );
-            if (!res.ok) throw new Error('quest-search-failed');
-            const data = (await res.json()) as QuestNpcResult[];
-            setQuestNpcs(Array.isArray(data) ? data : []);
-          } catch (e: any) {
-            if (e?.name !== 'AbortError') setQuestNpcs([]);
-          } finally {
-            setLoadingQuestNpcs(false);
-          }
-        })();
-      } else {
-        setQuestNpcs([]);
-        setLoadingQuestNpcs(false);
-      }
+          const faqController =
+            new AbortController();
 
-      (async () => {
-        try {
-          const res = await fetch(
-            `/api/search?query=${encodeURIComponent(q)}&compact=${encodeURIComponent(compactQuery)}&limit=50`,
-            {
-              signal: acDocs.signal,
-              cache: 'no-store',
-            }
+          abortDocsRef.current =
+            docsController;
+
+          abortQuestNpcRef.current =
+            questController;
+
+          abortFaqRef.current =
+            faqController;
+
+          setLoadingDocs(true);
+          setLoadingQuestNpcs(
+            true,
           );
-          if (!res.ok) throw new Error('search-failed');
-          const data = (await res.json()) as DocResult[];
-          setDocs(Array.isArray(data) ? data : []);
-          setActiveDocIndex(data?.length ? 0 : -1);
-        } catch (e: any) {
-          if (e?.name !== 'AbortError') {
-            setDocs([]);
-            setActiveDocIndex(-1);
-          }
-        } finally {
-          setLoadingDocs(false);
-        }
-      })();
+          setLoadingFaqs(true);
+          setOpen(true);
+          setActiveDocIndex(-1);
 
-      // --- FAQ 요청 ---
-      if (abortFaqRef.current) abortFaqRef.current.abort();
-      const acFaq = new AbortController();
-      abortFaqRef.current = acFaq;
-      setLoadingFaqs(true);
+          void (async () => {
+            try {
+              const response =
+                await fetch(
+                  `/api/search?query=${encodeURIComponent(
+                    trimmedQuery,
+                  )}&compact=${encodeURIComponent(
+                    compactQuery,
+                  )}&limit=50`,
+                  {
+                    signal:
+                      docsController
+                        .signal,
+                    cache:
+                      'no-store',
+                  },
+                );
 
-      (async () => {
-        window.setTimeout(async () => {
-          try {
-            const url =
-              `/api/faq?q=${encodeURIComponent(q)}` +
-              `&compact=${encodeURIComponent(compactQuery)}` +
-              `&limit=10&offset=0`;
+              if (!response.ok) {
+                throw new Error(
+                  'search-failed',
+                );
+              }
 
-            const res = await fetch(url, {
-              signal: acFaq.signal,
-              cache: 'no-store',
-            });
+              const data =
+                (await response.json()) as DocResult[];
 
-            const data = res.ok ? await res.json() : { items: [] };
-            setFaqs(Array.isArray(data.items) ? data.items : []);
-          } catch (e: any) {
-            if (e?.name !== 'AbortError') setFaqs([]);
-          } finally {
-            setLoadingFaqs(false);
-          }
-        }, 180);
-      })();
+              setDocs(
+                Array.isArray(data)
+                  ? data
+                  : [],
+              );
 
-      setOpen(true);
-    }, 200) as unknown as number;
+              /*
+               * 검색 직후 첫 결과를 강제로 선택하지 않는다.
+               * 키보드 탐색은 -1에서 ArrowDown 시 첫 항목으로 이동한다.
+               */
+              setActiveDocIndex(-1);
+            } catch (error) {
+              if (
+                !(
+                  error instanceof
+                    DOMException &&
+                  error.name ===
+                    'AbortError'
+                )
+              ) {
+                setDocs([]);
+                setActiveDocIndex(
+                  -1,
+                );
+              }
+            } finally {
+              if (
+                !docsController
+                  .signal.aborted
+              ) {
+                setLoadingDocs(
+                  false,
+                );
+              }
+            }
+          })();
+
+          void (async () => {
+            try {
+              const response =
+                await fetch(
+                  `/api/search/quest?query=${encodeURIComponent(
+                    trimmedQuery,
+                  )}&limit=20`,
+                  {
+                    signal:
+                      questController
+                        .signal,
+                    cache:
+                      'no-store',
+                  },
+                );
+
+              if (!response.ok) {
+                throw new Error(
+                  'quest-search-failed',
+                );
+              }
+
+              const data =
+                (await response.json()) as QuestNpcResult[];
+
+              setQuestNpcs(
+                Array.isArray(data)
+                  ? data
+                  : [],
+              );
+            } catch (error) {
+              if (
+                !(
+                  error instanceof
+                    DOMException &&
+                  error.name ===
+                    'AbortError'
+                )
+              ) {
+                setQuestNpcs([]);
+              }
+            } finally {
+              if (
+                !questController
+                  .signal.aborted
+              ) {
+                setLoadingQuestNpcs(
+                  false,
+                );
+              }
+            }
+          })();
+
+          faqTimerRef.current =
+            window.setTimeout(
+              () => {
+                void (async () => {
+                  try {
+                    const url =
+                      `/api/faq?q=${encodeURIComponent(
+                        trimmedQuery,
+                      )}` +
+                      `&compact=${encodeURIComponent(
+                        compactQuery,
+                      )}` +
+                      '&limit=10&offset=0';
+
+                    const response =
+                      await fetch(
+                        url,
+                        {
+                          signal:
+                            faqController
+                              .signal,
+                          cache:
+                            'no-store',
+                        },
+                      );
+
+                    const data =
+                      response.ok
+                        ? ((await response.json()) as {
+                            items?: FaqItem[];
+                          })
+                        : {
+                            items: [],
+                          };
+
+                    setFaqs(
+                      Array.isArray(
+                        data.items,
+                      )
+                        ? data.items
+                        : [],
+                    );
+                  } catch (error) {
+                    if (
+                      !(
+                        error instanceof
+                          DOMException &&
+                        error.name ===
+                          'AbortError'
+                      )
+                    ) {
+                      setFaqs([]);
+                    }
+                  } finally {
+                    if (
+                      !faqController
+                        .signal
+                        .aborted
+                    ) {
+                      setLoadingFaqs(
+                        false,
+                      );
+                    }
+                  }
+                })();
+              },
+              180,
+            );
+        },
+        200,
+      );
 
     return () => {
-      if (timerRef.current) window.clearTimeout(timerRef.current);
+      if (
+        timerRef.current !== null
+      ) {
+        window.clearTimeout(
+          timerRef.current,
+        );
+      }
+
+      if (
+        faqTimerRef.current !==
+        null
+      ) {
+        window.clearTimeout(
+          faqTimerRef.current,
+        );
+      }
     };
   }, [query]);
 
-  // 외부 클릭으로 닫기
   useEffect(() => {
-    const onDocDown = (e: MouseEvent) => {
-      const root = wrapRef.current;
-      if (!root) return;
-      if (!root.contains(e.target as Node)) {
+    return () => {
+      abortDocsRef.current?.abort();
+      abortQuestNpcRef.current?.abort();
+      abortFaqRef.current?.abort();
+
+      if (
+        timerRef.current !== null
+      ) {
+        window.clearTimeout(
+          timerRef.current,
+        );
+      }
+
+      if (
+        faqTimerRef.current !==
+        null
+      ) {
+        window.clearTimeout(
+          faqTimerRef.current,
+        );
+      }
+    };
+  }, []);
+
+  useEffect(() => {
+    const onDocumentMouseDown = (
+      event: MouseEvent,
+    ) => {
+      const root =
+        wrapRef.current;
+
+      if (!root) {
+        return;
+      }
+
+      if (
+        faqView ||
+        resultModalOpen
+      ) {
+        return;
+      }
+
+      if (
+        !root.contains(
+          event.target as Node,
+        )
+      ) {
         setOpen(false);
         setActiveDocIndex(-1);
       }
     };
-    document.addEventListener('mousedown', onDocDown);
-    return () => document.removeEventListener('mousedown', onDocDown);
-  }, []);
 
-  // 이동
-  const goDoc = (res: DocResult | null) => {
-    if (!res) return;
+    document.addEventListener(
+      'mousedown',
+      onDocumentMouseDown,
+    );
 
-    const nextHashDomId = String(res.section_dom_id ?? "").trim();
+    return () => {
+      document.removeEventListener(
+        'mousedown',
+        onDocumentMouseDown,
+      );
+    };
+  }, [
+    faqView,
+    resultModalOpen,
+  ]);
 
-    setOpen(false);
-    setQuery("");
-    setDocs([]);
-    setQuestNpcs?.([]);
-    setFaqs([]);
-    setActiveDocIndex(-1);
-
-    const href =
-      `/wiki?id=${encodeURIComponent(res.id)}` +
-      `&path=${encodeURIComponent(res.path)}` +
-      `&title=${encodeURIComponent(res.title)}` +
-      (nextHashDomId ? `#${encodeURIComponent(nextHashDomId)}` : "");
-
-    markNextDocViewSource('search');
-    router.push(href, { scroll: false });
-
-    if (nextHashDomId && typeof window !== "undefined") {
-      window.requestAnimationFrame(() => {
-        window.dispatchEvent(
-          new CustomEvent("rdwiki:search-hash-nav", {
-            detail: { domId: nextHashDomId },
-          }),
-        );
-      });
+  const renderDocumentTitle = (
+    result: DocResult,
+  ) => {
+    if (
+      result.match_type ===
+      'title'
+    ) {
+      return (
+        <mark className="search-highlight">
+          {result.title}
+        </mark>
+      );
     }
+
+    return highlight(
+      result.title,
+      query,
+    );
   };
 
-  const openQuestNpc = (npc: QuestNpcResult | null) => {
-    if (!npc) return;
+  const renderSectionMeta = (
+    result: DocResult,
+  ) => {
+    const sectionHeading =
+      String(
+        result.section_heading ??
+          '',
+      ).trim();
 
-    setOpen(false);
-    setQuery('');
-    setDocs([]);
-    setQuestNpcs([]);
-    setFaqs([]);
-    setActiveDocIndex(-1);
+    const breadcrumb =
+      String(
+        result.category_breadcrumb ??
+          '',
+      ).trim();
 
-    onQuestNpcClick?.(npc.id);
+    if (
+      result.match_type ===
+        'content' &&
+      sectionHeading
+    ) {
+      const highlighted =
+        isSectionHeadingHighlighted(
+          sectionHeading,
+          query,
+        );
+
+      return (
+        <div
+          className={
+            highlighted
+              ? 'search-result-meta is-match'
+              : 'search-result-meta'
+          }
+          title={sectionHeading}
+        >
+          {highlight(
+            sectionHeading,
+            query,
+          )}
+        </div>
+      );
+    }
+
+    if (!breadcrumb) {
+      return null;
+    }
+
+    return (
+      <div
+        className="search-result-meta"
+        title={breadcrumb}
+      >
+        {highlight(
+          breadcrumb,
+          query,
+        )}
+      </div>
+    );
   };
 
-  // 키보드(문서 리스트 포커스)
-  const onKeyDown: React.KeyboardEventHandler<HTMLInputElement> = (e) => {
-    if (!open || (!combinedCount && e.key !== 'Escape')) {
-      if (e.key === 'Escape') {
-        setOpen(false);
-        setActiveDocIndex(-1);
-      }
+  const resetSearchState =
+    () => {
+      setOpen(false);
+      updateQuery('');
+      setDocs([]);
+      setQuestNpcs([]);
+      setFaqs([]);
+      setActiveDocIndex(-1);
+    };
+
+  const goDocument = (
+    result: DocResult | null,
+  ) => {
+    if (!result) {
       return;
     }
 
-    if (e.key === 'ArrowDown') {
-      e.preventDefault();
-      setActiveDocIndex((i) => (combinedCount ? (i + 1) % combinedCount : -1));
-    } else if (e.key === 'ArrowUp') {
-      e.preventDefault();
-      setActiveDocIndex((i) => (combinedCount ? (i - 1 + combinedCount) % combinedCount : -1));
-    } else if (e.key === 'Enter') {
-      e.preventDefault();
+    const nextHashDomId =
+      String(
+        result.section_dom_id ??
+          '',
+      ).trim();
 
-      const picked = combinedDocItems[activeDocIndex] ?? combinedDocItems[0] ?? null;
-      if (!picked) return;
+    commitCurrentSearch(
+      'document',
+    );
 
-      if (picked.kind === 'doc') {
-        goDoc(picked.data);
-      } else {
-        openQuestNpc(picked.data);
-      }
-    } else if (e.key === 'Escape') {
-      e.preventDefault();
-      setOpen(false);
-      setActiveDocIndex(-1);
+    resetSearchState();
+
+    const href =
+      `/wiki?id=${encodeURIComponent(
+        result.id,
+      )}` +
+      `&path=${encodeURIComponent(
+        result.path,
+      )}` +
+      `&title=${encodeURIComponent(
+        result.title,
+      )}` +
+      (nextHashDomId
+        ? `#${encodeURIComponent(
+            nextHashDomId,
+          )}`
+        : '');
+
+    markNextDocViewSource(
+      'search',
+    );
+
+    router.push(href, {
+      scroll: false,
+    });
+
+    if (
+      nextHashDomId &&
+      typeof window !==
+        'undefined'
+    ) {
+      window.requestAnimationFrame(
+        () => {
+          window.dispatchEvent(
+            new CustomEvent(
+              'rdwiki:search-hash-nav',
+              {
+                detail: {
+                  domId:
+                    nextHashDomId,
+                },
+              },
+            ),
+          );
+        },
+      );
     }
   };
 
-  // ✅ 드롭다운 내부 스크롤을 위한 높이 기준값
-  const dropdownMaxH = 'min(72vh, 560px)';
+  const openQuestNpc = (
+    npc:
+      | QuestNpcResult
+      | null,
+  ) => {
+    if (!npc) {
+      return;
+    }
+
+    /*
+     * 상위 NPC 모달을 닫았을 때 같은 검색 결과를 다시 볼 수 있게
+     * 검색어와 결과 목록은 유지한다.
+     */
+    setOpen(true);
+    onQuestNpcClick?.(npc.id);
+  };
+
+  const openFaq =
+    async (
+      faq: FaqItem,
+    ) => {
+      setOpen(true);
+
+      commitCurrentSearch('faq');
+
+      void recordFaqView(
+        faq.id,
+        'search',
+      );
+
+      try {
+        const response =
+          await fetch(
+            `/api/faq/${encodeURIComponent(
+              faq.id,
+            )}`,
+            {
+              cache: 'no-store',
+            },
+          );
+
+        if (!response.ok) {
+          throw new Error(
+            `faq-detail-failed:${response.status}`,
+          );
+        }
+
+        const fresh =
+          (await response.json()) as FaqItem;
+
+        setFaqView(
+          fresh &&
+            Number(fresh.id) > 0
+            ? fresh
+            : faq,
+        );
+      } catch (error) {
+        console.error(
+          '[SearchBox] FAQ 상세 조회 실패:',
+          error,
+        );
+
+        setFaqView(faq);
+      }
+    };
+
+  const clearSearch = () => {
+    resetSearchState();
+
+    window.requestAnimationFrame(
+      () => {
+        inputRef.current?.focus();
+      },
+    );
+  };
+
+  const onKeyDown:
+    KeyboardEventHandler<HTMLInputElement> =
+    (event) => {
+      if (
+        !open ||
+        (!combinedCount &&
+          event.key !==
+            'Escape')
+      ) {
+        if (
+          event.key === 'Escape'
+        ) {
+          setOpen(false);
+          setActiveDocIndex(-1);
+        }
+
+        return;
+      }
+
+      if (
+        event.key ===
+        'ArrowDown'
+      ) {
+        event.preventDefault();
+
+        setActiveDocIndex(
+          (index) =>
+            combinedCount
+              ? (index + 1) %
+                combinedCount
+              : -1,
+        );
+      } else if (
+        event.key === 'ArrowUp'
+      ) {
+        event.preventDefault();
+
+        setActiveDocIndex(
+          (index) =>
+            combinedCount
+              ? index < 0
+                ? combinedCount -
+                  1
+                : (index -
+                    1 +
+                    combinedCount) %
+                  combinedCount
+              : -1,
+        );
+      } else if (
+        event.key === 'Enter'
+      ) {
+        event.preventDefault();
+
+        const selected =
+          combinedDocItems[
+            activeDocIndex
+          ] ??
+          combinedDocItems[0] ??
+          null;
+
+        if (!selected) {
+          return;
+        }
+
+        if (
+          selected.kind ===
+          'doc'
+        ) {
+          goDocument(
+            selected.data,
+          );
+        } else {
+          openQuestNpc(
+            selected.data,
+          );
+        }
+      } else if (
+        event.key === 'Escape'
+      ) {
+        event.preventDefault();
+        setOpen(false);
+        setActiveDocIndex(-1);
+      }
+    };
+
+  const dropdownMaxHeight =
+    'min(72vh, 560px)';
 
   return (
-    <div
-      ref={wrapRef}
-      className="search-wrapper"
-      role="combobox"
-      aria-expanded={open}
-      aria-owns={listId}
-      aria-haspopup="listbox"
-      data-align={align}
-      style={{ width }}
-    >
-      <svg className="search-icon" viewBox="0 0 24 24" aria-hidden="true">
-        <path d="M21.53 20.47l-3.66-3.66C19.195 15.24 20 13.214 20 11c0-4.97-4.03-9-9-9s-9 4.03-9 9 4.03 9 9 9c2.215 0 4.24-.804 5.808-2.13l3.66 3.66c.147.146.34.22.53.22s.385-.073.53-.22c.295-.293.295-.767.002-1.06zM3.5 11c0-4.135 3.365-7.5 7.5-7.5s7.5 3.365 7.5 7.5-3.365 7.5-7.5 7.5-7.5-3.365-7.5-7.5z" />
-      </svg>
+    <>
+      <div
+        ref={wrapRef}
+        className="search-wrapper"
+        role="combobox"
+        aria-expanded={open}
+        aria-owns={listId}
+        aria-haspopup="listbox"
+        data-align={align}
+        style={{
+          width,
+        }}
+      >
+        <SearchIcon />
 
-      <input
-        type="search"
-        ref={inputRef}
-        className="search-input"
-        placeholder="Search"
-        value={query}
-        onInput={(e) => setQuery((e.target as HTMLInputElement).value)}
-        onChange={(e) => setQuery(e.target.value)}
-        onFocus={() => (docs.length || questNpcs.length || faqs.length) && setOpen(true)}
-        onKeyDown={onKeyDown}
-        autoComplete="off"
-        autoCorrect="off"
-        autoCapitalize="off"
-        spellCheck={false}
-        aria-autocomplete="list"
-        aria-controls={listId}
-        aria-activedescendant={
-          activeDocIndex >= 0 && combinedDocItems[activeDocIndex]
-            ? `${listId}-opt-${combinedDocItems[activeDocIndex].kind}-${combinedDocItems[activeDocIndex].id}`
-            : undefined
-        }
-      />
-
-      {open && (
-        <div
-          className="wiki-search-dropdown"
-          style={{
-            position: 'absolute',
-            left: 0,
-            right: 0,
-            top: 58,
-            zIndex: 9999,
-            background: 'var(--surface-elevated)',
-            border: '1px solid var(--border)',
-            borderRadius: 10,
-            boxShadow: 'var(--shadow-lg)',
-            padding: '10px 12px',
-            maxHeight: dropdownMaxH,
-            overflow: 'auto',
+        <input
+          type="text"
+          ref={inputRef}
+          className="search-input"
+          placeholder="Search"
+          value={query}
+          onChange={(event) => {
+            updateQuery(
+              event.target.value,
+            );
           }}
-        >
+          onFocus={() => {
+            if (
+              docs.length ||
+              questNpcs.length ||
+              faqs.length
+            ) {
+              setOpen(true);
+            }
+          }}
+          onKeyDown={onKeyDown}
+          autoComplete="off"
+          autoCorrect="off"
+          autoCapitalize="off"
+          spellCheck={false}
+          aria-autocomplete="list"
+          aria-controls={listId}
+          aria-activedescendant={
+            activeDocIndex >= 0 &&
+            combinedDocItems[
+              activeDocIndex
+            ]
+              ? `${listId}-opt-${combinedDocItems[activeDocIndex].kind}-${combinedDocItems[activeDocIndex].id}`
+              : undefined
+          }
+        />
+
+        {query ? (
+          <button
+            type="button"
+            className="search-clear-button"
+            onMouseDown={(event) => {
+              event.preventDefault();
+            }}
+            onClick={clearSearch}
+            aria-label="검색어 지우기"
+            title="검색어 지우기"
+          >
+            <ClearIcon />
+          </button>
+        ) : null}
+
+        {open ? (
           <div
+            className="wiki-search-dropdown"
             style={{
-              display: 'grid',
-              gridTemplateColumns: '1fr 1fr',
-              gap: 12,
-              alignItems: 'start',
-              minHeight: 120,
+              maxHeight:
+                dropdownMaxHeight,
+            }}
+            onMouseLeave={() => {
+              setActiveDocIndex(-1);
             }}
           >
-            {/* 문서 컬럼 */}
-            <div style={{ borderRight: '1px solid var(--border-soft)', paddingRight: 8 }}>
-              <div style={{ fontWeight: 800, fontSize: 13, color: 'var(--muted)', marginBottom: 6 }}>
-                문서
-              </div>
+            <div className="search-result-grid">
+              <section className="search-result-column search-document-column">
+                <h3 className="search-result-heading">
+                  문서
+                </h3>
 
-              {!loadingDocs && !loadingQuestNpcs && combinedDocItems.length === 0 && (
-                <div style={{ color: 'var(--muted-2)', fontSize: 14, padding: '6px 4px' }}>
-                  결과가 없습니다.
-                </div>
-              )}
+                {!loadingDocs &&
+                !loadingQuestNpcs &&
+                combinedDocItems.length ===
+                  0 ? (
+                  <div className="search-empty">
+                    결과가 없습니다.
+                  </div>
+                ) : null}
 
-              <ul
-                id={listId}
-                role="listbox"
-                style={{
-                  listStyle: 'none',
-                  margin: 0,
-                  padding: 0,
-                  maxHeight: 420,
-                  overflowY: 'auto',
-                }}
-              >
-                {combinedDocItems.map((item, idx) => {
-                  const selected = idx === activeDocIndex;
-
-                  if (item.kind === 'doc') {
-                    const res = item.data;
-
-                    const cleanTags = (res.tags ?? [])
-                      .map(normalizeTag)
-                      .filter(Boolean)
-                      .filter((tag) => isTagMatched(tag, query));
-
-                    return (
-                      <li
-                        id={`${listId}-opt-doc-${res.id}`}
-                        role="option"
-                        aria-selected={selected}
-                        key={`doc-${res.id}`}
-                        style={{
-                          display: 'flex',
-                          alignItems: 'flex-start',
-                          padding: '11px 12px',
-                          cursor: 'pointer',
-                          borderBottom: idx !== combinedDocItems.length - 1 ? '1px solid var(--border-soft)' : undefined,
-                          background: selected ? 'var(--accent-soft)' : 'transparent',
-                          color: 'var(--foreground)',
-                          fontSize: 15,
-                          lineHeight: 1.3,
-                          gap: 10,
-                          borderRadius: 8,
-                        }}
-                        onMouseEnter={() => setActiveDocIndex(idx)}
-                        onClick={() => goDoc(res)}
-                      >
-                        <span style={{ marginRight: 8, fontSize: 20 }}>
-                          {res.icon ? (
-                            isImageLike(res.icon) ? (
-                              <img
-                                src={isRemoteHttp(res.icon) ? toProxyUrl(res.icon) : res.icon}
-                                alt=""
-                                width={22}
-                                height={22}
-                                style={{ width: 22, height: 22, objectFit: 'cover' }}
-                                loading="lazy"
-                                decoding="async"
-                                draggable={false}
-                              />
-                            ) : (
-                              res.icon
-                            )
-                          ) : (
-                            '📄'
-                          )}
-                        </span>
-
-                        <div style={{ minWidth: 0, flex: 1, display: 'flex', gap: 10, alignItems: 'flex-start' }}>
-                          <div style={{ minWidth: 0, flex: 1 }}>
-                            <div style={{ fontWeight: 700, fontSize: 16 }}>{renderDocTitle(res)}</div>
-
-                            {renderSectionMeta(res)}
-                          </div>
-
-                          {cleanTags.length > 0 && (
-                            <div
-                              style={{
-                                flex: '0 0 auto',
-                                display: 'flex',
-                                flexWrap: 'wrap',
-                                justifyContent: 'flex-end',
-                                gap: 6,
-                                maxWidth: 180,
-                                marginTop: 2,
-                              }}
-                            >
-                              {cleanTags.map((t, i) => (
-                                <span
-                                  key={`${t}-${i}`}
-                                  style={{
-                                    fontSize: 12,
-                                    color: 'var(--tag-fg)',
-                                    background: 'var(--tag-bg)',
-                                    border: '1px solid var(--tag-border)',
-                                    borderRadius: 999,
-                                    padding: '2px 8px',
-                                    lineHeight: 1.4,
-                                    maxWidth: 180,
-                                    overflow: 'hidden',
-                                    textOverflow: 'ellipsis',
-                                    whiteSpace: 'nowrap',
-                                  }}
-                                  title={t}
-                                >
-                                  {highlight(t, query)}
-                                </span>
-                              ))}
-                            </div>
-                          )}
-                        </div>
-                      </li>
+                <ul
+                  id={listId}
+                  role="listbox"
+                  className="search-result-list"
+                  onMouseLeave={() => {
+                    setActiveDocIndex(
+                      -1,
                     );
-                  }
+                  }}
+                >
+                  {combinedDocItems.map(
+                    (
+                      item,
+                      index,
+                    ) => {
+                      const selected =
+                        index ===
+                        activeDocIndex;
 
-                  const npc = item.data;
-                  const villageName = String(npc.village_name ?? '').trim();
+                      if (
+                        item.kind ===
+                        'doc'
+                      ) {
+                        const result =
+                          item.data;
 
-                  return (
-                    <li
-                      id={`${listId}-opt-quest-${npc.id}`}
-                      role="option"
-                      aria-selected={selected}
-                      key={`quest-${npc.id}`}
-                      style={{
-                        display: 'flex',
-                        alignItems: 'flex-start',
-                        padding: '11px 12px',
-                        cursor: 'pointer',
-                        borderBottom: idx !== combinedDocItems.length - 1 ? '1px solid var(--border-soft)' : undefined,
-                        background: selected ? 'var(--accent-soft)' : 'transparent',
-                        color: 'var(--foreground)',
-                        fontSize: 15,
-                        lineHeight: 1.3,
-                        gap: 10,
-                        borderRadius: 8,
-                      }}
-                      onMouseEnter={() => setActiveDocIndex(idx)}
-                      onClick={() => openQuestNpc(npc)}
-                    >
-                      <span style={{ marginRight: 8, fontSize: 20 }}>
-                        {npc.icon ? (
-                          isImageLike(npc.icon ?? undefined) ? (
-                            <img
-                              src={isRemoteHttp(npc.icon ?? undefined) ? toProxyUrl(npc.icon as string) : (npc.icon as string)}
-                              alt=""
-                              width={22}
-                              height={22}
-                              style={{ width: 22, height: 22, objectFit: 'cover' }}
-                              loading="lazy"
-                              decoding="async"
-                              draggable={false}
-                            />
-                          ) : (
-                            npc.icon
+                        const cleanTags =
+                          (
+                            result.tags ??
+                            []
                           )
-                        ) : (
-                          '🧑'
-                        )}
-                      </span>
+                            .map(
+                              normalizeTag,
+                            )
+                            .filter(
+                              Boolean,
+                            )
+                            .filter(
+                              (tag) =>
+                                isTagMatched(
+                                  tag,
+                                  query,
+                                ),
+                            );
 
-                      <div style={{ minWidth: 0, flex: 1, display: 'flex', gap: 10, alignItems: 'flex-start' }}>
-                        <div style={{ minWidth: 0, flex: 1 }}>
-                          <div style={{ fontWeight: 700, fontSize: 16 }}>{highlight(npc.name, query)}</div>
-
-                          <div
-                            style={{
-                              marginTop: 4,
-                              fontSize: 12,
-                              color: 'var(--muted-2)',
-                              overflow: 'hidden',
-                              textOverflow: 'ellipsis',
-                              whiteSpace: 'nowrap',
+                        return (
+                          <li
+                            id={`${listId}-opt-doc-${result.id}`}
+                            key={`doc-${result.id}-${index}`}
+                            role="option"
+                            aria-selected={
+                              selected
+                            }
+                            className={
+                              selected
+                                ? 'search-result-item is-active'
+                                : 'search-result-item'
+                            }
+                            onMouseEnter={() => {
+                              setActiveDocIndex(
+                                index,
+                              );
                             }}
-                            title="퀘스트"
-                          >
-                            퀘스트
-                          </div>
-                        </div>
-
-                        {villageName && (
-                          <div
-                            style={{
-                              flex: '0 0 auto',
-                              display: 'flex',
-                              flexWrap: 'wrap',
-                              justifyContent: 'flex-end',
-                              gap: 6,
-                              maxWidth: 180,
-                              marginTop: 2,
+                            onClick={() => {
+                              goDocument(
+                                result,
+                              );
                             }}
                           >
-                            <span
-                              style={{
-                                fontSize: 12,
-                                color: 'var(--tag-fg)',
-                                background: 'var(--tag-bg)',
-                                border: '1px solid var(--tag-border)',
-                                borderRadius: 999,
-                                padding: '2px 8px',
-                                lineHeight: 1.4,
-                                maxWidth: 180,
-                                overflow: 'hidden',
-                                textOverflow: 'ellipsis',
-                                whiteSpace: 'nowrap',
-                              }}
-                              title={villageName}
-                            >
-                              {highlight(villageName, query)}
+                            <span className="search-result-icon">
+                              {result.icon ? (
+                                isImageLike(
+                                  result.icon,
+                                ) ? (
+                                  <img
+                                    src={
+                                      isRemoteHttp(
+                                        result.icon,
+                                      )
+                                        ? toProxyUrl(
+                                            result.icon,
+                                          )
+                                        : result.icon
+                                    }
+                                    alt=""
+                                    width={22}
+                                    height={22}
+                                    loading="lazy"
+                                    decoding="async"
+                                    draggable={
+                                      false
+                                    }
+                                  />
+                                ) : (
+                                  result.icon
+                                )
+                              ) : (
+                                '📄'
+                              )}
                             </span>
+
+                            <div className="search-result-content">
+                              <div className="search-result-main">
+                                <div
+                                  className="search-result-title"
+                                  title={
+                                    result.title
+                                  }
+                                >
+                                  {renderDocumentTitle(
+                                    result,
+                                  )}
+                                </div>
+
+                                {renderSectionMeta(
+                                  result,
+                                )}
+                              </div>
+
+                              {cleanTags.length >
+                              0 ? (
+                                <div className="search-result-tags">
+                                  {cleanTags.map(
+                                    (
+                                      tag,
+                                      tagIndex,
+                                    ) => (
+                                      <span
+                                        key={`${tag}-${tagIndex}`}
+                                        className="search-result-tag"
+                                        title={
+                                          tag
+                                        }
+                                      >
+                                        {highlight(
+                                          tag,
+                                          query,
+                                        )}
+                                      </span>
+                                    ),
+                                  )}
+                                </div>
+                              ) : null}
+                            </div>
+                          </li>
+                        );
+                      }
+
+                      const npc =
+                        item.data;
+
+                      const villageName =
+                        String(
+                          npc.village_name ??
+                            '',
+                        ).trim();
+
+                      return (
+                        <li
+                          id={`${listId}-opt-quest-${npc.id}`}
+                          key={`quest-${npc.id}-${index}`}
+                          role="option"
+                          aria-selected={
+                            selected
+                          }
+                          className={
+                            selected
+                              ? 'search-result-item is-active'
+                              : 'search-result-item'
+                          }
+                          onMouseEnter={() => {
+                            setActiveDocIndex(
+                              index,
+                            );
+                          }}
+                          onClick={() => {
+                            openQuestNpc(
+                              npc,
+                            );
+                          }}
+                        >
+                          <span className="search-result-icon">
+                            {npc.icon ? (
+                              isImageLike(
+                                npc.icon,
+                              ) ? (
+                                <img
+                                  src={
+                                    isRemoteHttp(
+                                      npc.icon,
+                                    )
+                                      ? toProxyUrl(
+                                          npc.icon,
+                                        )
+                                      : npc.icon
+                                  }
+                                  alt=""
+                                  width={22}
+                                  height={22}
+                                  loading="lazy"
+                                  decoding="async"
+                                  draggable={
+                                    false
+                                  }
+                                />
+                              ) : (
+                                npc.icon
+                              )
+                            ) : (
+                              '🧑'
+                            )}
+                          </span>
+
+                          <div className="search-result-content">
+                            <div className="search-result-main">
+                              <div
+                                className="search-result-title"
+                                title={
+                                  npc.name
+                                }
+                              >
+                                {highlight(
+                                  npc.name,
+                                  query,
+                                )}
+                              </div>
+
+                              <div className="search-result-meta">
+                                퀘스트
+                              </div>
+                            </div>
+
+                            {villageName ? (
+                              <div className="search-result-tags">
+                                <span
+                                  className="search-result-tag"
+                                  title={
+                                    villageName
+                                  }
+                                >
+                                  {highlight(
+                                    villageName,
+                                    query,
+                                  )}
+                                </span>
+                              </div>
+                            ) : null}
                           </div>
-                        )}
-                      </div>
-                    </li>
-                  );
-                })}
-              </ul>
-            </div>
+                        </li>
+                      );
+                    },
+                  )}
+                </ul>
+              </section>
 
-            {/* FAQ 컬럼 */}
-            <div style={{ paddingLeft: 8 }}>
-              <div style={{ fontWeight: 800, fontSize: 13, color: 'var(--muted)', marginBottom: 6 }}>
-                자주 묻는 질문
-              </div>
+              <section className="search-result-column search-faq-column">
+                <h3 className="search-result-heading">
+                  자주 묻는 질문
+                </h3>
 
-              {!loadingFaqs && faqs.length === 0 && (
-                <div style={{ color: 'var(--muted-2)', fontSize: 14, padding: '6px 4px' }}>
-                  결과가 없습니다.
-                </div>
-              )}
+                {!loadingFaqs &&
+                faqs.length === 0 ? (
+                  <div className="search-empty">
+                    결과가 없습니다.
+                  </div>
+                ) : null}
 
-              <ul style={{ listStyle: 'none', margin: 0, padding: 0, maxHeight: 420, overflowY: 'auto' }}>
-                {faqs.map((f) => (
-                  <li
-                    key={`faq-${f.id}`}
-                    style={{
-                      padding: '11px 12px',
-                      borderBottom: '1px solid var(--border-soft)',
-                      cursor: 'pointer',
-                      borderRadius: 8,
-                    }}
-                    onClick={() => setFaqView(f)}
-                  >
-                    <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                <ul className="search-faq-list">
+                  {faqs.map((faq) => (
+                    <li
+                      key={faq.id}
+                      className="search-faq-item"
+                      onClick={() => {
+                        void openFaq(faq);
+                      }}
+                    >
                       <span
-                        style={{
-                          display: 'inline-flex',
-                          alignItems: 'center',
-                          justifyContent: 'center',
-                          width: 20,
-                          height: 20,
-                          borderRadius: 999,
-                          background: 'var(--faq-q-bg)',
-                          color: 'var(--faq-q-fg)',
-                          fontWeight: 900,
-                          fontSize: 12.5,
-                          flex: '0 0 20px',
-                        }}
-                        aria-hidden
+                        className="search-faq-icon"
+                        aria-hidden="true"
                       >
                         Q
                       </span>
-                      <div style={{ fontWeight: 700, fontSize: 15, minWidth: 0, color: 'var(--foreground)' }}>
-                        {highlight(f.title, query)}
-                      </div>
-                    </div>
-                    {f.tags?.length > 0 && (
-                      <div
-                        style={{
-                          color: 'var(--tag-fg)',
-                          fontSize: 12,
-                          marginTop: 6,
-                          display: 'flex',
-                          flexWrap: 'wrap',
-                          gap: 6,
-                        }}
-                      >
-                        {f.tags.map((t, i) => (
-                          <span key={t + i}>{highlight(t, query)}</span>
-                        ))}
-                      </div>
-                    )}
-                  </li>
-                ))}
-              </ul>
-            </div>
-          </div>
-        </div>
-      )}
 
-      {/* FAQ 뷰 간단 모달 */}
-      {faqView && (
-        <div
-          onClick={() => setFaqView(null)}
-          style={{
-            position: 'fixed',
-            inset: 0,
-            background: 'var(--overlay)',
-            display: 'grid',
-            placeItems: 'center',
-            padding: 16,
-            zIndex: 10000,
-          }}
-        >
-          <div
-            onClick={(e) => e.stopPropagation()}
-            style={{
-              width: 'min(760px, 100%)',
-              background: 'var(--surface-elevated)',
-              border: '1px solid var(--border)',
-              borderRadius: 16,
-              padding: 16,
-              boxShadow: 'var(--shadow-xl)',
-              color: 'var(--foreground)',
-            }}
-          >
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 10 }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-                <span
-                  style={{
-                    display: 'inline-flex',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    width: 22,
-                    height: 22,
-                    borderRadius: 999,
-                    background: 'var(--faq-q-bg)',
-                    color: 'var(--faq-q-fg)',
-                    fontWeight: 900,
-                    fontSize: 13.5,
-                    flex: '0 0 22px',
-                  }}
-                >
-                  Q
-                </span>
-                <h3 style={{ margin: 0, fontSize: 18 }}>{faqView.title}</h3>
-              </div>
-              <button
-                onClick={() => setFaqView(null)}
-                aria-label="close"
-                style={{
-                  width: 34,
-                  height: 34,
-                  display: 'grid',
-                  placeItems: 'center',
-                  background: 'transparent',
-                  border: 0,
-                  cursor: 'pointer',
-                  color: 'var(--danger-fg)',
-                }}
-              >
-                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.8">
-                  <path d="M6 6L18 18M18 6L6 18" strokeLinecap="round" />
-                </svg>
-              </button>
-            </div>
-            <div style={{ marginTop: 10 }}>
-              <div
-                style={{
-                  display: 'flex',
-                  alignItems: 'flex-start',
-                  gap: 12,
-                  background: 'var(--faq-a-bg)',
-                  border: '1px solid var(--faq-a-border)',
-                  borderRadius: 12,
-                  padding: '12px 14px',
-                }}
-              >
-                <span
-                  style={{
-                    display: 'inline-flex',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    width: 22,
-                    height: 22,
-                    borderRadius: 999,
-                    background: 'var(--faq-a-badge-bg)',
-                    color: 'var(--faq-a-badge-fg)',
-                    fontWeight: 900,
-                    fontSize: 13.5,
-                    flex: '0 0 22px',
-                  }}
-                >
-                  A
-                </span>
-                <pre style={{ margin: 0, whiteSpace: 'pre-wrap', font: 'inherit', color: 'var(--foreground)' }}>
-                  {faqView.content}
-                </pre>
-              </div>
-              {faqView.tags?.length > 0 && (
-                <div
-                  style={{
-                    marginTop: 10,
-                    color: 'var(--tag-fg)',
-                    fontSize: 12,
-                    display: 'flex',
-                    gap: 8,
-                    flexWrap: 'wrap',
-                  }}
-                >
-                  {faqView.tags.map((t, i) => (
-                    <span key={t + i}>#{t}</span>
+                      <div className="search-faq-content">
+                        <div className="search-faq-title">
+                          {highlight(
+                            faq.title,
+                            query,
+                          )}
+                        </div>
+
+                        {faq.tags?.length >
+                        0 ? (
+                          <div className="search-faq-tags">
+                            {faq.tags.map(
+                              (
+                                tag,
+                                tagIndex,
+                              ) => (
+                                <span
+                                  key={`${tag}-${tagIndex}`}
+                                >
+                                  {highlight(
+                                    tag,
+                                    query,
+                                  )}
+                                </span>
+                              ),
+                            )}
+                          </div>
+                        ) : null}
+                      </div>
+                    </li>
                   ))}
-                </div>
-              )}
+                </ul>
+              </section>
             </div>
           </div>
-        </div>
-      )}
+        ) : null}
+      </div>
 
-      <style jsx>{`
-        .search-wrapper {
-          max-width: 100%;
-        }
-        @media (max-width: 768px) {
-          .search-wrapper {
-            width: min(92vw, 640px) !important;
-          }
-        }
-      `}</style>
-    </div>
+      {portalReady && faqView
+        ? createPortal(
+            <div
+              className="search-faq-modal-backdrop"
+              role="presentation"
+              onMouseDown={(event) => {
+                /*
+                 * 백드롭 클릭은 FAQ 모달만 닫는다.
+                 * 이벤트가 document의 검색창 외부 클릭 감지까지 전달되면
+                 * 유지 중인 검색 결과도 함께 닫히므로 여기서 전파를 막는다.
+                 */
+                event.stopPropagation();
+
+                if (
+                  event.target ===
+                  event.currentTarget
+                ) {
+                  setFaqView(null);
+                }
+              }}
+            >
+              <article
+                className="search-faq-modal"
+                role="dialog"
+                aria-modal="true"
+                aria-labelledby="search-faq-modal-title"
+                onMouseDown={(event) => {
+                  event.stopPropagation();
+                }}
+              >
+                <header className="search-faq-modal-header">
+                  <span
+                    className="search-faq-modal-icon"
+                    aria-hidden="true"
+                  >
+                    Q
+                  </span>
+
+                  <h3 id="search-faq-modal-title">
+                    {faqView.title}
+                  </h3>
+
+                  <button
+                    type="button"
+                    className="search-faq-modal-close"
+                    onClick={() => {
+                      setFaqView(null);
+                    }}
+                    aria-label="질문 닫기"
+                  >
+                    ×
+                  </button>
+                </header>
+
+                <div className="search-faq-modal-answer">
+                  <span
+                    className="search-faq-modal-icon is-answer"
+                    aria-hidden="true"
+                  >
+                    A
+                  </span>
+
+                  <p>
+                    {faqView.content}
+                  </p>
+                </div>
+
+                {faqView.tags?.length >
+                0 ? (
+                  <div className="search-faq-modal-tags">
+                    {faqView.tags.map(
+                      (
+                        tag,
+                        index,
+                      ) => (
+                        <span
+                          key={`${tag}-${index}`}
+                        >
+                          #{tag}
+                        </span>
+                      ),
+                    )}
+                  </div>
+                ) : null}
+              </article>
+            </div>,
+            document.body,
+          )
+        : null}
+    </>
   );
 }

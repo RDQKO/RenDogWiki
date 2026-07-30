@@ -1,17 +1,16 @@
 import React from 'react';
 
-import {
-  tableCellBaseStyle,
-  tableElementBaseStyle,
-} from './tableLayout';
-
+import '../../../wiki/css/document-components/table.css';
+import { tableElementBaseStyle } from './tableLayout';
 import type {
   WikiTableCellRendererProps,
   WikiTableRendererProps,
   WikiTableRowRendererProps,
 } from './types';
 
-function mergeClassName(...names: Array<string | undefined | null | false>) {
+function mergeClassName(
+  ...names: Array<string | undefined | null | false>
+) {
   return names.filter(Boolean).join(' ') || undefined;
 }
 
@@ -26,23 +25,20 @@ export function WikiTableRenderer({
   tableClassName,
   tableStyle,
   overlay,
-  editControls,
-  readControls,
   afterContent,
   scrollable = false,
+  compact = false,
   tableInnerStyle,
   onMouseMoveCapture,
   onMouseDownCapture,
   onMouseUpCapture,
 }: WikiTableRendererProps) {
-  const controls = mode === 'edit' ? editControls : readControls;
   const attrStyle = attributes?.style;
-
   const tableNode =
     table ?? (
       <table
-        className={tableClassName}
-        onDragStart={(e) => e.preventDefault()}
+        className={mergeClassName('rdwiki-table', tableClassName)}
+        onDragStart={(event) => event.preventDefault()}
         style={{
           ...tableElementBaseStyle,
           ...tableStyle,
@@ -56,7 +52,6 @@ export function WikiTableRenderer({
     <>
       {tableNode}
       {overlay}
-      {controls}
       {afterContent}
     </>
   );
@@ -67,7 +62,12 @@ export function WikiTableRenderer({
       ref={containerRef}
       data-wiki-block="table"
       data-wiki-mode={mode}
-      className={mergeClassName(attributes?.className, className)}
+      data-wiki-compact={compact ? 'true' : 'false'}
+      className={mergeClassName(
+        'rdwiki-table-block',
+        attributes?.className,
+        className,
+      )}
       onMouseMoveCapture={onMouseMoveCapture}
       onMouseDownCapture={onMouseDownCapture}
       onMouseUpCapture={onMouseUpCapture}
@@ -78,6 +78,7 @@ export function WikiTableRenderer({
     >
       {scrollable ? (
         <div
+          className="rdwiki-table-scroll"
           style={{
             overflowX: 'auto',
             maxWidth: '100%',
@@ -97,7 +98,17 @@ export function WikiTableRowRenderer({
   attributes,
   children,
 }: WikiTableRowRendererProps) {
-  return <tr {...attributes}>{children}</tr>;
+  return (
+    <tr
+      {...attributes}
+      className={mergeClassName(
+        'rdwiki-table-row',
+        attributes?.className,
+      )}
+    >
+      {children}
+    </tr>
+  );
 }
 
 export function WikiTableCellRenderer({
@@ -122,12 +133,15 @@ export function WikiTableCellRenderer({
       onMouseDown={onMouseDown}
       onMouseEnter={onMouseEnter}
       onContextMenu={onContextMenu}
-      onDragStart={(e) => e.preventDefault()}
+      onDragStart={(event) => event.preventDefault()}
       draggable={false}
-      className={mergeClassName(attributes?.className, className)}
+      className={mergeClassName(
+        'rdwiki-table-cell',
+        attributes?.className,
+        className,
+      )}
       data-wiki-mode={mode}
       style={{
-        ...tableCellBaseStyle,
         ...style,
         ...(attributes?.style ?? {}),
       }}

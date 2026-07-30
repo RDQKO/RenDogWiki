@@ -10,6 +10,33 @@ import { ReactEditor } from 'slate-react';
 import type { LinkElement, LinkBlockElement, ParagraphElement } from '@/types/slate';
 
 // =============== 공통 유틸 ===============
+/**
+ * 현재 선택 범위가 기존 인라인 링크와 조금이라도 겹치는지 확인한다.
+ * - 링크 내부 커서
+ * - 링크 일부 또는 전체 선택
+ * - 링크와 일반 텍스트를 함께 선택
+ * 위 경우를 모두 true로 처리해 링크 중첩이나 의도치 않은 분할을 막는다.
+ */
+export function selectionIntersectsInlineLink(
+  editor: Editor,
+  at: Range | null = editor.selection,
+) {
+  if (!at) return false;
+
+  try {
+    const [match] = Editor.nodes(editor, {
+      at,
+      match: n =>
+        SlateElement.isElement(n) &&
+        (n as LinkElement).type === 'link',
+    });
+
+    return !!match;
+  } catch {
+    return false;
+  }
+}
+
 function moveCaretOutOfLink(editor: Editor) {
   const linkEntry = Editor.above(editor, {
     match: n => SlateElement.isElement(n) && (n as any).type === 'link',
@@ -92,6 +119,7 @@ export const insertLink = (editor: Editor, url: string, text?: string) => {
 
   const trimmed = (url ?? '').trim();
   if (!trimmed) return;
+  if (selectionIntersectsInlineLink(editor, editor.selection)) return;
 
   const isCollapsed = Range.isCollapsed(editor.selection);
   const linkEl: LinkElement = {
@@ -99,16 +127,6 @@ export const insertLink = (editor: Editor, url: string, text?: string) => {
     url: trimmed,
     children: isCollapsed ? [{ text: text ?? trimmed }] : [],
   };
-
-  // 이미 링크 안이면 먼저 unwrap (중첩 방지)
-  const [inLink] = Editor.nodes(editor, {
-    match: n => SlateElement.isElement(n) && (n as any).type === 'link',
-  });
-  if (inLink) {
-    Transforms.unwrapNodes(editor, {
-      match: n => SlateElement.isElement(n) && (n as any).type === 'link',
-    });
-  }
 
   if (isCollapsed) {
     Transforms.insertNodes(editor, linkEl as any);

@@ -1,5 +1,10 @@
 import React from 'react';
 
+type InlineLinkAnchorAttributes =
+  React.AnchorHTMLAttributes<HTMLAnchorElement> & {
+    ref?: React.Ref<HTMLAnchorElement>;
+  };
+
 type InlineLinkRendererProps = {
   mode: 'read' | 'edit';
 
@@ -8,7 +13,7 @@ type InlineLinkRendererProps = {
 
   anchorRef?: React.Ref<HTMLAnchorElement>;
 
-  attributes?: React.AnchorHTMLAttributes<HTMLAnchorElement>;
+  attributes?: InlineLinkAnchorAttributes;
 
   className?: string;
   style?: React.CSSProperties;
@@ -40,6 +45,28 @@ export default function InlineLinkRenderer({
   ariaDescribedBy,
 }: InlineLinkRendererProps) {
   const safeHref = String(href ?? '#');
+  const attributesRef = attributes?.ref;
+  const mergedRef = React.useCallback(
+    (node: HTMLAnchorElement | null) => {
+      const assignRef = (ref: React.Ref<HTMLAnchorElement> | undefined) => {
+        if (!ref) return;
+
+        if (typeof ref === 'function') {
+          ref(node);
+          return;
+        }
+
+        (ref as React.MutableRefObject<HTMLAnchorElement | null>).current = node;
+      };
+
+      assignRef(attributesRef);
+
+      if (anchorRef !== attributesRef) {
+        assignRef(anchorRef);
+      }
+    },
+    [anchorRef, attributesRef],
+  );
 
   const mergedClassName = [
     attributes?.className,
@@ -51,7 +78,7 @@ export default function InlineLinkRenderer({
   return (
     <a
       {...attributes}
-      ref={anchorRef}
+      ref={mergedRef}
       href={safeHref}
       data-wiki-inline="link"
       data-wiki-mode={mode}

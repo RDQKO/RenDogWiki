@@ -7,6 +7,7 @@ import React, { useRef, useLayoutEffect, useMemo, useEffect } from "react";
 import SmartImage from "../common/SmartImage"; // ✅ import 유지
 import { toProxyUrl } from "@lib/cdn";
 import { markNextDocViewSource } from '@/wiki/lib/viewSource';
+import styles from './CategoryTreeIconStability.module.css';
 
 type CategoryNode = {
   id: number;
@@ -304,23 +305,60 @@ const CategoryTree: React.FC<Props> = ({
       let target: HTMLElement | null = null;
 
       if (docId) {
-        target = host.querySelector(`[data-kind="doc"][data-docid="${docId}"]`) as HTMLElement | null;
+        target = host.querySelector(
+          `[data-kind="doc"][data-docid="${docId}"]`
+        ) as HTMLElement | null;
       }
 
       // 2) 문서가 없거나 못 찾으면 카테고리로
       if (!target && catKey) {
-        target = host.querySelector(`[data-kind="cat"][data-path="${CSS.escape(catKey)}"]`) as HTMLElement | null;
+        target = host.querySelector(
+          `[data-kind="cat"][data-path="${CSS.escape(catKey)}"]`
+        ) as HTMLElement | null;
       }
 
       if (!target) return;
 
-      // ✅ "가까우면 안 움직임" + "부드럽게"
+      /*
+       * 선택 항목 자동 스크롤은 세로축만 조정한다.
+       *
+       * 기존 전체축 자동 스크롤은 트리에 몇 px의 가로
+       * overflow가 있을 때 컨테이너의 scrollLeft도 함께 바꿀 수 있다.
+       * 그러면 실제 항목 위치는 그대로인데 트리 전체가 좌우로 들썩여 보인다.
+       */
+      if (host.scrollLeft !== 0) {
+        host.scrollLeft = 0;
+      }
+
+      const hostRect = host.getBoundingClientRect();
+      const targetRect = target.getBoundingClientRect();
+      const topPadding = 12;
+      const bottomPadding = 12;
+
+      let nextTop = host.scrollTop;
+
+      if (targetRect.top < hostRect.top + topPadding) {
+        nextTop -= hostRect.top + topPadding - targetRect.top;
+      } else if (targetRect.bottom > hostRect.bottom - bottomPadding) {
+        nextTop += targetRect.bottom - (hostRect.bottom - bottomPadding);
+      }
+
+      nextTop = Math.max(0, nextTop);
+
+      // 이미 보이는 항목이면 스크롤 애니메이션 자체를 만들지 않는다.
+      if (Math.abs(nextTop - host.scrollTop) < 1) {
+        return;
+      }
+
       try {
-        target.scrollIntoView({ block: "nearest", inline: "nearest", behavior: "smooth" });
+        host.scrollTo({
+          top: nextTop,
+          left: 0,
+          behavior: "smooth",
+        });
       } catch {
-        // 구형 브라우저 fallback
-        const top = target.offsetTop;
-        host.scrollTop = Math.max(0, top - 80);
+        host.scrollTop = nextTop;
+        host.scrollLeft = 0;
       }
     };
 
@@ -415,68 +453,6 @@ const CategoryTree: React.FC<Props> = ({
       return cnt + 1;
     }, 0);
   };
-
-  useEffect(() => {
-    const onClick = async (e: MouseEvent) => {
-      try {
-        const target = e.target as HTMLElement | null;
-        const a = target?.closest("a") as HTMLAnchorElement | null;
-        if (!a) return;
-
-        const href = a.getAttribute("href") || "";
-        const looksLikeLogo =
-          href === "/" ||
-          href === "/wiki" ||
-          a.id === "wiki-logo" ||
-          a.classList.contains("wiki-logo");
-
-        if (!looksLikeLogo) return;
-
-        if (!interactionReady) {
-          e.preventDefault();
-          e.stopPropagation();
-          return;
-        }
-
-        const rootRep = allDocuments.find(
-          (d) =>
-            Array.isArray(d.fullPath) &&
-            d.fullPath.length === 0 &&
-            d.id === HIDE_ROOT_DOC_ID
-        );
-        if (!rootRep) return;
-
-        e.preventDefault();
-        e.stopPropagation();
-
-        // 현재 열려 있는 루트 카테고리 전부 닫기
-        for (const root of filteredCategories) {
-          const rootPath = [root.id];
-          if (!isPathOpen(rootPath)) continue;
-          try {
-            // eslint-disable-next-line no-await-in-loop
-            await closeTreeWithChildren(root, rootPath);
-          } catch {}
-        }
-
-        openCategoryDoc([0], rootRep.title, rootRep.id, {
-          clearCategoryPath: true,
-          history: "push",
-          ignoreCurrentLocationHash: true,
-        });
-      } catch {}
-    };
-
-    document.addEventListener("click", onClick, true);
-    return () => document.removeEventListener("click", onClick, true);
-  }, [
-    allDocuments,
-    fetchDoc,
-    interactionReady,
-    filteredCategories,
-    isPathOpen,
-    closeTreeWithChildren,
-  ]);
 
   const isReallyOpen = (path: number[]) => isPathOpen(path) && !isClosing(path);
 
@@ -690,21 +666,25 @@ const CategoryTree: React.FC<Props> = ({
                         opacity: interactionReady ? 1 : 0.6,
                       }}
                     >
-                      <span style={{ marginRight: "0.3em" }}>
+                      <span
+                        className="wiki-doc-icon-token"
+                        aria-hidden="true"
+                      >
                         {doc.icon?.startsWith("http") ? (
                           <img
                             src={toProxyUrl(doc.icon)}
                             alt=""
-                            aria-hidden="true"
+                            className="wiki-doc-icon-img"
                             loading="lazy"
                             decoding="async"
                             fetchPriority="low"
-                            width={20}
-                            height={20}
-                            style={{ width: 20, height: 20, objectFit: "contain" }}
+                            width={24}
+                            height={24}
                           />
                         ) : (
-                          <span aria-hidden="true">{doc.icon || "📄"}</span>
+                          <span className="wiki-doc-icon-emoji">
+                            {doc.icon || "📄"}
+                          </span>
                         )}
                       </span>
                       <span className="doc-title">{doc.title}</span>
@@ -721,7 +701,10 @@ const CategoryTree: React.FC<Props> = ({
     });
 
   return (
-    <div ref={navScrollRef} className="wiki-nav-scroll">
+    <div
+      ref={navScrollRef}
+      className={`wiki-nav-scroll ${styles.tree}`}
+    >
       <ul className="wiki-nav-list">
         {/* ✅ 여기서 filteredCategories 사용 */}
         {renderTree(filteredCategories)}

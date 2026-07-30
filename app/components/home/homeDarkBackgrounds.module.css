@@ -1,0 +1,840 @@
+/* =============================================
+ * File: app/components/home/homeDarkBackgrounds.module.css
+ * 전체 코드
+ * - 야간 Hero/좌우 배경 이미지 적용
+ * - 밝은 안개 경계와 반복되는 달의 시선 분산 완화
+ * - 다크 모드 카드/텍스트/배지 대비 조정
+ * - 홈 범위에만 적용
+ * ============================================= */
+
+.scope {
+  isolation: isolate;
+}
+
+:global(:root[data-theme='dark']) .scope {
+  --home-dark-accent: #8fc99b;
+  --home-dark-accent-strong: #a9dcb2;
+  --home-dark-text: #eef4f7;
+  --home-dark-muted: #b9c7d1;
+  --home-dark-muted-2: #8fa1af;
+  --home-dark-border: rgba(148, 177, 160, 0.18);
+  --home-dark-panel: rgba(14, 24, 40, 0.94);
+  --home-dark-panel-soft: rgba(17, 29, 46, 0.9);
+}
+
+/*
+ * 좌우 야간 배경의 크기와 밝기는 이전 상태로 유지한다.
+ * 이미지 안쪽의 흐린 경계도 그대로 두되,
+ * 흰색으로 떠 보이는 부분만 짙은 밤색 그라데이션으로 눌러준다.
+ */
+:global(:root[data-theme='dark'])
+.scope
+[data-home-rail]::before {
+  background-repeat: no-repeat;
+  background-size:
+    100% 100%,
+    100% 100%,
+    cover;
+  opacity: 0.94;
+  filter:
+    saturate(0.92)
+    brightness(0.94)
+    contrast(1.01);
+}
+
+:global(:root[data-theme='dark'])
+.scope
+[data-home-rail='left']::before {
+  background-image:
+    linear-gradient(
+      to bottom,
+      rgba(4, 10, 22, 0.14) 0%,
+      rgba(4, 10, 22, 0.02) 42%,
+      rgba(4, 10, 22, 0.08) 100%
+    ),
+    linear-gradient(
+      to right,
+      rgba(8, 20, 40, 0) 48%,
+      rgba(8, 20, 40, 0.2) 66%,
+      rgba(8, 20, 40, 0.5) 82%,
+      rgba(8, 20, 40, 0.82) 94%,
+      #081428 100%
+    ),
+    url('/images/home/home-side-background-left-dark.png');
+  background-position:
+    center,
+    center,
+    left top;
+}
+
+:global(:root[data-theme='dark'])
+.scope
+[data-home-rail='right']::before {
+  background-image:
+    linear-gradient(
+      to bottom,
+      rgba(4, 10, 22, 0.14) 0%,
+      rgba(4, 10, 22, 0.02) 42%,
+      rgba(4, 10, 22, 0.08) 100%
+    ),
+    linear-gradient(
+      to left,
+      rgba(8, 20, 40, 0) 48%,
+      rgba(8, 20, 40, 0.2) 66%,
+      rgba(8, 20, 40, 0.5) 82%,
+      rgba(8, 20, 40, 0.82) 94%,
+      #081428 100%
+    ),
+    url('/images/home/home-side-background-right-dark.png');
+  background-position:
+    center,
+    center,
+    right top;
+}
+
+/* Hero 이미지는 텍스트와 검색창보다 한 단계 뒤로 물린다. */
+:global(:root[data-theme='dark'])
+.scope
+[data-home-hero='true']::before {
+  background:
+    radial-gradient(
+      ellipse at 50% 42%,
+      rgba(4, 10, 22, 0.05) 0%,
+      rgba(4, 10, 22, 0.18) 54%,
+      rgba(3, 8, 18, 0.42) 100%
+    ),
+    linear-gradient(
+      180deg,
+      rgba(5, 12, 25, 0.16),
+      rgba(3, 9, 20, 0.34)
+    ),
+    url('/images/home/home-hero-background-dark.png');
+  background-position: center 55%;
+  background-repeat: no-repeat;
+  background-size: cover;
+  filter:
+    saturate(0.84)
+    brightness(0.82)
+    contrast(1.02);
+  box-shadow:
+    0 18px 38px
+    rgba(0, 0, 0, 0.24);
+}
+
+:global(:root[data-theme='dark'])
+.scope
+[data-home-hero-text='eyebrow'],
+:global(:root[data-theme='dark'])
+.scope
+[data-home-hero-text='description'] {
+  color: #d8e7dc;
+  text-shadow:
+    0 2px 8px
+    rgba(0, 0, 0, 0.82);
+}
+
+:global(:root[data-theme='dark'])
+.scope
+[data-home-hero-text='title'] {
+  color: #a5dfad;
+  -webkit-text-stroke-color: #82c990;
+  text-shadow:
+    0 2px 0
+    rgba(4, 10, 20, 0.82),
+    0 8px 22px
+    rgba(0, 0, 0, 0.52);
+}
+
+:global(:root[data-theme='dark'])
+.scope
+[data-home-keywords='true'] {
+  border-color: rgba(154, 183, 166, 0.22);
+  background: rgba(7, 16, 29, 0.82);
+  box-shadow:
+    0 9px 24px
+    rgba(0, 0, 0, 0.24);
+}
+
+:global(:root[data-theme='dark'])
+.scope
+[data-home-keywords='true'] strong {
+  color: #e2eee5;
+}
+
+:global(:root[data-theme='dark'])
+.scope
+[data-home-keywords='true'] a {
+  border-color: rgba(148, 177, 160, 0.2);
+  background: rgba(19, 32, 48, 0.94);
+  color: #d8e7dd;
+  box-shadow: none;
+}
+
+:global(:root[data-theme='dark'])
+.scope
+[data-home-keywords='true'] a:hover {
+  border-color: rgba(143, 201, 155, 0.45);
+  background: rgba(31, 53, 60, 0.96);
+  color: #f1f8f3;
+}
+
+/* 신규 이용자 안내는 초록색을 유지하되 글자가 묻히지 않게 조정한다. */
+:global(:root[data-theme='dark'])
+.scope
+[data-home-panel='newcomer'] {
+  border-color: rgba(115, 180, 126, 0.3);
+  background:
+    linear-gradient(
+      118deg,
+      rgba(29, 66, 43, 0.72),
+      rgba(14, 25, 42, 0.96) 72%
+    );
+  box-shadow:
+    0 10px 28px
+    rgba(0, 0, 0, 0.13);
+}
+
+:global(:root[data-theme='dark'])
+.scope
+[data-home-panel='newcomer'] h2 {
+  color: var(--home-dark-accent-strong);
+}
+
+:global(:root[data-theme='dark'])
+.scope
+[data-home-panel='newcomer'] p:not([data-home-eyebrow]) {
+  color: #c6d3dc;
+}
+
+:global(:root[data-theme='dark'])
+.scope
+[data-home-eyebrow='true'] {
+  color: #82bd90;
+}
+
+:global(:root[data-theme='dark'])
+.scope
+[data-home-panel='newcomer'] a:not([data-home-action]) {
+  border-color: rgba(143, 201, 155, 0.22);
+  background: rgba(8, 19, 31, 0.62);
+  color: #dbe8df;
+}
+
+:global(:root[data-theme='dark'])
+.scope
+[data-home-action='newcomer'] {
+  border-color: rgba(143, 201, 155, 0.42);
+  background: rgba(48, 104, 63, 0.12);
+  color: #a7d9b0;
+}
+
+:global(:root[data-theme='dark'])
+.scope
+[data-home-action='newcomer']:hover {
+  background: rgba(65, 130, 79, 0.22);
+  color: #e5f2e8;
+}
+
+/* 기본 카드들은 녹색보다 차분한 남청색 표면을 사용한다. */
+:global(:root[data-theme='dark'])
+.scope
+[data-home-card='category'],
+:global(:root[data-theme='dark'])
+.scope
+[data-home-card='information'],
+:global(:root[data-theme='dark'])
+.scope
+[data-home-panel='recommend'],
+:global(:root[data-theme='dark'])
+.scope
+[data-home-panel='footer'] {
+  border-color: var(--home-dark-border);
+  background: var(--home-dark-panel);
+  box-shadow:
+    0 8px 24px
+    rgba(0, 0, 0, 0.11);
+}
+
+:global(:root[data-theme='dark'])
+.scope
+[data-home-card='category']:hover {
+  border-color: rgba(143, 201, 155, 0.34);
+  box-shadow:
+    0 13px 28px
+    rgba(0, 0, 0, 0.18);
+}
+
+:global(:root[data-theme='dark'])
+.scope
+[data-home-card='category']
+> span:first-child {
+  filter:
+    saturate(0.88)
+    brightness(0.86);
+}
+
+:global(:root[data-theme='dark'])
+.scope
+[data-home-card='category']
+> span:nth-child(2)
+> strong {
+  color: var(--home-dark-text);
+}
+
+:global(:root[data-theme='dark'])
+.scope
+[data-home-card='category']
+> span:nth-child(2)
+> span {
+  color: var(--home-dark-muted);
+}
+
+:global(:root[data-theme='dark'])
+.scope
+[data-home-arrow='true'] {
+  border-color: rgba(143, 201, 155, 0.24);
+  color: var(--home-dark-accent);
+}
+
+/* 카드 헤더의 초록 링크는 어두운 배경에서도 읽히는 밝기로 올린다. */
+:global(:root[data-theme='dark'])
+.scope
+[data-home-card='information']
+> div:first-child
+> a,
+:global(:root[data-theme='dark'])
+.scope
+[data-home-panel='recommend']
+> div:first-child
+> a {
+  color: var(--home-dark-accent);
+}
+
+:global(:root[data-theme='dark'])
+.scope
+[data-home-card='information'] h2,
+:global(:root[data-theme='dark'])
+.scope
+[data-home-panel='recommend'] h2 {
+  color: var(--home-dark-text);
+}
+
+:global(:root[data-theme='dark'])
+.scope
+[data-home-card='information'] a {
+  color: #e5edf2;
+}
+
+:global(:root[data-theme='dark'])
+.scope
+[data-home-card='information'] time {
+  color: var(--home-dark-muted-2);
+}
+
+/* 흰색에 가까웠던 순위/분류 배지는 어두운 초록 배지로 낮춘다. */
+:global(:root[data-theme='dark'])
+.scope
+[data-home-badge='rank'],
+:global(:root[data-theme='dark'])
+.scope
+[data-home-badge='type'] {
+  border: 1px solid rgba(143, 201, 155, 0.18);
+  background: rgba(72, 128, 81, 0.18);
+  color: #a8d9b0;
+  box-shadow: none;
+}
+
+/* 추천 카드는 바깥 카드보다 아주 조금만 밝게 구분한다. */
+:global(:root[data-theme='dark'])
+.scope
+[data-home-card='recommend'] {
+  border-color: rgba(143, 201, 155, 0.17);
+  background:
+    linear-gradient(
+      135deg,
+      rgba(20, 39, 39, 0.86),
+      rgba(14, 25, 42, 0.96)
+    );
+}
+
+:global(:root[data-theme='dark'])
+.scope
+[data-home-card='recommend']:hover {
+  border-color: rgba(143, 201, 155, 0.32);
+  background:
+    linear-gradient(
+      135deg,
+      rgba(25, 48, 45, 0.9),
+      rgba(17, 30, 47, 0.98)
+    );
+}
+
+:global(:root[data-theme='dark'])
+.scope
+[data-home-card='recommend']
+> span:first-child {
+  filter:
+    saturate(0.86)
+    brightness(0.88);
+}
+
+:global(:root[data-theme='dark'])
+.scope
+[data-home-card='recommend'] small {
+  color: #8fc59a;
+}
+
+:global(:root[data-theme='dark'])
+.scope
+[data-home-card='recommend'] strong {
+  color: var(--home-dark-text);
+}
+
+:global(:root[data-theme='dark'])
+.scope
+[data-home-card='recommend']
+> span:nth-child(2)
+> span {
+  color: var(--home-dark-muted);
+}
+
+/* 푸터는 본문 카드와 같게 두고 브랜드 아이콘만 과도하게 뜨지 않게 한다. */
+:global(:root[data-theme='dark'])
+.scope
+[data-home-panel='footer'] img {
+  filter:
+    saturate(0.88)
+    brightness(0.9);
+}
+
+:global(:root[data-theme='dark'])
+.scope
+[data-home-panel='footer']
+> div:first-child
+> span {
+  color: var(--home-dark-muted);
+}
+
+
+/* =============================================
+ * 다크 모드 배경 입자
+ * - 라이트 모드에서는 기존 나뭇잎 애니메이션 유지
+ * - 다크 모드에서는 같은 입자를 초록 네온 반딧불이로 전환
+ * - 아래에서 위로 천천히 떠오르며 밝기가 불규칙하게 깜빡임
+ * ============================================= */
+
+:global(:root[data-theme='dark'])
+.scope
+[data-home-atmosphere='true'] {
+  overflow: hidden;
+}
+
+:global(:root[data-theme='dark'])
+.scope
+[data-home-particle='true'] {
+  --firefly-size: 4px;
+  --firefly-left: 50%;
+  --firefly-duration: 12s;
+  --firefly-delay: 0s;
+  --firefly-drift-a: 12px;
+  --firefly-drift-b: -14px;
+  --firefly-drift-c: 18px;
+  --firefly-drift-d: -8px;
+  --firefly-drift-e: 10px;
+
+  position: absolute !important;
+  top: auto !important;
+  right: auto !important;
+  bottom: -10vh !important;
+  left: var(--firefly-left) !important;
+  width: var(--firefly-size) !important;
+  height: var(--firefly-size) !important;
+  margin: 0 !important;
+  border: 0 !important;
+  border-radius: 999px !important;
+  clip-path: none !important;
+  background:
+    radial-gradient(
+      circle,
+      #f0ffe8 0%,
+      #c9ff9f 20%,
+      #75ff80 43%,
+      rgba(43, 255, 99, 0.72) 62%,
+      rgba(31, 255, 86, 0) 100%
+    ) !important;
+  box-shadow:
+    0 0 5px rgba(174, 255, 151, 0.98),
+    0 0 12px rgba(79, 255, 105, 0.86),
+    0 0 24px rgba(27, 255, 80, 0.48) !important;
+  opacity: 0;
+  filter: none !important;
+  transform-origin: center;
+  animation:
+    homeDarkFireflyRise
+    var(--firefly-duration)
+    ease-in-out
+    var(--firefly-delay)
+    infinite !important;
+  will-change: transform, opacity;
+}
+
+:global(:root[data-theme='dark'])
+.scope
+[data-home-particle='true']::before {
+  content: '' !important;
+  position: absolute;
+  inset: -8px;
+  display: block !important;
+  border: 0 !important;
+  border-radius: 999px;
+  background:
+    radial-gradient(
+      circle,
+      rgba(123, 255, 120, 0.34) 0%,
+      rgba(61, 255, 92, 0.16) 38%,
+      transparent 72%
+    );
+  opacity: 0.8;
+  transform: none !important;
+  animation:
+    homeDarkFireflyPulse
+    2.4s
+    ease-in-out
+    infinite;
+}
+
+:global(:root[data-theme='dark'])
+.scope
+[data-home-particle='true']::after {
+  content: '' !important;
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  display: block !important;
+  width: 1px;
+  height: 18px;
+  border: 0 !important;
+  background:
+    linear-gradient(
+      to bottom,
+      rgba(118, 255, 122, 0.26),
+      transparent
+    );
+  opacity: 0.32;
+  filter: blur(1px);
+  transform:
+    translate3d(-50%, 1px, 0) !important;
+}
+
+/* 각 반딧불이의 위치·크기·속도를 다르게 해 반복감을 줄인다. */
+:global(:root[data-theme='dark'])
+.scope
+[data-home-particle='true']:nth-child(1) {
+  --firefly-left: 7%;
+  --firefly-size: 3px;
+  --firefly-duration: 13.6s;
+  --firefly-delay: -8.4s;
+  --firefly-drift-a: 18px;
+  --firefly-drift-b: -9px;
+  --firefly-drift-c: 24px;
+  --firefly-drift-d: 5px;
+  --firefly-drift-e: -12px;
+}
+
+:global(:root[data-theme='dark'])
+.scope
+[data-home-particle='true']:nth-child(2) {
+  --firefly-left: 15%;
+  --firefly-size: 5px;
+  --firefly-duration: 11.8s;
+  --firefly-delay: -2.7s;
+  --firefly-drift-a: -16px;
+  --firefly-drift-b: 12px;
+  --firefly-drift-c: -22px;
+  --firefly-drift-d: 8px;
+  --firefly-drift-e: 17px;
+}
+
+:global(:root[data-theme='dark'])
+.scope
+[data-home-particle='true']:nth-child(3) {
+  --firefly-left: 23%;
+  --firefly-size: 3.5px;
+  --firefly-duration: 15.2s;
+  --firefly-delay: -11.6s;
+  --firefly-drift-a: 10px;
+  --firefly-drift-b: 28px;
+  --firefly-drift-c: -10px;
+  --firefly-drift-d: -22px;
+  --firefly-drift-e: 8px;
+}
+
+:global(:root[data-theme='dark'])
+.scope
+[data-home-particle='true']:nth-child(4) {
+  --firefly-left: 31%;
+  --firefly-size: 4px;
+  --firefly-duration: 10.9s;
+  --firefly-delay: -5.1s;
+  --firefly-drift-a: -20px;
+  --firefly-drift-b: -4px;
+  --firefly-drift-c: 19px;
+  --firefly-drift-d: 25px;
+  --firefly-drift-e: -9px;
+}
+
+:global(:root[data-theme='dark'])
+.scope
+[data-home-particle='true']:nth-child(5) {
+  --firefly-left: 39%;
+  --firefly-size: 2.8px;
+  --firefly-duration: 14.5s;
+  --firefly-delay: -1.4s;
+  --firefly-drift-a: 12px;
+  --firefly-drift-b: -24px;
+  --firefly-drift-c: -5px;
+  --firefly-drift-d: 17px;
+  --firefly-drift-e: 27px;
+}
+
+:global(:root[data-theme='dark'])
+.scope
+[data-home-particle='true']:nth-child(6) {
+  --firefly-left: 47%;
+  --firefly-size: 4.8px;
+  --firefly-duration: 12.7s;
+  --firefly-delay: -9.8s;
+  --firefly-drift-a: -8px;
+  --firefly-drift-b: 18px;
+  --firefly-drift-c: 29px;
+  --firefly-drift-d: -14px;
+  --firefly-drift-e: -22px;
+}
+
+:global(:root[data-theme='dark'])
+.scope
+[data-home-particle='true']:nth-child(7) {
+  --firefly-left: 54%;
+  --firefly-size: 3.2px;
+  --firefly-duration: 16s;
+  --firefly-delay: -4.3s;
+  --firefly-drift-a: 24px;
+  --firefly-drift-b: 6px;
+  --firefly-drift-c: -18px;
+  --firefly-drift-d: -26px;
+  --firefly-drift-e: 9px;
+}
+
+:global(:root[data-theme='dark'])
+.scope
+[data-home-particle='true']:nth-child(8) {
+  --firefly-left: 62%;
+  --firefly-size: 4px;
+  --firefly-duration: 11.3s;
+  --firefly-delay: -7.2s;
+  --firefly-drift-a: -18px;
+  --firefly-drift-b: 22px;
+  --firefly-drift-c: 6px;
+  --firefly-drift-d: -11px;
+  --firefly-drift-e: 20px;
+}
+
+:global(:root[data-theme='dark'])
+.scope
+[data-home-particle='true']:nth-child(9) {
+  --firefly-left: 69%;
+  --firefly-size: 2.6px;
+  --firefly-duration: 14.1s;
+  --firefly-delay: -12.3s;
+  --firefly-drift-a: 14px;
+  --firefly-drift-b: -18px;
+  --firefly-drift-c: -27px;
+  --firefly-drift-d: 6px;
+  --firefly-drift-e: 16px;
+}
+
+:global(:root[data-theme='dark'])
+.scope
+[data-home-particle='true']:nth-child(10) {
+  --firefly-left: 76%;
+  --firefly-size: 5px;
+  --firefly-duration: 12.2s;
+  --firefly-delay: -3.8s;
+  --firefly-drift-a: -25px;
+  --firefly-drift-b: -7px;
+  --firefly-drift-c: 21px;
+  --firefly-drift-d: 15px;
+  --firefly-drift-e: -13px;
+}
+
+:global(:root[data-theme='dark'])
+.scope
+[data-home-particle='true']:nth-child(11) {
+  --firefly-left: 83%;
+  --firefly-size: 3.4px;
+  --firefly-duration: 15.7s;
+  --firefly-delay: -6.5s;
+  --firefly-drift-a: 17px;
+  --firefly-drift-b: 26px;
+  --firefly-drift-c: -7px;
+  --firefly-drift-d: -19px;
+  --firefly-drift-e: 11px;
+}
+
+:global(:root[data-theme='dark'])
+.scope
+[data-home-particle='true']:nth-child(12) {
+  --firefly-left: 90%;
+  --firefly-size: 4.5px;
+  --firefly-duration: 10.8s;
+  --firefly-delay: -10.1s;
+  --firefly-drift-a: -13px;
+  --firefly-drift-b: 9px;
+  --firefly-drift-c: 25px;
+  --firefly-drift-d: -5px;
+  --firefly-drift-e: -18px;
+}
+
+:global(:root[data-theme='dark'])
+.scope
+[data-home-particle='true']:nth-child(13) {
+  --firefly-left: 96%;
+  --firefly-size: 3px;
+  --firefly-duration: 13.1s;
+  --firefly-delay: -4.9s;
+  --firefly-drift-a: -20px;
+  --firefly-drift-b: -27px;
+  --firefly-drift-c: 4px;
+  --firefly-drift-d: 18px;
+  --firefly-drift-e: -7px;
+}
+
+:global(:root[data-theme='dark'])
+.scope
+[data-home-particle='true']:nth-child(14) {
+  --firefly-left: 3%;
+  --firefly-size: 4px;
+  --firefly-duration: 16.4s;
+  --firefly-delay: -13.7s;
+  --firefly-drift-a: 8px;
+  --firefly-drift-b: 24px;
+  --firefly-drift-c: -14px;
+  --firefly-drift-d: -23px;
+  --firefly-drift-e: 6px;
+}
+
+@keyframes homeDarkFireflyRise {
+  0% {
+    opacity: 0;
+    transform:
+      translate3d(0, 12vh, 0)
+      scale(0.48);
+  }
+
+  10% {
+    opacity: 0.8;
+  }
+
+  22% {
+    opacity: 0.42;
+    transform:
+      translate3d(
+        var(--firefly-drift-a),
+        -18vh,
+        0
+      )
+      scale(0.9);
+  }
+
+  39% {
+    opacity: 1;
+    transform:
+      translate3d(
+        var(--firefly-drift-b),
+        -40vh,
+        0
+      )
+      scale(1.12);
+  }
+
+  56% {
+    opacity: 0.38;
+    transform:
+      translate3d(
+        var(--firefly-drift-c),
+        -63vh,
+        0
+      )
+      scale(0.78);
+  }
+
+  73% {
+    opacity: 0.92;
+    transform:
+      translate3d(
+        var(--firefly-drift-d),
+        -84vh,
+        0
+      )
+      scale(1);
+  }
+
+  90% {
+    opacity: 0.52;
+  }
+
+  100% {
+    opacity: 0;
+    transform:
+      translate3d(
+        var(--firefly-drift-e),
+        -116vh,
+        0
+      )
+      scale(0.52);
+  }
+}
+
+@keyframes homeDarkFireflyPulse {
+  0%,
+  100% {
+    opacity: 0.38;
+    transform: scale(0.78);
+  }
+
+  46% {
+    opacity: 0.92;
+    transform: scale(1.18);
+  }
+
+  68% {
+    opacity: 0.55;
+    transform: scale(0.94);
+  }
+}
+
+@media (max-width: 1024px) {
+  :global(:root[data-theme='dark'])
+  .scope
+  [data-home-rail]::before {
+    display: none;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  :global(:root[data-theme='dark'])
+  .scope
+  [data-home-card='category'],
+  :global(:root[data-theme='dark'])
+  .scope
+  [data-home-card='recommend'] {
+    transition: none;
+  }
+
+  :global(:root[data-theme='dark'])
+  .scope
+  [data-home-particle='true'] {
+    display: none !important;
+    animation: none !important;
+  }
+}
