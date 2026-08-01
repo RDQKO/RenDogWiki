@@ -11,7 +11,6 @@ import { Editor, Range, Transforms, Element as SlateElement } from 'slate';
 import MarkButton from './MarkButton';
 import DropdownButton from './DropdownButton';
 import InfoBoxDropdown from './InfoBoxDropdown';
-
 import {
   insertLink,
   insertLinkBlock,
@@ -19,6 +18,7 @@ import {
 } from './helpers/insertLink';
 import { insertHeading } from './helpers/insertHeading';
 import { insertDivider } from './helpers/insertDivider';
+import { insertFootnote } from './helpers/insertFootnote';
 import { toggleMark } from './helpers/toggleMark';
 import '@/wiki/css/editor-toolbar.css';
 import ImageSelectModal from '@/components/image/ImageSelectModal';
@@ -40,7 +40,6 @@ import { insertInlineImage } from './helpers/insertInlineImage';
 import ImageUrlInputModal from './ImageUrlInputModal';
 import PriceTableInsertModal from './PriceTableInsertModal';
 import { insertWeaponInfo } from './helpers/insertWeaponInfo';
-
 import TablePicker from './TablePicker';
 import { insertTable } from './helpers/insertTable';
 
@@ -136,35 +135,29 @@ export const Toolbar: React.FC<ToolbarProps> = ({
 }) => {
   const editor = useSlate();
 
-  // ===== 상태 =====
   const [openDropdown, setOpenDropdown] = useState<string | null>(null);
-
   const [imgModalOpen, setImgModalOpen] = useState(false);
   const [blockImgModalOpen, setBlockImgModalOpen] = useState(false);
   const [blockImgLinkModalOpen, setBlockImgLinkModalOpen] = useState(false);
-
   const [inlineImgModalOpen, setInlineImgModalOpen] = useState(false);
   const [inlineImgLinkModalOpen, setInlineImgLinkModalOpen] = useState(false);
-
   const [showColorDropdown, setShowColorDropdown] = useState(false);
   const [colorValue, setColorValue] = useState('#000000');
   const [recentColors, setRecentColors] = useState<string[]>([]);
   const colorBtnRef = useRef<HTMLDivElement>(null);
-
   const [showBgColorDropdown, setShowBgColorDropdown] = useState(false);
   const [bgColorValue, setBgColorValue] = useState('#FFFF00');
   const [recentBgColors, setRecentBgColors] = useState<string[]>([]);
   const bgColorBtnRef = useRef<HTMLDivElement>(null);
-
   const [linkModalOpen, setLinkModalOpen] = useState(false);
 
   const [headingModalOpen, setHeadingModalOpen] =
     useState<false | 'heading-one' | 'heading-two' | 'heading-three'>(false);
 
   const [showPriceTableInsertModal, setShowPriceTableInsertModal] = useState(false);
-
   const [tablePickerOpen, setTablePickerOpen] = useState(false);
   const tableBtnRef = useRef<HTMLButtonElement | null>(null);
+
   const linkSelectionBlocked = selectionIntersectsInlineLink(
     editor,
     editor.selection,
@@ -178,33 +171,32 @@ export const Toolbar: React.FC<ToolbarProps> = ({
     };
   }, [openInlineImageModalRef]);
 
-  // ===== 유틸: 모두 닫기 =====
   const closeAllDropdowns = () => {
     setOpenDropdown(null);
     setShowColorDropdown(false);
     setShowBgColorDropdown(false);
   };
 
-  // 전역 이벤트로 닫기
   useEffect(() => {
     const handler = () => closeAllDropdowns();
     window.addEventListener('editor:close-dropdowns', handler);
     return () => window.removeEventListener('editor:close-dropdowns', handler);
   }, []);
 
-  // 같은 종류/다른 종류 간 상호배타 처리
   useEffect(() => {
     if (openDropdown) {
       setShowColorDropdown(false);
       setShowBgColorDropdown(false);
     }
   }, [openDropdown]);
+
   useEffect(() => {
     if (showColorDropdown) {
       setOpenDropdown(null);
       setShowBgColorDropdown(false);
     }
   }, [showColorDropdown]);
+
   useEffect(() => {
     if (showBgColorDropdown) {
       setOpenDropdown(null);
@@ -212,7 +204,6 @@ export const Toolbar: React.FC<ToolbarProps> = ({
     }
   }, [showBgColorDropdown]);
 
-  // 툴바 내부 모달이 열릴 때는 자동으로 모두 닫기
   const anyToolbarModalOpen =
     imgModalOpen ||
     blockImgModalOpen ||
@@ -227,7 +218,6 @@ export const Toolbar: React.FC<ToolbarProps> = ({
     if (anyToolbarModalOpen) closeAllDropdowns();
   }, [anyToolbarModalOpen]);
 
-  // 외부 클릭(색상/배경 닫기)
   useEffect(() => {
     const handle = (e: MouseEvent) => {
       const toolbar = document.getElementById('editor-toolbar');
@@ -238,7 +228,6 @@ export const Toolbar: React.FC<ToolbarProps> = ({
     return () => document.removeEventListener('mousedown', handle);
   }, []);
 
-  // 색상 팔레트 외부 클릭 감지
   useEffect(() => {
     if (!showColorDropdown) return;
     const handle = (e: MouseEvent) => {
@@ -250,7 +239,6 @@ export const Toolbar: React.FC<ToolbarProps> = ({
     return () => document.removeEventListener('mousedown', handle);
   }, [showColorDropdown]);
 
-  // 배경 팔레트 외부 클릭 감지
   useEffect(() => {
     if (!showBgColorDropdown) return;
     const handle = (e: MouseEvent) => {
@@ -262,20 +250,27 @@ export const Toolbar: React.FC<ToolbarProps> = ({
     return () => document.removeEventListener('mousedown', handle);
   }, [showBgColorDropdown]);
 
-  // ------------------------------ helpers ------------------------------
   function insertInlineMark(editor: Editor, { icon, color }: { icon: string; color: string }) {
-    const mark: InlineMarkElement = { type: 'inline-mark', icon, color, children: [{ text: '' }] };
+    const mark: InlineMarkElement = {
+      type: 'inline-mark',
+      icon,
+      color,
+      children: [{ text: '' }],
+    };
     Transforms.insertNodes(editor, mark);
   }
 
-  const handleSelectInlineImage = (item: { url: string; mime_type?: string | null } | string) => {
+  const handleSelectInlineImage = (
+    item: { url: string; mime_type?: string | null } | string,
+  ) => {
     const url = typeof item === 'string' ? item : item.url;
     const mime = typeof item === 'string' ? undefined : item.mime_type;
-    // 인라인은 이미지에만 허용(영상은 블록으로 처리)
+
     if (mime?.startsWith?.('video/')) {
-      insertMedia(editor, { url, mime }); // 영상이면 블록 video
+      insertMedia(editor, { url, mime });
       return;
     }
+
     insertInlineImage(editor, url);
     setInlineImgModalOpen(false);
   };
@@ -285,7 +280,9 @@ export const Toolbar: React.FC<ToolbarProps> = ({
     setInlineImgLinkModalOpen(false);
   };
 
-  const setAlignment = (alignment: 'left' | 'center' | 'right' | 'justify') => {
+  const setAlignment = (
+    alignment: 'left' | 'center' | 'right' | 'justify',
+  ) => {
     const { selection } = editor;
     if (!selection) return;
 
@@ -293,19 +290,25 @@ export const Toolbar: React.FC<ToolbarProps> = ({
       Editor.nodes(editor, {
         at: selection,
         match: (n) => {
-          if (!SlateElement.isElement(n) || !Editor.isBlock(editor, n)) return false;
+          if (!SlateElement.isElement(n) || !Editor.isBlock(editor, n)) {
+            return false;
+          }
 
-          const t = (n as any).type;
+          const type = (n as any).type;
 
-          // 표 자체 / 행 / 셀은 제외
-          if (t === 'table' || t === 'table-row' || t === 'table-cell') return false;
+          if (
+            type === 'table' ||
+            type === 'table-row' ||
+            type === 'table-cell'
+          ) {
+            return false;
+          }
 
-          // 텍스트 블록만 정렬
           return (
-            t === 'paragraph' ||
-            t === 'heading-one' ||
-            t === 'heading-two' ||
-            t === 'heading-three'
+            type === 'paragraph' ||
+            type === 'heading-one' ||
+            type === 'heading-two' ||
+            type === 'heading-three'
           );
         },
       }),
@@ -320,16 +323,29 @@ export const Toolbar: React.FC<ToolbarProps> = ({
     }
   };
 
-  // ------------------------------ Render ------------------------------
   return (
     <div id="editor-toolbar" className="editor-toolbar">
-      {/* 마크 */}
-      <MarkButton format="bold"          icon={<FontAwesomeIcon icon={faBold} />}           selectionRef={selectionRef} />
-      <MarkButton format="italic"        icon={<FontAwesomeIcon icon={faItalic} />}         selectionRef={selectionRef} />
-      <MarkButton format="underline"     icon={<FontAwesomeIcon icon={faUnderline} />}      selectionRef={selectionRef} />
-      <MarkButton format="strikethrough" icon={<FontAwesomeIcon icon={faStrikethrough} />}  selectionRef={selectionRef} />
+      <MarkButton
+        format="bold"
+        icon={<FontAwesomeIcon icon={faBold} />}
+        selectionRef={selectionRef}
+      />
+      <MarkButton
+        format="italic"
+        icon={<FontAwesomeIcon icon={faItalic} />}
+        selectionRef={selectionRef}
+      />
+      <MarkButton
+        format="underline"
+        icon={<FontAwesomeIcon icon={faUnderline} />}
+        selectionRef={selectionRef}
+      />
+      <MarkButton
+        format="strikethrough"
+        icon={<FontAwesomeIcon icon={faStrikethrough} />}
+        selectionRef={selectionRef}
+      />
 
-      {/* 폰트 크기 */}
       <DropdownButton
         label={<FontAwesomeIcon icon={faTextHeight} />}
         items={FONT_SIZES}
@@ -340,11 +356,12 @@ export const Toolbar: React.FC<ToolbarProps> = ({
         onSelect={(value) => toggleMark(editor, 'fontSize', value)}
       />
 
-      {/* 폰트 종류 */}
       <DropdownButton
         label={<FontAwesomeIcon icon={faFont} />}
-        items={FONT_FAMILIES.map(f => f.label)}
-        itemsMap={Object.fromEntries(FONT_FAMILIES.map(f => [f.label, f.value]))}
+        items={FONT_FAMILIES.map((font) => font.label)}
+        itemsMap={Object.fromEntries(
+          FONT_FAMILIES.map((font) => [font.label, font.value]),
+        )}
         selectionRef={selectionRef}
         dropdownId="fontFamily"
         openDropdown={openDropdown}
@@ -352,20 +369,23 @@ export const Toolbar: React.FC<ToolbarProps> = ({
         onSelect={(cssValue) => toggleMark(editor, 'fontFamily', cssValue)}
       />
 
-      {/* 글자색 */}
-      <div ref={colorBtnRef} style={{ position: 'relative', display: 'inline-block' }}>
+      <div
+        ref={colorBtnRef}
+        style={{ position: 'relative', display: 'inline-block' }}
+      >
         <button
           className="editor-toolbar-btn"
           onClick={(e) => {
             e.preventDefault();
             setOpenDropdown(null);
             setShowBgColorDropdown(false);
-            setShowColorDropdown(v => !v);
+            setShowColorDropdown((value) => !value);
           }}
           title="글자색"
         >
           <FontAwesomeIcon icon={faPalette} />
         </button>
+
         {showColorDropdown && (
           <CustomColorDropdown
             value={colorValue}
@@ -380,20 +400,23 @@ export const Toolbar: React.FC<ToolbarProps> = ({
         )}
       </div>
 
-      {/* 배경색 */}
-      <div ref={bgColorBtnRef} style={{ position: 'relative', display: 'inline-block' }}>
+      <div
+        ref={bgColorBtnRef}
+        style={{ position: 'relative', display: 'inline-block' }}
+      >
         <button
           className="editor-toolbar-btn"
           onClick={(e) => {
             e.preventDefault();
             setOpenDropdown(null);
             setShowColorDropdown(false);
-            setShowBgColorDropdown(v => !v);
+            setShowBgColorDropdown((value) => !value);
           }}
           title="배경색"
         >
           <FontAwesomeIcon icon={faFillDrip} />
         </button>
+
         {showBgColorDropdown && (
           <CustomColorDropdown
             value={bgColorValue}
@@ -409,7 +432,6 @@ export const Toolbar: React.FC<ToolbarProps> = ({
         )}
       </div>
 
-      {/* 🔗 링크 (내부/외부 전부 여기서 처리) */}
       <button
         className="editor-toolbar-btn"
         disabled={linkSelectionBlocked}
@@ -435,49 +457,56 @@ export const Toolbar: React.FC<ToolbarProps> = ({
           setLinkModalOpen(false);
           if (!items || items.length === 0) return;
 
-          // 링크 삽입 시 모달 열기 직전 selection 복원
           if (selectionRef.current) {
-            try { Transforms.select(editor, selectionRef.current); } catch {}
+            try {
+              Transforms.select(editor, selectionRef.current);
+            } catch {}
           }
 
-          const hasSelection = !!editor.selection && !Range.isCollapsed(editor.selection);
+          const hasSelection =
+            !!editor.selection && !Range.isCollapsed(editor.selection);
 
-          // 드래그된 텍스트가 있으면 인라인 링크로
           if (hasSelection) {
-            if (selectionIntersectsInlineLink(editor, editor.selection)) return;
+            if (selectionIntersectsInlineLink(editor, editor.selection)) {
+              return;
+            }
 
             const url = (items[0]?.url || '').trim();
             if (url) insertLink(editor, url);
             return;
           }
 
-          // 커서만 있을 때는 링크 카드(블록)
           if (items.length === 1) {
             insertLinkBlock(editor, items[0].url, { size: 'large' });
           } else if (items.length === 2) {
-            Transforms.insertNodes(editor, {
-              type: 'link-block-row',
-              children: [
-                {
-                  type: 'link-block',
-                  url: items[0].url,
-                  size: 'small',
-                  sitename: items[0].url,
-                  favicon: null,
-                  children: [{ text: '' }],
-                },
-                {
-                  type: 'link-block',
-                  url: items[1].url,
-                  size: 'small',
-                  sitename: items[1].url,
-                  favicon: null,
-                  children: [{ text: '' }],
-                },
-              ],
-            } as any, { select: false });
+            Transforms.insertNodes(
+              editor,
+              {
+                type: 'link-block-row',
+                children: [
+                  {
+                    type: 'link-block',
+                    url: items[0].url,
+                    size: 'small',
+                    sitename: items[0].url,
+                    favicon: null,
+                    children: [{ text: '' }],
+                  },
+                  {
+                    type: 'link-block',
+                    url: items[1].url,
+                    size: 'small',
+                    sitename: items[1].url,
+                    favicon: null,
+                    children: [{ text: '' }],
+                  },
+                ],
+              } as any,
+              { select: false },
+            );
 
             const lastPath = [editor.children.length];
+
             Transforms.insertNodes(
               editor,
               { type: 'paragraph', children: [{ text: '' }] } as any,
@@ -487,76 +516,79 @@ export const Toolbar: React.FC<ToolbarProps> = ({
         }}
       />
 
-      {/* Heading */}
       <DropdownButton
         label={<FontAwesomeIcon icon={faHeading} />}
-        items={HEADINGS.map(h => h.label)}
+        items={HEADINGS.map((heading) => heading.label)}
         selectionRef={selectionRef}
         dropdownId="heading"
         openDropdown={openDropdown}
         setOpenDropdown={setOpenDropdown}
         onSelect={(label) => {
-          const match = HEADINGS.find(h => h.label === label);
+          const match = HEADINGS.find((heading) => heading.label === label);
           if (match) setHeadingModalOpen(match.value as any);
         }}
       />
 
-      {/* 정렬 */}
       <DropdownButton
         label={<FontAwesomeIcon icon={faAlignLeft} />}
-        items={ALIGNMENTS.map(a => a.label)}
+        items={ALIGNMENTS.map((alignment) => alignment.label)}
         selectionRef={selectionRef}
         dropdownId="align"
         openDropdown={openDropdown}
         setOpenDropdown={setOpenDropdown}
         onSelect={(label) => {
-          const match = ALIGNMENTS.find(a => a.label === label);
+          const match = ALIGNMENTS.find(
+            (alignment) => alignment.label === label,
+          );
           if (match) setAlignment(match.value as any);
         }}
       />
 
-      {/* 이미지/영상 정렬 (선택 시만) */}
       {(() => {
         const { selection } = editor;
         if (!selection) return null;
+
         const [match] = Editor.nodes(editor, {
           at: selection,
-          match: n =>
-            SlateElement.isElement(n) &&
-            ((n as any).type === 'image' || (n as any).type === 'video'),
+          match: (node) =>
+            SlateElement.isElement(node) &&
+            ((node as any).type === 'image' ||
+              (node as any).type === 'video'),
         });
+
         if (!match) return null;
+
         return (
           <DropdownButton
             label={<FontAwesomeIcon icon={faImage} />}
-            items={IMAGE_ALIGNMENTS.map(a => a.label)}
+            items={IMAGE_ALIGNMENTS.map((alignment) => alignment.label)}
             selectionRef={selectionRef}
             dropdownId="image-align"
             openDropdown={openDropdown}
             setOpenDropdown={setOpenDropdown}
             onSelect={(label: string) => {
-              const m = IMAGE_ALIGNMENTS.find(a => a.label === label);
-              if (m) setImageAlignment(editor, m.value as any);
+              const match = IMAGE_ALIGNMENTS.find(
+                (alignment) => alignment.label === label,
+              );
+              if (match) setImageAlignment(editor, match.value as any);
             }}
           />
         );
       })()}
 
-      {/* 구분선 */}
       <DropdownButton
         label={<FontAwesomeIcon icon={faMinus} />}
-        items={DIVIDER_STYLES.map(s => s.label)}
+        items={DIVIDER_STYLES.map((style) => style.label)}
         selectionRef={selectionRef}
         dropdownId="divider"
         openDropdown={openDropdown}
         setOpenDropdown={setOpenDropdown}
         onSelect={(label) => {
-          const found = DIVIDER_STYLES.find(s => s.label === label);
+          const found = DIVIDER_STYLES.find((style) => style.label === label);
           if (found) insertDivider(editor, found.value as any);
         }}
       />
 
-      {/* InfoBox */}
       <InfoBoxDropdown
         selectionRef={selectionRef}
         dropdownId="info"
@@ -564,7 +596,6 @@ export const Toolbar: React.FC<ToolbarProps> = ({
         setOpenDropdown={setOpenDropdown}
       />
 
-      {/* 블록 이미지/영상 (선택 또는 링크) */}
       <DropdownButton
         label={<FontAwesomeIcon icon={faPhotoFilm} />}
         items={['업로드/선택', '링크로 삽입']}
@@ -573,23 +604,30 @@ export const Toolbar: React.FC<ToolbarProps> = ({
         openDropdown={openDropdown}
         setOpenDropdown={setOpenDropdown}
         onSelect={(option) => {
-          if (option === '업로드/선택') setBlockImgModalOpen(true);
-          else if (option === '링크로 삽입') setBlockImgLinkModalOpen(true);
+          if (option === '업로드/선택') {
+            setBlockImgModalOpen(true);
+          } else if (option === '링크로 삽입') {
+            setBlockImgLinkModalOpen(true);
+          }
         }}
       />
+
       <ImageSelectModal
         open={blockImgModalOpen}
         onClose={() => setBlockImgModalOpen(false)}
         onSelectImage={(url: string, _name?: string, row?: MediaRow) => {
-          const v = row?.url ?? url;
-          if (isProbablyVideo(v, row?.mime_type)) {
-            insertVideoNode(editor, v);
+          const mediaUrl = row?.url ?? url;
+
+          if (isProbablyVideo(mediaUrl, row?.mime_type)) {
+            insertVideoNode(editor, mediaUrl);
           } else {
-            insertImage(editor, v);
+            insertImage(editor, mediaUrl);
           }
+
           setBlockImgModalOpen(false);
         }}
       />
+
       <ImageUrlInputModal
         open={blockImgLinkModalOpen}
         onClose={() => setBlockImgLinkModalOpen(false)}
@@ -599,11 +637,11 @@ export const Toolbar: React.FC<ToolbarProps> = ({
           } else {
             insertImage(editor, url);
           }
+
           setBlockImgLinkModalOpen(false);
         }}
       />
 
-      {/* 인라인 이미지 */}
       <DropdownButton
         label={<FontAwesomeIcon icon={faImage} />}
         items={INLINE_IMAGE_OPTIONS}
@@ -612,36 +650,46 @@ export const Toolbar: React.FC<ToolbarProps> = ({
         openDropdown={openDropdown}
         setOpenDropdown={setOpenDropdown}
         onSelect={(option) => {
-          if (option === '업로드/선택') setInlineImgModalOpen(true);
-          else if (option === '링크 삽입') setInlineImgLinkModalOpen(true);
+          if (option === '업로드/선택') {
+            setInlineImgModalOpen(true);
+          } else if (option === '링크 삽입') {
+            setInlineImgLinkModalOpen(true);
+          }
         }}
       />
+
       <ImageSelectModal
         open={inlineImgModalOpen}
         onClose={() => setInlineImgModalOpen(false)}
         onSelectImage={handleSelectInlineImage}
       />
+
       <ImageUrlInputModal
         open={inlineImgLinkModalOpen}
         onClose={() => setInlineImgLinkModalOpen(false)}
-        onSubmit={(url) => {
-          handleSelectInlineImage(url);
-        }}
+        onSubmit={handleInlineImgLinkInsert}
       />
 
-      {/* 들여쓰기 라인 토글 */}
       <button
         className="editor-toolbar-btn"
         onMouseDown={(e) => {
           e.preventDefault();
+
           const { selection } = editor;
           if (!selection) return;
+
           for (const [node, path] of Editor.nodes(editor, {
             at: selection,
-            match: n => SlateElement.isElement(n) && Editor.isBlock(editor, n),
+            match: (item) =>
+              SlateElement.isElement(item) && Editor.isBlock(editor, item),
           })) {
-            const prev = (node as any).indentLine;
-            Transforms.setNodes(editor, { indentLine: !prev }, { at: path });
+            const previous = (node as any).indentLine;
+
+            Transforms.setNodes(
+              editor,
+              { indentLine: !previous },
+              { at: path },
+            );
           }
         }}
         title="왼쪽 라인 들여쓰기 토글"
@@ -649,21 +697,41 @@ export const Toolbar: React.FC<ToolbarProps> = ({
         <FontAwesomeIcon icon={faGripLinesVertical} />
       </button>
 
-      {/* 인라인 기호 */}
       <DropdownButton
         label={<FontAwesomeIcon icon={faIcons} />}
-        items={INLINE_MARKS.map(m => m.icon)}
+        items={INLINE_MARKS.map((mark) => mark.icon)}
         selectionRef={selectionRef}
         dropdownId="inline-mark"
         openDropdown={openDropdown}
         setOpenDropdown={setOpenDropdown}
         onSelect={(icon) => {
-          const mark = INLINE_MARKS.find(m => m.icon === icon);
+          const mark = INLINE_MARKS.find((item) => item.icon === icon);
           if (mark) insertInlineMark(editor, mark);
         }}
       />
 
-      {/* Heading 아이콘 선택 모달 */}
+      <button
+        type="button"
+        className="editor-toolbar-btn"
+        title="각주 삽입"
+        aria-label="각주 삽입"
+        onMouseDown={(e) => {
+          e.preventDefault();
+          insertFootnote(editor);
+
+          try {
+            ReactEditor.focus(editor);
+          } catch {}
+        }}
+      >
+        <span
+          aria-hidden="true"
+          style={{ fontWeight: 800, lineHeight: 1 }}
+        >
+          ¹
+        </span>
+      </button>
+
       <HeadingIconSelectModal
         open={!!headingModalOpen}
         onClose={() => setHeadingModalOpen(false)}
@@ -675,7 +743,6 @@ export const Toolbar: React.FC<ToolbarProps> = ({
         }}
       />
 
-      {/* 시세표 카드 삽입 */}
       <button
         className="editor-toolbar-btn"
         title="시세표 카드 삽입"
@@ -686,21 +753,25 @@ export const Toolbar: React.FC<ToolbarProps> = ({
       >
         <FontAwesomeIcon icon={faDollarSign} />
       </button>
+
       <PriceTableInsertModal
         open={showPriceTableInsertModal}
         onClose={() => setShowPriceTableInsertModal(false)}
         onInsert={(cardsPerRow) => {
           const element = {
             type: 'price-table-card',
-            items: Array(cardsPerRow).fill(null).map(() => ({
-              name: '',
-              image: '',
-              prices: [],
-              stages: [],
-            })),
+            items: Array(cardsPerRow)
+              .fill(null)
+              .map(() => ({
+                name: '',
+                image: '',
+                prices: [],
+                stages: [],
+              })),
             cardsPerRow,
             children: [{ text: '' }],
           };
+
           Transforms.insertNodes(editor, element as any);
           Transforms.insertNodes(
             editor,
@@ -710,7 +781,6 @@ export const Toolbar: React.FC<ToolbarProps> = ({
         }}
       />
 
-      {/* 표 삽입 버튼 + TablePicker */}
       <button
         className="editor-toolbar-btn"
         ref={tableBtnRef}
@@ -725,7 +795,6 @@ export const Toolbar: React.FC<ToolbarProps> = ({
         <FontAwesomeIcon icon={faTable} />
       </button>
 
-      {/* 무기 정보 박스 삽입 */}
       <button
         className="editor-toolbar-btn"
         title="무기 정보 박스 삽입"
@@ -745,11 +814,13 @@ export const Toolbar: React.FC<ToolbarProps> = ({
         maxCols={10}
         onPick={(rows, cols) => {
           setTablePickerOpen(false);
+
           if (selectionRef.current) {
             try {
               Transforms.select(editor, selectionRef.current);
             } catch {}
           }
+
           insertTable(editor, {
             rows,
             cols,
