@@ -15,6 +15,7 @@ import type {
 import {
   HeadingBlock,
 } from '@/components/wiki-render';
+import { getHeadingId } from '../../helpers/getHeadingId';
 
 type HeadingElement =
   | HeadingOneElement
@@ -55,6 +56,8 @@ export default function HeadingEditorAdapter({
   element,
   onIconClick,
 }: HeadingEditorAdapterProps) {
+  const headingId = getHeadingId(element);
+
   return (
     <HeadingBlock
       mode="edit"
@@ -65,6 +68,8 @@ export default function HeadingEditorAdapter({
         element.textAlign
       }
       icon={element.icon}
+      domId={headingId}
+      dataHeadingId={headingId}
       attributes={attributes}
       onIconClick={() =>
         onIconClick(
