@@ -2,23 +2,13 @@
 // File: app/components/image/ImageUploadModal.tsx
 // 전체 교체용 코드
 //
-// 수정 목적:
-// - 업로드 모달에서 파일을 선택하거나 드롭해도 파일 목록이 갱신되지 않고
-//   업로드 버튼이 활성화되지 않는 문제 수정
-// - 공용 Modal.tsx 및 이미지 관리 페이지는 변경하지 않음
+// 기존 업로드 모달 UI 구조는 유지하고,
+// 파일 선택 후 목록과 업로드 버튼이 갱신되지 않는 문제만 수정
 // =============================================
 'use client';
 
-import {
-  useRef,
-  useState,
-  type ChangeEvent,
-  type DragEvent,
-  type FormEvent,
-  type KeyboardEvent,
-} from 'react';
-
-import { ModalCard } from '@/components/common/Modal';
+import { useRef, useState } from "react";
+import { ModalCard } from "@/components/common/Modal";
 
 type ImageFile = {
   id: number;
@@ -35,66 +25,78 @@ type Props = {
   onUploaded: (images: ImageFile[]) => void;
 };
 
-const MAX_BATCH_BYTES = 3.5 * 1024 * 1024;
-const SINGLE_FILE_LIMIT_BYTES = 3.9 * 1024 * 1024;
-
-const ALLOWED_EXTENSIONS = new Set([
-  'apng',
-  'avif',
-  'bmp',
-  'gif',
-  'heic',
-  'heif',
-  'ico',
-  'jfif',
-  'jpeg',
-  'jpg',
-  'png',
-  'svg',
-  'tif',
-  'tiff',
-  'webp',
-  'm4v',
-  'mov',
-  'mp4',
-  'mpeg',
-  'mpg',
-  'ogg',
-  'ogv',
-  'webm',
-]);
-
-function formatSize(size: number) {
-  if (size < 1024) return `${size} B`;
-  if (size < 1024 * 1024) return `${(size / 1024).toFixed(1)} KB`;
-
-  return `${(size / 1024 / 1024).toFixed(1)} MB`;
+function formatSize(n: number) {
+  if (n < 1024) return `${n} B`;
+  if (n < 1024 * 1024) return `${(n / 1024).toFixed(1)} KB`;
+  return `${(n / 1024 / 1024).toFixed(1)} MB`;
 }
 
-function getExtension(fileName: string) {
-  const dotIndex = fileName.lastIndexOf('.');
-  if (dotIndex < 0) return '';
+/**
+ * 요청 바디 제한(약 4MB)을 피하기 위한 안전 배치 크기
+ */
+const MAX_BATCH_BYTES = 3.5 * 1024 * 1024;
+
+/**
+ * 단일 파일 업로드 제한
+ */
+const SINGLE_FILE_LIMIT_BYTES = 3.9 * 1024 * 1024;
+
+/**
+ * 브라우저가 MIME 타입을 빈 문자열로 넘기는 경우를 대비한 확장자 목록
+ */
+const IMAGE_EXTENSIONS = new Set([
+  "apng",
+  "avif",
+  "bmp",
+  "gif",
+  "heic",
+  "heif",
+  "ico",
+  "jfif",
+  "jpeg",
+  "jpg",
+  "png",
+  "svg",
+  "tif",
+  "tiff",
+  "webp",
+]);
+
+const VIDEO_EXTENSIONS = new Set([
+  "m4v",
+  "mov",
+  "mp4",
+  "mpeg",
+  "mpg",
+  "ogg",
+  "ogv",
+  "webm",
+]);
+
+function getFileExtension(fileName: string) {
+  const dotIndex = fileName.lastIndexOf(".");
+
+  if (dotIndex < 0 || dotIndex === fileName.length - 1) {
+    return "";
+  }
 
   return fileName.slice(dotIndex + 1).toLowerCase();
 }
 
-/**
- * 일부 브라우저·운영체제 조합에서는 로컬 파일의 MIME 타입이 빈 문자열로
- * 전달될 수 있으므로 MIME 타입과 확장자를 함께 검사한다.
- */
-function isAcceptedFile(file: File) {
+function acceptFile(file: File) {
   if (
-    file.type.startsWith('image/') ||
-    file.type.startsWith('video/')
+    file.type.startsWith("image/") ||
+    file.type.startsWith("video/")
   ) {
     return true;
   }
 
-  return ALLOWED_EXTENSIONS.has(getExtension(file.name));
-}
+  const extension = getFileExtension(file.name);
 
-function fileKey(file: File) {
-  return `${file.name}:${file.size}:${file.lastModified}`;
+  return (
+    IMAGE_EXTENSIONS.has(extension) ||
+    VIDEO_EXTENSIONS.has(extension)
+  );
 }
 
 export default function ImageUploadModal({
@@ -103,131 +105,94 @@ export default function ImageUploadModal({
   folderId,
   onUploaded,
 }: Props) {
-  const inputRef = useRef<HTMLInputElement>(null);
-
   const [files, setFiles] = useState<File[]>([]);
   const [loading, setLoading] = useState(false);
   const [dragOver, setDragOver] = useState(false);
-  const [progressText, setProgressText] = useState('');
-  const [selectionError, setSelectionError] = useState('');
+  const [progressText, setProgressText] = useState<string>("");
+  const inputRef = useRef<HTMLInputElement>(null);
 
+  /**
+   * 파일 배열 병합
+   * 이름과 크기가 같은 파일은 중복 추가하지 않는다.
+   */
   const addFiles = (incoming: File[]) => {
-    const accepted = incoming.filter(isAcceptedFile);
+    const acceptedFiles = incoming.filter(acceptFile);
 
-    if (accepted.length === 0) {
-      setSelectionError(
-        '선택한 파일을 이미지 또는 영상으로 인식하지 못했습니다.',
-      );
-      return;
-    }
+    setFiles((previousFiles) => {
+      const nextFiles = [...previousFiles];
 
-    setSelectionError('');
+      for (const file of acceptedFiles) {
+        const duplicated = nextFiles.some(
+          (previousFile) =>
+            previousFile.name === file.name &&
+            previousFile.size === file.size,
+        );
 
-    setFiles((previous) => {
-      const previousKeys = new Set(previous.map(fileKey));
-      const additions: File[] = [];
-
-      for (const file of accepted) {
-        const key = fileKey(file);
-        if (previousKeys.has(key)) continue;
-
-        previousKeys.add(key);
-        additions.push(file);
+        if (!duplicated) {
+          nextFiles.push(file);
+        }
       }
 
-      if (additions.length === 0) return previous;
-
-      return [...previous, ...additions];
+      return nextFiles;
     });
   };
 
   /**
-   * 파일 선택창에서 선택한 파일을 즉시 상태에 반영한다.
-   * input 값을 바로 비워 같은 파일을 다시 골라도 이벤트가 발생하게 한다.
+   * 파일 선택창에서 선택한 파일 처리
    */
-  const consumeInputFiles = (
-    event:
-      | ChangeEvent<HTMLInputElement>
-      | FormEvent<HTMLInputElement>,
+  const handleSelect = (
+    event: React.ChangeEvent<HTMLInputElement>,
   ) => {
-    const input = event.currentTarget;
-    const selected = Array.from(input.files ?? []);
+    const selectedFiles = Array.from(
+      event.currentTarget.files ?? [],
+    );
 
-    input.value = '';
+    if (selectedFiles.length > 0) {
+      addFiles(selectedFiles);
+    }
 
-    if (selected.length === 0) return;
-    addFiles(selected);
+    /**
+     * 같은 파일을 다시 선택해도 change 이벤트가 발생하도록 초기화
+     */
+    event.currentTarget.value = "";
   };
 
-  const openFilePicker = () => {
-    if (loading) return;
-
-    inputRef.current?.click();
-  };
-
-  const handleDropZoneKeyDown = (
-    event: KeyboardEvent<HTMLDivElement>,
+  /**
+   * 드래그 앤 드롭 파일 처리
+   */
+  const handleDrop = (
+    event: React.DragEvent<HTMLLabelElement>,
   ) => {
-    if (event.key !== 'Enter' && event.key !== ' ') return;
-
-    event.preventDefault();
-    openFilePicker();
-  };
-
-  const handleDrop = (event: DragEvent<HTMLDivElement>) => {
     event.preventDefault();
     event.stopPropagation();
-
     setDragOver(false);
 
-    const dropped = Array.from(event.dataTransfer.files ?? []);
-    if (dropped.length === 0) return;
+    const droppedFiles = Array.from(
+      event.dataTransfer.files ?? [],
+    );
 
-    addFiles(dropped);
-  };
-
-  const handleDragEnter = (event: DragEvent<HTMLDivElement>) => {
-    event.preventDefault();
-    event.stopPropagation();
-    setDragOver(true);
-  };
-
-  const handleDragOver = (event: DragEvent<HTMLDivElement>) => {
-    event.preventDefault();
-    event.stopPropagation();
-
-    event.dataTransfer.dropEffect = 'copy';
-    setDragOver(true);
-  };
-
-  const handleDragLeave = (event: DragEvent<HTMLDivElement>) => {
-    event.preventDefault();
-    event.stopPropagation();
-
-    const relatedTarget = event.relatedTarget as Node | null;
-
-    if (
-      relatedTarget == null ||
-      !event.currentTarget.contains(relatedTarget)
-    ) {
-      setDragOver(false);
+    if (droppedFiles.length > 0) {
+      addFiles(droppedFiles);
     }
   };
 
-  const handleRemove = (target: File) => {
-    const targetKey = fileKey(target);
-
-    setFiles((previous) =>
-      previous.filter((file) => fileKey(file) !== targetKey),
+  const handleRemove = (file: File) => {
+    setFiles((previousFiles) =>
+      previousFiles.filter(
+        (previousFile) =>
+          !(
+            previousFile.name === file.name &&
+            previousFile.size === file.size
+          ),
+      ),
     );
   };
 
   const handleClear = () => {
     setFiles([]);
-    setSelectionError('');
 
     if (inputRef.current) {
-      inputRef.current.value = '';
+      inputRef.current.value = "";
     }
   };
 
@@ -236,7 +201,7 @@ export default function ImageUploadModal({
 
     handleClear();
     setDragOver(false);
-    setProgressText('');
+    setProgressText("");
     onClose();
   };
 
@@ -283,8 +248,8 @@ export default function ImageUploadModal({
     batchIndex: number,
     batchCount: number,
   ) => {
-    if (folderId == null) {
-      throw new Error('업로드할 폴더를 선택하세요.');
+    if (!folderId) {
+      throw new Error("업로드할 폴더를 선택하세요.");
     }
 
     if (
@@ -293,8 +258,8 @@ export default function ImageUploadModal({
     ) {
       throw new Error(
         `파일이 너무 큽니다: ${batch[0].name} (${formatSize(batch[0].size)})\n` +
-          '현재 환경에서 요청 크기 제한(약 4MB) 때문에 업로드가 막힐 수 있습니다.\n' +
-          '파일을 4MB 미만으로 줄인 뒤 다시 시도하세요.',
+          "현재 환경에서 요청 크기 제한(약 4MB) 때문에 업로드가 막힐 수 있습니다.\n" +
+          "파일을 4MB 미만으로 줄인 뒤 다시 시도하세요.",
       );
     }
 
@@ -303,50 +268,54 @@ export default function ImageUploadModal({
     );
 
     const form = new FormData();
-    batch.forEach((file) => form.append('files', file));
-    form.append('folder_id', String(folderId));
 
-    const response = await fetch('/api/image/upload', {
-      method: 'POST',
+    batch.forEach((file) => {
+      form.append("files", file);
+    });
+
+    form.append("folder_id", String(folderId));
+
+    const response = await fetch("/api/image/upload", {
+      method: "POST",
       body: form,
     });
 
     const data = await response.json().catch(() => ({}));
 
     if (!response.ok) {
-      throw new Error(data?.error || '업로드 실패');
+      throw new Error(data?.error || "업로드 실패");
     }
 
     return (data.images as ImageFile[]) || [];
   };
 
   const handleUpload = async () => {
-    if (files.length === 0) return;
+    if (!files.length) return;
 
-    if (folderId == null) {
-      alert('업로드할 폴더를 선택하세요.');
+    if (!folderId) {
+      alert("업로드할 폴더를 선택하세요.");
       return;
     }
 
     setLoading(true);
-    setProgressText('');
+    setProgressText("");
 
     try {
       const batches = buildBatches(files);
       const allUploaded: ImageFile[] = [];
 
       for (let index = 0; index < batches.length; index += 1) {
-        const uploaded = await uploadBatch(
+        const uploadedImages = await uploadBatch(
           batches[index],
           index,
           batches.length,
         );
 
-        allUploaded.push(...uploaded);
+        allUploaded.push(...uploadedImages);
       }
 
       handleClear();
-      setProgressText('');
+      setProgressText("");
 
       if (allUploaded.length > 0) {
         onUploaded(allUploaded);
@@ -354,12 +323,12 @@ export default function ImageUploadModal({
 
       onClose();
     } catch (error: unknown) {
-      setProgressText('');
+      setProgressText("");
 
       alert(
         error instanceof Error
           ? error.message
-          : '네트워크 오류로 업로드에 실패했습니다.',
+          : "네트워크 오류로 업로드에 실패했습니다.",
       );
     } finally {
       setLoading(false);
@@ -373,21 +342,27 @@ export default function ImageUploadModal({
       title="이미지·영상 업로드"
       width={520}
     >
-      <div
+      <label
+        htmlFor="rd-upload-input"
         className={`custum-file-upload ${
-          dragOver ? 'dragover' : ''
+          dragOver ? "dragover" : ""
         }`}
-        role="button"
-        tabIndex={loading ? -1 : 0}
-        aria-disabled={loading}
-        onClick={openFilePicker}
-        onKeyDown={handleDropZoneKeyDown}
-        onDragEnter={handleDragEnter}
-        onDragOver={handleDragOver}
-        onDragLeave={handleDragLeave}
+        onDragOver={(event) => {
+          event.preventDefault();
+          event.dataTransfer.dropEffect = "copy";
+          setDragOver(true);
+        }}
+        onDragEnter={(event) => {
+          event.preventDefault();
+          setDragOver(true);
+        }}
+        onDragLeave={(event) => {
+          event.preventDefault();
+          setDragOver(false);
+        }}
         onDrop={handleDrop}
       >
-        <div className="icon" aria-hidden="true">
+        <div className="icon" aria-hidden>
           <svg
             xmlns="http://www.w3.org/2000/svg"
             viewBox="0 0 24 24"
@@ -397,52 +372,41 @@ export default function ImageUploadModal({
         </div>
 
         <div className="text">
-          <span>클릭 또는 드래그하여 이미지/영상 업로드</span>
+          <span>
+            클릭 또는 드래그하여 이미지/영상 업로드
+          </span>
         </div>
 
         <input
+          id="rd-upload-input"
           ref={inputRef}
           type="file"
           multiple
           accept="image/*,video/*"
-          onInput={consumeInputFiles}
-          onChange={consumeInputFiles}
-          tabIndex={-1}
-          aria-hidden="true"
+          onChange={handleSelect}
         />
-      </div>
+      </label>
 
-      {selectionError ? (
-        <p
-          role="alert"
-          style={{
-            margin: '10px 0 0',
-            fontSize: 13,
-            color: '#c2410c',
-          }}
-        >
-          {selectionError}
-        </p>
-      ) : null}
-
-      {files.length > 0 ? (
+      {!!files.length && (
         <div className="rd-upload-filelist">
           {files.map((file) => (
             <div
-              key={fileKey(file)}
+              key={`${file.name}-${file.size}`}
               className="rd-upload-file"
             >
               <div className="name" title={file.name}>
                 {file.name}
               </div>
+
               <div className="size">
                 {formatSize(file.size)}
               </div>
+
               <button
                 type="button"
                 className="remove"
                 onClick={() => handleRemove(file)}
-                aria-label={`${file.name} 제거`}
+                aria-label="제거"
                 disabled={loading}
               >
                 ✕
@@ -461,12 +425,10 @@ export default function ImageUploadModal({
             </button>
           </div>
         </div>
-      ) : null}
+      )}
 
-      {progressText ? (
+      {!!progressText && (
         <div
-          role="status"
-          aria-live="polite"
           style={{
             marginTop: 10,
             fontSize: 13,
@@ -475,11 +437,11 @@ export default function ImageUploadModal({
         >
           {progressText}
         </div>
-      ) : null}
+      )}
 
       <div
         className="rd-card-button-wrapper"
-        style={{ justifyContent: 'flex-end' }}
+        style={{ justifyContent: "flex-end" }}
       >
         <button
           type="button"
@@ -496,11 +458,11 @@ export default function ImageUploadModal({
           onClick={() => void handleUpload()}
           disabled={
             loading ||
-            files.length === 0 ||
-            folderId == null
+            !files.length ||
+            !folderId
           }
         >
-          {loading ? '업로드 중...' : '업로드'}
+          {loading ? "업로드 중..." : "업로드"}
         </button>
       </div>
     </ModalCard>
