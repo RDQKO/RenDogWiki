@@ -38,11 +38,14 @@
   grid-template-columns:
     repeat(
       auto-fit,
-      148px
+      minmax(
+        132px,
+        148px
+      )
     );
   justify-content: center;
   align-items: stretch;
-  gap: 16px;
+  gap: 12px;
   box-sizing: border-box;
   margin: 0 auto;
   padding: 0 4px;
@@ -100,8 +103,8 @@
   position: relative;
   isolation: isolate;
   display: flex;
-  width: 148px;
-  min-width: 148px;
+  width: 100%;
+  min-width: 0;
   max-width: 148px;
   min-height: 184px;
   flex-direction: column;
