@@ -5,6 +5,7 @@
 // - pooled(기본) / direct(테스트용) 연결 분기
 // - serverless 환경 보수 설정
 // - 읽기 쿼리 재시도 유틸 제공
+// - Supabase 세션 풀 포화 오류 재시도 지원
 // - 기존 코드 호환용 runDbRead export 포함
 // =============================================
 
@@ -12,14 +13,18 @@ import postgres, { type Sql } from 'postgres';
 
 function getRequiredEnv(name: string): string {
   const value = process.env[name];
+
   if (!value) {
     throw new Error(`${name} is not set`);
   }
+
   return value;
 }
 
 function getDbConfig() {
-  const mode = (process.env.DB_CONNECTION_MODE ?? 'pooled').toLowerCase();
+  const mode = (
+    process.env.DB_CONNECTION_MODE ?? 'pooled'
+  ).toLowerCase();
 
   if (mode === 'direct') {
     return {
@@ -41,8 +46,12 @@ export type SQL = Sql;
 declare global {
   // eslint-disable-next-line no-var
   var __wiki_sql__: SQL | undefined;
+
   // eslint-disable-next-line no-var
-  var __wiki_db_mode__: 'pooled' | 'direct' | undefined;
+  var __wiki_db_mode__:
+    | 'pooled'
+    | 'direct'
+    | undefined;
 }
 
 function createSql(): SQL {
@@ -57,7 +66,8 @@ function createSql(): SQL {
 }
 
 export const sql: SQL =
-  global.__wiki_sql__ && global.__wiki_db_mode__ === DB.mode
+  global.__wiki_sql__ &&
+  global.__wiki_db_mode__ === DB.mode
     ? global.__wiki_sql__
     : createSql();
 
@@ -68,7 +78,9 @@ global.__wiki_db_mode__ = DB.mode;
  * 트랜잭션 유틸
  * postgres 타입과 충돌하지 않게 내부 tx는 unknown -> SQL로 단언
  */
-export async function withTx<T>(fn: (tx: SQL) => Promise<T>): Promise<T> {
+export async function withTx<T>(
+  fn: (tx: SQL) => Promise<T>,
+): Promise<T> {
   return sql.begin(async (tx) => {
     return fn(tx as unknown as SQL);
   }) as Promise<T>;
@@ -82,7 +94,10 @@ export async function one<T>(
   strings: TemplateStringsArray,
   ...values: any[]
 ): Promise<T | null> {
-  const rows = (await sql(strings, ...values)) as unknown as T[];
+  const rows = (
+    await sql(strings, ...values)
+  ) as unknown as T[];
+
   return rows[0] ?? null;
 }
 
@@ -92,32 +107,54 @@ type DbErrorLike = {
   message?: string;
 };
 
-export function isTransientDbError(err: unknown): boolean {
-  const e = (err ?? {}) as DbErrorLike;
-  const code = e.code ?? e.errno;
-  const message = String(e.message ?? '');
+export function isTransientDbError(
+  err: unknown,
+): boolean {
+  const error = (err ?? {}) as DbErrorLike;
+  const code = String(
+    error.code ?? error.errno ?? '',
+  ).toUpperCase();
+  const message = String(
+    error.message ?? '',
+  ).toLowerCase();
 
   return (
     code === 'CONNECT_TIMEOUT' ||
     code === 'ECONNRESET' ||
+    code === 'ECONNREFUSED' ||
     code === 'ETIMEDOUT' ||
     code === 'EPIPE' ||
-    message.includes('CONNECT_TIMEOUT') ||
+    code === 'EMAXCONNSESSION' ||
+    code === '53300' ||
+    code === '57P03' ||
+    message.includes('connect_timeout') ||
     message.includes('terminating connection') ||
-    message.includes('Connection refused') ||
-    message.includes('connection terminated unexpectedly')
+    message.includes('connection refused') ||
+    message.includes(
+      'connection terminated unexpectedly',
+    ) ||
+    message.includes('max clients reached') ||
+    message.includes('too many clients') ||
+    message.includes(
+      'remaining connection slots are reserved',
+    ) ||
+    message.includes(
+      'cannot connect now',
+    )
   );
 }
 
 function sleep(ms: number) {
-  return new Promise((resolve) => setTimeout(resolve, ms));
+  return new Promise((resolve) => {
+    setTimeout(resolve, ms);
+  });
 }
 
 export async function withDbRetry<T>(
   label: string,
   fn: () => Promise<T>,
   retries = 1,
-  delayMs = 250
+  delayMs = 250,
 ): Promise<T> {
   let attempt = 0;
   let lastError: unknown;
@@ -125,23 +162,33 @@ export async function withDbRetry<T>(
   while (attempt <= retries) {
     try {
       return await fn();
-    } catch (err) {
-      lastError = err;
+    } catch (error) {
+      lastError = error;
 
-      const retryable = isTransientDbError(err);
-      const hasNext = attempt < retries;
+      const retryable =
+        isTransientDbError(error);
+      const hasNext =
+        attempt < retries;
 
       if (!retryable || !hasNext) {
-        throw err;
+        throw error;
       }
 
-      const e = (err ?? {}) as DbErrorLike;
+      const errorLike =
+        (error ?? {}) as DbErrorLike;
 
       console.warn(
-        `[db] ${label} failed with ${e.code ?? e.errno ?? 'UNKNOWN'}, retrying (${attempt + 1}/${retries})`
+        `[db] ${label} failed with ${
+          errorLike.code ??
+          errorLike.errno ??
+          'UNKNOWN'
+        }, retrying (${attempt + 1}/${retries})`,
       );
 
-      await sleep(delayMs);
+      await sleep(
+        delayMs * (attempt + 1),
+      );
+
       attempt += 1;
     }
   }
@@ -156,11 +203,18 @@ export async function runDbRead<T>(
   label: string,
   fn: () => Promise<T>,
   retries = 1,
-  delayMs = 250
+  delayMs = 250,
 ): Promise<T> {
-  return withDbRetry(label, fn, retries, delayMs);
+  return withDbRetry(
+    label,
+    fn,
+    retries,
+    delayMs,
+  );
 }
 
-export function getDbMode(): 'pooled' | 'direct' {
+export function getDbMode():
+  | 'pooled'
+  | 'direct' {
   return DB.mode;
-} 
+}

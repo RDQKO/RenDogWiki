@@ -4,6 +4,7 @@
 //
 // - FAQ 단건 조회/수정/삭제
 // - 단건 GET은 최신 내용만 반환
+// - 홈 첫 FAQ 클릭 시 DB 연결 오류 자동 재시도
 // - 실제 조회수는 POST /api/faq/view에서 별도 기록
 // - no-store / dynamic 유지
 // =============================================
@@ -13,7 +14,10 @@ import {
   NextResponse,
 } from 'next/server';
 
-import { sql } from '@/wiki/lib/db';
+import {
+  runDbRead,
+  sql,
+} from '@/wiki/lib/db';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
@@ -27,7 +31,7 @@ const NO_STORE_HEADERS = {
 };
 
 function pgArrayToJs(
-  input: unknown
+  input: unknown,
 ): string[] {
   if (Array.isArray(input)) {
     return input as string[];
@@ -46,7 +50,8 @@ function pgArrayToJs(
     return source ? [source] : [];
   }
 
-  const inner = source.slice(1, -1);
+  const inner =
+    source.slice(1, -1);
 
   if (!inner) {
     return [];
@@ -76,7 +81,7 @@ function pgArrayToJs(
       !quoted
     ) {
       output.push(
-        current.replace(/\\"/g, '"')
+        current.replace(/\\"/g, '"'),
       );
       current = '';
       continue;
@@ -86,7 +91,7 @@ function pgArrayToJs(
   }
 
   output.push(
-    current.replace(/\\"/g, '"')
+    current.replace(/\\"/g, '"'),
   );
 
   return output
@@ -95,7 +100,7 @@ function pgArrayToJs(
 }
 
 function normalizeTagsToCsv(
-  tags: unknown
+  tags: unknown,
 ): string | null {
   if (tags == null) {
     return null;
@@ -107,7 +112,7 @@ function normalizeTagsToCsv(
         tags
           .map(String)
           .map((value) => value.trim())
-          .filter(Boolean)
+          .filter(Boolean),
       ),
     ].join(',');
   }
@@ -118,7 +123,7 @@ function normalizeTagsToCsv(
         tags
           .split(',')
           .map((value) => value.trim())
-          .filter(Boolean)
+          .filter(Boolean),
       ),
     ].join(',');
   }
@@ -146,7 +151,7 @@ export async function GET(
     params: {
       id: string;
     };
-  }
+  },
 ) {
   try {
     const id = Number(params.id);
@@ -162,26 +167,36 @@ export async function GET(
         {
           status: 400,
           headers: NO_STORE_HEADERS,
-        }
+        },
       );
     }
+
     /*
-     * 상세 조회와 조회수 기록을 분리한다.
-     * 관리자 수정용 조회는 통계에 포함되지 않는다.
+     * Home FAQ 순위는 첫 클릭 시 이 API를 바로 호출한다.
+     * 검색 API와 동일하게 읽기 재시도를 적용해,
+     * 콜드 연결 또는 Supabase 세션 풀 포화가 잠깐 발생해도
+     * 로딩 상태에 머무르지 않고 다시 조회한다.
      */
-    const rows = await sql`
-      SELECT
-        id,
-        title,
-        content,
-        tags,
-        uploader,
-        created_at,
-        updated_at
-      FROM faq_questions
-      WHERE id = ${id}
-      LIMIT 1
-    `;
+    const rows = await runDbRead(
+      `faq:detail:${id}`,
+      async () => {
+        return await sql`
+          SELECT
+            id,
+            title,
+            content,
+            tags,
+            uploader,
+            created_at,
+            updated_at
+          FROM faq_questions
+          WHERE id = ${id}
+          LIMIT 1
+        `;
+      },
+      2,
+      300,
+    );
 
     const row = rows[0];
 
@@ -191,7 +206,7 @@ export async function GET(
         {
           status: 204,
           headers: NO_STORE_HEADERS,
-        }
+        },
       );
     }
 
@@ -199,12 +214,12 @@ export async function GET(
       normalizeFaqRow(row),
       {
         headers: NO_STORE_HEADERS,
-      }
+      },
     );
   } catch (error) {
     console.error(
       'FAQ 단건 조회 실패:',
-      error
+      error,
     );
 
     return NextResponse.json(
@@ -212,9 +227,12 @@ export async function GET(
         error: 'Server error',
       },
       {
-        status: 500,
-        headers: NO_STORE_HEADERS,
-      }
+        status: 503,
+        headers: {
+          ...NO_STORE_HEADERS,
+          'Retry-After': '1',
+        },
+      },
     );
   }
 }
@@ -227,7 +245,7 @@ export async function PUT(
     params: {
       id: string;
     };
-  }
+  },
 ) {
   try {
     const id = Number(params.id);
@@ -243,7 +261,7 @@ export async function PUT(
         {
           status: 400,
           headers: NO_STORE_HEADERS,
-        }
+        },
       );
     }
 
@@ -311,7 +329,7 @@ export async function PUT(
         {
           status: 404,
           headers: NO_STORE_HEADERS,
-        }
+        },
       );
     }
 
@@ -319,12 +337,12 @@ export async function PUT(
       normalizeFaqRow(row),
       {
         headers: NO_STORE_HEADERS,
-      }
+      },
     );
   } catch (error) {
     console.error(
       'FAQ 수정 실패:',
-      error
+      error,
     );
 
     return NextResponse.json(
@@ -334,7 +352,7 @@ export async function PUT(
       {
         status: 500,
         headers: NO_STORE_HEADERS,
-      }
+      },
     );
   }
 }
@@ -347,7 +365,7 @@ export async function DELETE(
     params: {
       id: string;
     };
-  }
+  },
 ) {
   try {
     const id = Number(params.id);
@@ -363,7 +381,7 @@ export async function DELETE(
         {
           status: 400,
           headers: NO_STORE_HEADERS,
-        }
+        },
       );
     }
 
@@ -378,12 +396,12 @@ export async function DELETE(
       },
       {
         headers: NO_STORE_HEADERS,
-      }
+      },
     );
   } catch (error) {
     console.error(
       'FAQ 삭제 실패:',
-      error
+      error,
     );
 
     return NextResponse.json(
@@ -393,7 +411,7 @@ export async function DELETE(
       {
         status: 500,
         headers: NO_STORE_HEADERS,
-      }
+      },
     );
   }
 }
