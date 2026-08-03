@@ -5,9 +5,10 @@
 // 전체 교체용 코드
 //
 // 수정 내용:
-// - FAQ 순위의 5분 애플리케이션/CDN 캐시 제거
+// - FAQ 순위 응답에 질문 본문과 태그를 함께 포함
+// - Home 순위 클릭 시 별도 상세 조회 없이 모달 표시 가능
 // - day / week / total 지원 유지
-// - 주간 데이터가 아직 없으면 누적 통계를 임시 대체 표시
+// - 주간 데이터가 없으면 누적 통계를 임시 대체 표시
 // - FAQ 통계 조회 실패가 Home 전체에 영향을 주지 않음
 // =============================================
 
@@ -30,6 +31,11 @@ type RankingRange =
 type FaqRankRow = {
   id: number | string;
   title: string;
+  content: string | null;
+  tags: unknown;
+  uploader: string | null;
+  created_at: Date | string | null;
+  updated_at: Date | string | null;
   views: number | string | bigint;
 };
 
@@ -40,10 +46,10 @@ type RankingSource =
   | 'total-fallback';
 
 function normalizeRange(
-  raw: string | null
+  raw: string | null,
 ): RankingRange | null {
   const value = String(
-    raw ?? 'week'
+    raw ?? 'week',
   ).toLowerCase();
 
   if (
@@ -57,17 +63,115 @@ function normalizeRange(
   return null;
 }
 
+function normalizeTags(
+  value: unknown,
+): string[] {
+  if (Array.isArray(value)) {
+    return value
+      .map((tag) =>
+        String(tag).trim(),
+      )
+      .filter(Boolean);
+  }
+
+  if (typeof value !== 'string') {
+    return [];
+  }
+
+  const source = value.trim();
+
+  if (!source) {
+    return [];
+  }
+
+  if (
+    source.startsWith('{') &&
+    source.endsWith('}')
+  ) {
+    const inner =
+      source.slice(1, -1);
+
+    if (!inner) {
+      return [];
+    }
+
+    const output: string[] = [];
+    let current = '';
+    let quoted = false;
+
+    for (
+      let index = 0;
+      index < inner.length;
+      index += 1
+    ) {
+      const character = inner[index];
+
+      if (
+        character === '"' &&
+        inner[index - 1] !== '\\'
+      ) {
+        quoted = !quoted;
+        continue;
+      }
+
+      if (
+        character === ',' &&
+        !quoted
+      ) {
+        output.push(
+          current
+            .replace(/\\"/g, '"')
+            .trim(),
+        );
+        current = '';
+        continue;
+      }
+
+      current += character;
+    }
+
+    output.push(
+      current
+        .replace(/\\"/g, '"')
+        .trim(),
+    );
+
+    return output.filter(Boolean);
+  }
+
+  return source
+    .split(',')
+    .map((tag) => tag.trim())
+    .filter(Boolean);
+}
+
+function normalizeDate(
+  value: Date | string | null,
+): string | undefined {
+  if (value == null) {
+    return undefined;
+  }
+
+  if (value instanceof Date) {
+    return value.toISOString();
+  }
+
+  const text = String(value).trim();
+
+  return text || undefined;
+}
+
 function normalizeRows(
-  rows: FaqRankRow[]
+  rows: FaqRankRow[],
 ) {
   return rows
     .map((row) => {
       const id = Number(row.id);
       const title = String(
-        row.title ?? ''
+        row.title ?? '',
       ).trim();
       const views = Number(
-        row.views ?? 0
+        row.views ?? 0,
       );
 
       if (
@@ -83,27 +187,53 @@ function normalizeRows(
       return {
         id,
         title,
+        content: String(
+          row.content ?? '',
+        ),
+        tags: normalizeTags(
+          row.tags,
+        ),
+        uploader: String(
+          row.uploader ?? '',
+        ),
+        created_at: normalizeDate(
+          row.created_at,
+        ),
+        updated_at: normalizeDate(
+          row.updated_at,
+        ),
         views,
       };
     })
     .filter(
       (
-        item
+        item,
       ): item is {
         id: number;
         title: string;
+        content: string;
+        tags: string[];
+        uploader: string;
+        created_at: string | undefined;
+        updated_at: string | undefined;
         views: number;
-      } => item !== null
+      } => item !== null,
     );
 }
 
+
 async function readTotalRanking(
-  limit: number
+  limit: number,
 ) {
   return (await sql`
     SELECT
       faq.id,
       faq.title,
+      faq.content,
+      faq.tags,
+      faq.uploader,
+      faq.created_at,
+      faq.updated_at,
       stats.views
     FROM faq_stats_total stats
     JOIN faq_questions faq
@@ -119,12 +249,17 @@ async function readTotalRanking(
 }
 
 async function readDayRanking(
-  limit: number
+  limit: number,
 ) {
   return (await sql`
     SELECT
       faq.id,
       faq.title,
+      faq.content,
+      faq.tags,
+      faq.uploader,
+      faq.created_at,
+      faq.updated_at,
       stats.views
     FROM faq_stats_daily stats
     JOIN faq_questions faq
@@ -142,7 +277,7 @@ async function readDayRanking(
 }
 
 async function readWeekRanking(
-  limit: number
+  limit: number,
 ) {
   return (await sql`
     WITH weekly_views AS (
@@ -161,6 +296,11 @@ async function readWeekRanking(
     SELECT
       faq.id,
       faq.title,
+      faq.content,
+      faq.tags,
+      faq.uploader,
+      faq.created_at,
+      faq.updated_at,
       weekly_views.views
     FROM weekly_views
     JOIN faq_questions faq
@@ -177,14 +317,14 @@ async function readWeekRanking(
 }
 
 export async function GET(
-  request: Request
+  request: Request,
 ) {
   const { searchParams } =
     new URL(request.url);
 
   const range =
     normalizeRange(
-      searchParams.get('range')
+      searchParams.get('range'),
     );
 
   if (!range) {
@@ -198,23 +338,23 @@ export async function GET(
         headers: {
           'Cache-Control': 'no-store',
         },
-      }
+      },
     );
   }
 
   const requestedLimit = Number(
-    searchParams.get('limit') ?? 4
+    searchParams.get('limit') ?? 4,
   );
 
   const limit = Number.isFinite(
-    requestedLimit
+    requestedLimit,
   )
     ? Math.min(
         Math.max(
           Math.trunc(requestedLimit),
-          1
+          1,
         ),
-        10
+        10,
       )
     : 4;
 
@@ -228,7 +368,7 @@ export async function GET(
               'total' as RankingSource,
             rows:
               await readTotalRanking(
-                limit
+                limit,
               ),
           };
         }
@@ -239,7 +379,7 @@ export async function GET(
               'day' as RankingSource,
             rows:
               await readDayRanking(
-                limit
+                limit,
               ),
           };
         }
@@ -261,18 +401,17 @@ export async function GET(
          *
          * 이때 Home이 빈 목록으로 보이지 않도록
          * 누적 순위를 임시 대체 표시한다.
-         * 일간 데이터가 생기면 자동으로 주간 순위로 전환된다.
          */
         return {
           source:
             'total-fallback' as RankingSource,
           rows:
             await readTotalRanking(
-              limit
+              limit,
             ),
         };
       },
-      0
+      1,
     );
 
     return NextResponse.json(
@@ -282,24 +421,20 @@ export async function GET(
         source: result.source,
         items:
           normalizeRows(
-            result.rows
+            result.rows,
           ),
       },
       {
         headers: {
-          /*
-           * 빈 결과가 5분 동안 고정되던 문제를 막는다.
-           * HomePage의 fetch도 cache: no-store를 사용한다.
-           */
           'Cache-Control':
             'no-store, no-cache, must-revalidate, max-age=0',
         },
-      }
+      },
     );
   } catch (error) {
     console.error(
       '[api/home/faqs] FAQ 순위 조회 실패:',
-      error
+      error,
     );
 
     return NextResponse.json(
@@ -315,7 +450,7 @@ export async function GET(
         headers: {
           'Cache-Control': 'no-store',
         },
-      }
+      },
     );
   }
 }
