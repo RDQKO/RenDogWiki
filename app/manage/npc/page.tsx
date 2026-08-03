@@ -14,7 +14,6 @@ import {
   SortableList,
   DetailTitle,
 } from '@/components/manager';
-
 import '@/wiki/css/image.css';
 import '@/wiki/css/manager-common.css';
 import '@/wiki/css/npc-manager.css';
@@ -29,7 +28,6 @@ type Village = {
   head_icon?: string | null;
   uploader?: string | null;
 };
-
 type Npc = {
   id: number;
   name: string;
@@ -48,7 +46,6 @@ type Npc = {
   pictures?: string[];
   uploader?: string | null;
 };
-
 export default function NpcManager() {
   const [user, setUser] = useState<any>(null);
   useEffect(() => {
@@ -62,7 +59,6 @@ export default function NpcManager() {
         )
       );
   }, []);
-
   const role: Role =
     user?.role === 'admin' ? 'admin' : user?.role === 'writer' ? 'writer' : 'guest';
   const isAdmin = role === 'admin';
@@ -73,7 +69,6 @@ export default function NpcManager() {
     !!v && (isAdmin || (isWriter && v.uploader?.toLowerCase?.() === myName));
   const canDeleteNpc = (n: Npc | null) =>
     !!n && (isAdmin || (isWriter && n.uploader?.toLowerCase?.() === myName));
-
   const [villages, setVillages] = useState<Village[]>([]);
   const [selectedVillage, setSelectedVillage] = useState<Village | null>(null);
 
@@ -83,14 +78,12 @@ export default function NpcManager() {
   const [villageModalOpen, setVillageModalOpen] = useState(false);
   const [imageModalOpen, setImageModalOpen] = useState(false);
   const [npcModalOpen, setNpcModalOpen] = useState(false);
-
   const [editNameOpen, setEditNameOpen] = useState(false);
   const [editIconOpen, setEditIconOpen] = useState(false);
   const [editLocOpen, setEditLocOpen] = useState(false);
   const [editLineOpen, setEditLineOpen] = useState(false);
   const [picturesModalOpen, setPicturesModalOpen] = useState(false);
   const [addPictureModalOpen, setAddPictureModalOpen] = useState(false);
-
   const [villageName, setVillageName] = useState('');
   const [villageIcon, setVillageIcon] = useState('');
   const [npcName, setNpcName] = useState('');
@@ -99,7 +92,6 @@ export default function NpcManager() {
   const [tmpLoc, setTmpLoc] = useState<[number, number, number]>([0, 0, 0]);
   const [tmpLine, setTmpLine] = useState('');
   const [npcPictures, setNpcPictures] = useState<string[]>([]);
-
   const [editVillageOpen, setEditVillageOpen] = useState(false);
   const [editingVillage, setEditingVillage] = useState<Village | null>(null);
   const [editVillageName, setEditVillageName] = useState('');
@@ -107,7 +99,6 @@ export default function NpcManager() {
   const [editVillageHeadIcon, setEditVillageHeadIcon] = useState<string>('');
   const [editImageModalOpen, setEditImageModalOpen] = useState(false);
   const [editHeadIconModalOpen, setEditHeadIconModalOpen] = useState(false);
-
   const normalizePictures = (pics: any): string[] => {
     if (Array.isArray(pics)) return [...pics];
     if (pics == null) return [];
@@ -127,15 +118,25 @@ export default function NpcManager() {
       .then(r => r.json())
       .then(rows => setVillages(Array.isArray(rows) ? rows : []));
   }, []);
-
   const reloadNpcList = useCallback(async (villageId: number) => {
-    const rows = await fetch(`/api/npcs?village_id=${villageId}&npc_type=normal`).then(r =>
-      r.json()
-    );
+    const params = new URLSearchParams({
+      village_id: String(villageId),
+      npc_type: 'normal',
+      nocache: '1',
+    });
+
+    const response = await fetch(`/api/npcs?${params.toString()}`, {
+      cache: 'no-store',
+    });
+
+    if (!response.ok) {
+      throw new Error('NPC 목록을 불러오지 못했습니다.');
+    }
+
+    const rows = await response.json();
     setNpcList(Array.isArray(rows) ? rows : []);
     return Array.isArray(rows) ? rows : [];
   }, []);
-
   useEffect(() => {
     if (!selectedVillage) {
       setNpcList([]);
@@ -144,7 +145,6 @@ export default function NpcManager() {
     }
     reloadNpcList(selectedVillage.id).then(() => setSelectedNpc(null));
   }, [selectedVillage, reloadNpcList]);
-
   useEffect(() => {
     if (!selectedNpc) return;
     setTmpName(selectedNpc.name);
@@ -152,7 +152,6 @@ export default function NpcManager() {
     setTmpLine(selectedNpc.line || '');
     setNpcPictures(normalizePictures(selectedNpc.pictures));
   }, [selectedNpc]);
-
   const handleAddVillage = useCallback(async () => {
     const maxOrder = villages.length ? Math.max(...villages.map(v => v.order)) : 0;
     await fetch('/api/villages', {
@@ -171,11 +170,10 @@ export default function NpcManager() {
     setVillageName('');
     setVillageIcon('');
   }, [villageIcon, villageName, villages, user?.minecraft_name]);
-
   const handleAddNpc = useCallback(async () => {
     if (!selectedVillage) return;
     const maxOrder = npcList.length ? Math.max(...npcList.map(n => n.order)) : 0;
-    await fetch('/api/npcs', {
+    const response = await fetch('/api/npcs', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
@@ -195,11 +193,17 @@ export default function NpcManager() {
         uploader: user?.minecraft_name ?? undefined,
       }),
     });
+
+    if (!response.ok) {
+      const data = await response.json().catch(() => ({}));
+      alert(data?.error || 'NPC 추가에 실패했습니다.');
+      return;
+    }
+
     await reloadNpcList(selectedVillage.id);
     setNpcModalOpen(false);
     setNpcName('');
   }, [npcList, npcName, selectedVillage, reloadNpcList, user?.minecraft_name]);
-
   const patchNpc = useCallback(
     async (fields: Partial<Npc>) => {
       if (!selectedNpc) return;
@@ -214,7 +218,6 @@ export default function NpcManager() {
     },
     [selectedNpc, selectedVillage, reloadNpcList]
   );
-
   const openEditVillage = (v: Village) => {
     setEditingVillage(v);
     setEditVillageName(v.name);
@@ -222,7 +225,6 @@ export default function NpcManager() {
     setEditVillageHeadIcon(v.head_icon || '');
     setEditVillageOpen(true);
   };
-
   const handleEditVillage = useCallback(async () => {
     if (!editingVillage) return;
     await fetch(`/api/villages/${editingVillage.id}`, {
@@ -256,7 +258,6 @@ export default function NpcManager() {
     editVillageHeadIcon,
     selectedVillage,
   ]);
-
   const handleDeleteVillage = useCallback(async () => {
     if (!editingVillage) return;
     if (!canDeleteVillage(editingVillage)) {
@@ -274,7 +275,6 @@ export default function NpcManager() {
     setEditVillageIcon('');
     setEditVillageHeadIcon('');
   }, [editingVillage, selectedVillage]);
-
   const sortedVillages = useMemo(
     () => [...villages].sort((a, b) => a.order - b.order),
     [villages]
@@ -283,7 +283,6 @@ export default function NpcManager() {
     () => [...npcList].sort((a, b) => a.order - b.order),
     [npcList]
   );
-
   const handleReorder = useCallback(
     async (reordered: Npc[]) => {
       setNpcList(reordered);
@@ -292,7 +291,6 @@ export default function NpcManager() {
         .filter(n => prev.get(n.id) !== n.order)
         .map(n => ({ id: n.id, order: n.order }));
       if (!selectedVillage || changed.length === 0) return;
-
       try {
         const res = await fetch('/api/npcs/order', {
           method: 'PATCH',
@@ -310,7 +308,6 @@ export default function NpcManager() {
     },
     [npcList, selectedVillage, reloadNpcList]
   );
-
   const onKeyActivate =
     (fn: () => void) =>
     (e: React.KeyboardEvent) => {
@@ -323,7 +320,6 @@ export default function NpcManager() {
   return (
     <>
       <WikiHeader user={user} />
-
       {/* 마을 추가 */}
       <ModalCard
         open={villageModalOpen}
@@ -393,7 +389,6 @@ export default function NpcManager() {
             </div>
           </div>
         </div>
-
         <ImageSelectModal
           open={imageModalOpen}
           onClose={() => setImageModalOpen(false)}
@@ -403,7 +398,6 @@ export default function NpcManager() {
           }}
         />
       </ModalCard>
-
       {/* NPC 추가 */}
       <ModalCard
         open={npcModalOpen}
@@ -438,7 +432,6 @@ export default function NpcManager() {
           />
         </div>
       </ModalCard>
-
       {/* 3단 레이아웃 */}
       <div className="mgr-container">
         {/* 사이드바: 마을 */}
@@ -482,7 +475,6 @@ export default function NpcManager() {
             ))}
           </ul>
         </div>
-
         {/* 리스트: NPC */}
         <div className="mgr-list-area">
           <SectionHeader
@@ -499,7 +491,6 @@ export default function NpcManager() {
               </button>
             }
           />
-
           {!selectedVillage ? (
             <EmptyState>마을을 먼저 선택하세요.</EmptyState>
           ) : sortedNpcList.length === 0 ? (
@@ -523,7 +514,6 @@ export default function NpcManager() {
             />
           )}
         </div>
-
         {/* 상세 */}
         <div className="mgr-detail-area">
           {selectedNpc ? (
@@ -570,7 +560,6 @@ export default function NpcManager() {
                   <span className="seg-label">삭제</span>
                 </button>
               </div>
-
               <DetailTitle
                 icon={
                   <IconCell icon={selectedNpc.icon} className="npc-detail-img" size={44} rounded={8} />
@@ -580,7 +569,6 @@ export default function NpcManager() {
                 onTitleClick={() => setEditNameOpen(true)}
                 onIconClick={() => setEditIconOpen(true)}
               />
-
               <div
                 className="mgr-pill-row"
                 role="button"
@@ -597,7 +585,6 @@ export default function NpcManager() {
                   </span>
                 </span>
               </div>
-
               <div
                 className="mgr-pill-row mgr-pill-row--multi"
                 role="button"
@@ -615,7 +602,6 @@ export default function NpcManager() {
                   )}
                 </span>
               </div>
-
               <div
                 className="mgr-pill-row"
                 role="button"
@@ -629,7 +615,7 @@ export default function NpcManager() {
                   {npcPictures.length ? (
                     npcPictures.slice(0, 6).map((url, i) => (
                       <img
-                        key={url   + i}
+                        key={url + i}
                         src={toProxyUrl(url)}
                         alt=""
                         className="mgr-pill-pic"
@@ -648,7 +634,6 @@ export default function NpcManager() {
           )}
         </div>
       </div>
-
       {/* 이름 수정 */}
       <ModalCard
         open={editNameOpen}
@@ -681,7 +666,6 @@ export default function NpcManager() {
           aria-label="NPC 이름 입력"
         />
       </ModalCard>
-
       {/* 아이콘 선택 */}
       <ImageSelectModal
         open={editIconOpen}
@@ -691,7 +675,6 @@ export default function NpcManager() {
           setEditIconOpen(false);
         }}
       />
-
       {/* 위치 수정 */}
       <ModalCard
         open={editLocOpen}
@@ -748,7 +731,6 @@ export default function NpcManager() {
           </div>
         </div>
       </ModalCard>
-
       {/* 대사 수정 */}
       <ModalCard
         open={editLineOpen}
@@ -780,7 +762,6 @@ export default function NpcManager() {
           aria-label="대사 입력"
         />
       </ModalCard>
-
       {/* 사진 관리 */}
       <ModalCard
         open={picturesModalOpen}
@@ -826,7 +807,6 @@ export default function NpcManager() {
             </div>
           ))}
         </div>
-
         <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: 8 }}>
           <button
             type="button"
@@ -838,7 +818,6 @@ export default function NpcManager() {
             + 사진 추가
           </button>
         </div>
-
         <ImageSelectModal
           open={addPictureModalOpen}
           onClose={() => setAddPictureModalOpen(false)}
@@ -848,7 +827,6 @@ export default function NpcManager() {
           }}
         />
       </ModalCard>
-
       {/* 마을 정보 수정 */}
       <ModalCard
         open={editVillageOpen}
@@ -962,7 +940,6 @@ export default function NpcManager() {
             </div>
           </div>
         </div>
-
         <ImageSelectModal
           open={editImageModalOpen}
           onClose={() => setEditImageModalOpen(false)}
