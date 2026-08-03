@@ -43,6 +43,7 @@ import type {
   HomeRecentDocument,
 } from './homeData';
 import '@/wiki/css/header.css';
+import '@/wiki/css/wiki-final-polish.css';
 
 import styles from './home.module.css';
 import darkBackgroundStyles from './homeDarkBackgrounds.module.css';
