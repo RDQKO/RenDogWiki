@@ -9,6 +9,9 @@
 // - 선택된 File 객체를 MIME 판정으로 조용히 폐기하지 않음
 // - 모달 인스턴스마다 고유한 file input id 사용
 // - 같은 이름·크기의 서로 다른 파일도 lastModified로 구분
+// - 여러 파일은 파일당 독립 요청으로 업로드
+// - 최대 2개 요청만 동시에 처리
+// - 성공한 파일은 제거하고 실패한 파일만 재시도 목록에 유지
 // =============================================
 'use client';
 
@@ -37,14 +40,15 @@ function formatSize(n: number) {
 }
 
 /**
- * 요청 바디 제한(약 4MB)을 피하기 위한 안전 배치 크기
+ * Vercel 요청 바디 제한을 고려한 단일 파일 제한
  */
-const MAX_BATCH_BYTES = 3.5 * 1024 * 1024;
+const SINGLE_FILE_LIMIT_BYTES =
+  3.9 * 1024 * 1024;
 
 /**
- * 단일 파일 업로드 제한
+ * 파일별 독립 요청을 동시에 너무 많이 실행하지 않도록 제한
  */
-const SINGLE_FILE_LIMIT_BYTES = 3.9 * 1024 * 1024;
+const UPLOAD_CONCURRENCY = 2;
 
 function fileKey(file: File) {
   return [
@@ -173,130 +177,271 @@ export default function ImageUploadModal({
     onClose();
   };
 
-  const buildBatches = (list: File[]) => {
-    const batches: File[][] = [];
-    let currentBatch: File[] = [];
-    let currentBytes = 0;
-
-    for (const file of list) {
-      if (file.size > SINGLE_FILE_LIMIT_BYTES) {
-        if (currentBatch.length > 0) {
-          batches.push(currentBatch);
-          currentBatch = [];
-          currentBytes = 0;
-        }
-
-        batches.push([file]);
-        continue;
-      }
-
-      if (
-        currentBatch.length > 0 &&
-        currentBytes + file.size > MAX_BATCH_BYTES
-      ) {
-        batches.push(currentBatch);
-        currentBatch = [file];
-        currentBytes = file.size;
-        continue;
-      }
-
-      currentBatch.push(file);
-      currentBytes += file.size;
-    }
-
-    if (currentBatch.length > 0) {
-      batches.push(currentBatch);
-    }
-
-    return batches;
-  };
-
-  const uploadBatch = async (
-    batch: File[],
-    batchIndex: number,
-    batchCount: number,
-  ) => {
+  const uploadSingleFile = async (
+    file: File,
+  ): Promise<ImageFile[]> => {
     if (folderId == null) {
-      throw new Error("업로드할 폴더를 선택하세요.");
+      throw new Error(
+        "업로드할 폴더를 선택하세요.",
+      );
     }
 
     if (
-      batch.length === 1 &&
-      batch[0].size > SINGLE_FILE_LIMIT_BYTES
+      file.size >
+      SINGLE_FILE_LIMIT_BYTES
     ) {
       throw new Error(
-        `파일이 너무 큽니다: ${batch[0].name} (${formatSize(batch[0].size)})\n` +
-          "현재 환경에서 요청 크기 제한(약 4MB) 때문에 업로드가 막힐 수 있습니다.\n" +
+        `파일이 너무 큽니다: ${file.name} (${formatSize(file.size)})\n` +
+          "현재 환경에서 요청 크기 제한(약 4MB) 때문에 업로드할 수 없습니다.\n" +
           "파일을 4MB 미만으로 줄인 뒤 다시 시도하세요.",
       );
     }
 
-    setProgressText(
-      `업로드 중... (${batchIndex + 1}/${batchCount})`,
+    const form =
+      new FormData();
+
+    form.append(
+      "files",
+      file,
     );
 
-    const form = new FormData();
+    form.append(
+      "folder_id",
+      String(folderId),
+    );
 
-    batch.forEach((file) => {
-      form.append("files", file);
-    });
+    const response =
+      await fetch(
+        "/api/image/upload",
+        {
+          method: "POST",
+          body: form,
+        },
+      );
 
-    form.append("folder_id", String(folderId));
-
-    const response = await fetch("/api/image/upload", {
-      method: "POST",
-      body: form,
-    });
-
-    const data = await response.json().catch(() => ({}));
+    const data =
+      await response
+        .json()
+        .catch(
+          () => ({}),
+        );
 
     if (!response.ok) {
-      throw new Error(data?.error || "업로드 실패");
+      throw new Error(
+        data?.error ||
+          `업로드 실패 (${response.status})`,
+      );
     }
 
-    return (data.images as ImageFile[]) || [];
+    const images =
+      Array.isArray(
+        data?.images,
+      )
+        ? data.images as ImageFile[]
+        : [];
+
+    if (
+      images.length === 0
+    ) {
+      throw new Error(
+        "서버가 업로드 결과를 반환하지 않았습니다.",
+      );
+    }
+
+    return images;
   };
 
   const handleUpload = async () => {
-    if (!files.length) return;
+    if (!files.length) {
+      return;
+    }
 
     if (folderId == null) {
-      alert("업로드할 폴더를 선택하세요.");
+      alert(
+        "업로드할 폴더를 선택하세요.",
+      );
+      return;
+    }
+
+    const oversized =
+      files.filter(
+        (file) =>
+          file.size >
+          SINGLE_FILE_LIMIT_BYTES,
+      );
+
+    if (
+      oversized.length > 0
+    ) {
+      const names =
+        oversized
+          .slice(0, 5)
+          .map(
+            (file) =>
+              `${file.name} (${formatSize(file.size)})`,
+          )
+          .join("\n");
+
+      alert(
+        "4MB를 넘는 파일이 포함되어 있습니다.\n\n" +
+          names +
+          (
+            oversized.length > 5
+              ? `\n외 ${oversized.length - 5}개`
+              : ""
+          ) +
+          "\n\n해당 파일의 크기를 줄인 뒤 다시 시도하세요.",
+      );
       return;
     }
 
     setLoading(true);
-    setProgressText("");
+    setProgressText(
+      `업로드 준비 중... (0/${files.length})`,
+    );
+
+    const uploadTargets =
+      [...files];
+
+    const uploadedRows:
+      ImageFile[] = [];
+
+    const successfulKeys =
+      new Set<string>();
+
+    const failures: {
+      file: File;
+      message: string;
+    }[] = [];
+
+    let cursor = 0;
+    let completed = 0;
+
+    const runWorker =
+      async () => {
+        while (true) {
+          const targetIndex =
+            cursor;
+
+          cursor += 1;
+
+          if (
+            targetIndex >=
+            uploadTargets.length
+          ) {
+            return;
+          }
+
+          const file =
+            uploadTargets[
+              targetIndex
+            ];
+
+          try {
+            const rows =
+              await uploadSingleFile(
+                file,
+              );
+
+            uploadedRows.push(
+              ...rows,
+            );
+
+            successfulKeys.add(
+              fileKey(file),
+            );
+          } catch (
+            error: unknown
+          ) {
+            failures.push({
+              file,
+              message:
+                error instanceof
+                Error
+                  ? error.message
+                  : "네트워크 오류",
+            });
+          } finally {
+            completed += 1;
+
+            setProgressText(
+              `업로드 중... (${completed}/${uploadTargets.length})`,
+            );
+          }
+        }
+      };
 
     try {
-      const batches = buildBatches(files);
-      const allUploaded: ImageFile[] = [];
-
-      for (let index = 0; index < batches.length; index += 1) {
-        const uploadedImages = await uploadBatch(
-          batches[index],
-          index,
-          batches.length,
+      const workerCount =
+        Math.min(
+          UPLOAD_CONCURRENCY,
+          uploadTargets.length,
         );
 
-        allUploaded.push(...uploadedImages);
+      await Promise.all(
+        Array.from(
+          {
+            length:
+              workerCount,
+          },
+          () =>
+            runWorker(),
+        ),
+      );
+
+      if (
+        uploadedRows.length >
+        0
+      ) {
+        onUploaded(
+          uploadedRows,
+        );
       }
 
-      handleClear();
-      setProgressText("");
-
-      if (allUploaded.length > 0) {
-        onUploaded(allUploaded);
+      if (
+        failures.length === 0
+      ) {
+        handleClear();
+        setProgressText("");
+        onClose();
+        return;
       }
 
-      onClose();
-    } catch (error: unknown) {
-      setProgressText("");
+      /*
+       * 이미 성공한 파일은 목록에서 제거하고,
+       * 실패한 파일만 남겨 다시 업로드할 수 있게 한다.
+       */
+      setFiles(
+        uploadTargets.filter(
+          (file) =>
+            !successfulKeys.has(
+              fileKey(file),
+            ),
+        ),
+      );
+
+      setProgressText(
+        `${uploadedRows.length}개 성공, ${failures.length}개 실패`,
+      );
+
+      const failureLines =
+        failures
+          .slice(0, 8)
+          .map(
+            ({ file, message }) =>
+              `• ${file.name}: ${message}`,
+          )
+          .join("\n");
 
       alert(
-        error instanceof Error
-          ? error.message
-          : "네트워크 오류로 업로드에 실패했습니다.",
+        `${uploadedRows.length}개는 정상적으로 업로드되었습니다.\n` +
+          `${failures.length}개는 실패하여 목록에 남겨두었습니다.\n\n` +
+          failureLines +
+          (
+            failures.length > 8
+              ? `\n외 ${failures.length - 8}개`
+              : ""
+          ),
       );
     } finally {
       setLoading(false);
