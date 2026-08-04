@@ -10,6 +10,9 @@ import { requireRole } from '@/app/wiki/lib/requireRole';
 import { getAuthUser } from '@/wiki/lib/auth';
 import { sql } from '@/wiki/lib/db';
 import {
+  replaceDocumentSearchSections,
+} from '@/wiki/lib/documentSearchIndex';
+import {
   logActivity,
   resolveCategoryName,
 } from '@wiki/lib/activity';
@@ -21,6 +24,7 @@ export const revalidate = 0;
 
 const docTag = (id: number) => `doc:${id}`;
 const listTag = (path: string | number) => `doclist:${String(path)}`;
+const SEARCH_CACHE_TAG = 'search:index';
 
 function normalizeContent(value: unknown): unknown {
   if (value == null) return [];
@@ -349,9 +353,26 @@ export async function POST(req: NextRequest) {
       WHERE id = ${documentId}
     `;
 
+    // 검색 인덱스는 파생 데이터이므로 저장 성공을 방해하지 않습니다.
+    // 실패한 문서는 /api/search/reindex로 다시 구축할 수 있습니다.
+    let searchIndexUpdated = true;
+    try {
+      await replaceDocumentSearchSections(
+        documentId,
+        contentNorm,
+      );
+    } catch (searchIndexError) {
+      searchIndexUpdated = false;
+      console.error(
+        '[문서 저장 API] 검색 인덱스 갱신 실패:',
+        searchIndexError,
+      );
+    }
+
     // DB 변경이 완료된 즉시 캐시부터 비웁니다.
     // 이후 활동 로그가 실패해도 오래된 본문이 계속 노출되지 않습니다.
     revalidateTag(docTag(documentId));
+    revalidateTag(SEARCH_CACHE_TAG);
     invalidate(docTag(documentId), 'doc:list', listTag(pathVal as string | number));
 
     const categoryLabel = await resolveCategoryName(
@@ -373,7 +394,11 @@ export async function POST(req: NextRequest) {
     });
 
     return NextResponse.json(
-      { success: true, id: documentId },
+      {
+        success: true,
+        id: documentId,
+        searchIndexUpdated,
+      },
       { headers: { 'Cache-Control': 'no-store' } },
     );
   } catch (error) {
