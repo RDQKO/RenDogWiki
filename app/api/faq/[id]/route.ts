@@ -3,10 +3,9 @@
 // 전체 교체용 코드
 //
 // - FAQ 단건 조회/수정/삭제
-// - 단건 GET은 최신 내용만 반환
-// - 홈 첫 FAQ 클릭 시 DB 연결 오류 자동 재시도
-// - 실제 조회수는 POST /api/faq/view에서 별도 기록
-// - no-store / dynamic 유지
+// - 단건 조회를 5분간 인스턴스 간 공유 캐시
+// - 수정/삭제 직후 목록/상세/Home FAQ 캐시 즉시 무효화
+// - 브라우저 응답은 no-store 유지
 // =============================================
 
 import {
@@ -18,6 +17,12 @@ import {
   runDbRead,
   sql,
 } from '@/wiki/lib/db';
+
+import {
+  cached,
+  cacheKey,
+  invalidate,
+} from '@/wiki/lib/cache';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
@@ -34,20 +39,30 @@ function pgArrayToJs(
   input: unknown,
 ): string[] {
   if (Array.isArray(input)) {
-    return input as string[];
+    return input
+      .map(String)
+      .map((value) =>
+        value.trim(),
+      )
+      .filter(Boolean);
   }
 
-  if (typeof input !== 'string') {
+  if (
+    typeof input !== 'string'
+  ) {
     return [];
   }
 
-  const source = input.trim();
+  const source =
+    input.trim();
 
   if (
     !source.startsWith('{') ||
     !source.endsWith('}')
   ) {
-    return source ? [source] : [];
+    return source
+      ? [source]
+      : [];
   }
 
   const inner =
@@ -66,7 +81,8 @@ function pgArrayToJs(
     index < inner.length;
     index += 1
   ) {
-    const character = inner[index];
+    const character =
+      inner[index];
 
     if (
       character === '"' &&
@@ -81,8 +97,12 @@ function pgArrayToJs(
       !quoted
     ) {
       output.push(
-        current.replace(/\\"/g, '"'),
+        current.replace(
+          /\\"/g,
+          '"',
+        ),
       );
+
       current = '';
       continue;
     }
@@ -91,11 +111,16 @@ function pgArrayToJs(
   }
 
   output.push(
-    current.replace(/\\"/g, '"'),
+    current.replace(
+      /\\"/g,
+      '"',
+    ),
   );
 
   return output
-    .map((value) => value.trim())
+    .map((value) =>
+      value.trim(),
+    )
     .filter(Boolean);
 }
 
@@ -107,40 +132,115 @@ function normalizeTagsToCsv(
   }
 
   if (Array.isArray(tags)) {
-    return [
-      ...new Set(
+    return Array.from(
+      new Set(
         tags
           .map(String)
-          .map((value) => value.trim())
+          .map((value) =>
+            value.trim(),
+          )
           .filter(Boolean),
       ),
-    ].join(',');
+    ).join(',');
   }
 
-  if (typeof tags === 'string') {
-    return [
-      ...new Set(
+  if (
+    typeof tags === 'string'
+  ) {
+    return Array.from(
+      new Set(
         tags
           .split(',')
-          .map((value) => value.trim())
+          .map((value) =>
+            value.trim(),
+          )
           .filter(Boolean),
       ),
-    ].join(',');
+    ).join(',');
   }
 
   return null;
 }
 
-function normalizeFaqRow(row: any) {
+function normalizeDate(
+  value: unknown,
+): string | undefined {
+  if (value == null) {
+    return undefined;
+  }
+
+  if (value instanceof Date) {
+    return value.toISOString();
+  }
+
+  const text =
+    String(value).trim();
+
+  return text || undefined;
+}
+
+function normalizeFaqRow(
+  row: any,
+) {
   return {
-    id: row.id,
-    title: row.title,
-    content: row.content,
-    tags: pgArrayToJs(row.tags),
-    uploader: row.uploader,
-    created_at: row.created_at,
-    updated_at: row.updated_at,
+    id: Number(row.id),
+    title:
+      String(
+        row.title ?? '',
+      ),
+    content:
+      String(
+        row.content ?? '',
+      ),
+    tags:
+      pgArrayToJs(
+        row.tags,
+      ),
+    uploader:
+      String(
+        row.uploader ?? '',
+      ),
+    created_at:
+      normalizeDate(
+        row.created_at,
+      ),
+    updated_at:
+      normalizeDate(
+        row.updated_at,
+      ),
   };
+}
+
+async function readFaqDetail(
+  id: number,
+) {
+  const rows =
+    await runDbRead(
+      `faq:detail:${id}`,
+      async () =>
+        await sql`
+          SELECT
+            id,
+            title,
+            content,
+            tags,
+            uploader,
+            created_at,
+            updated_at
+          FROM faq_questions
+          WHERE id = ${id}
+          LIMIT 1
+        `,
+      2,
+      300,
+    );
+
+  const row =
+    rows[0];
+
+  return row
+    ? normalizeFaqRow(row)
+    : null;
 }
 
 export async function GET(
@@ -154,7 +254,8 @@ export async function GET(
   },
 ) {
   try {
-    const id = Number(params.id);
+    const id =
+      Number(params.id);
 
     if (
       !Number.isInteger(id) ||
@@ -166,54 +267,49 @@ export async function GET(
         },
         {
           status: 400,
-          headers: NO_STORE_HEADERS,
+          headers:
+            NO_STORE_HEADERS,
         },
       );
     }
 
-    /*
-     * Home FAQ 순위는 첫 클릭 시 이 API를 바로 호출한다.
-     * 검색 API와 동일하게 읽기 재시도를 적용해,
-     * 콜드 연결 또는 Supabase 세션 풀 포화가 잠깐 발생해도
-     * 로딩 상태에 머무르지 않고 다시 조회한다.
-     */
-    const rows = await runDbRead(
-      `faq:detail:${id}`,
-      async () => {
-        return await sql`
-          SELECT
+    const data =
+      await cached(
+        cacheKey(
+          'faq',
+          'detail',
+          'v2',
+          id,
+        ),
+        {
+          ttlSec: 300,
+          tags: [
+            'faq:detail',
+            `faq:${id}`,
+          ],
+        },
+        async () =>
+          await readFaqDetail(
             id,
-            title,
-            content,
-            tags,
-            uploader,
-            created_at,
-            updated_at
-          FROM faq_questions
-          WHERE id = ${id}
-          LIMIT 1
-        `;
-      },
-      2,
-      300,
-    );
+          ),
+      );
 
-    const row = rows[0];
-
-    if (!row) {
+    if (!data) {
       return new NextResponse(
         null,
         {
           status: 204,
-          headers: NO_STORE_HEADERS,
+          headers:
+            NO_STORE_HEADERS,
         },
       );
     }
 
     return NextResponse.json(
-      normalizeFaqRow(row),
+      data,
       {
-        headers: NO_STORE_HEADERS,
+        headers:
+          NO_STORE_HEADERS,
       },
     );
   } catch (error) {
@@ -238,7 +334,7 @@ export async function GET(
 }
 
 export async function PUT(
-  req: NextRequest,
+  request: NextRequest,
   {
     params,
   }: {
@@ -248,7 +344,8 @@ export async function PUT(
   },
 ) {
   try {
-    const id = Number(params.id);
+    const id =
+      Number(params.id);
 
     if (
       !Number.isInteger(id) ||
@@ -260,66 +357,79 @@ export async function PUT(
         },
         {
           status: 400,
-          headers: NO_STORE_HEADERS,
+          headers:
+            NO_STORE_HEADERS,
         },
       );
     }
 
-    const body = await req.json();
+    const body =
+      await request.json();
 
     const title =
       body?.title != null
-        ? String(body.title).trim()
+        ? String(
+            body.title,
+          ).trim()
         : null;
 
     const content =
       body?.content != null
-        ? String(body.content).trim()
+        ? String(
+            body.content,
+          ).trim()
         : null;
 
     const tagsCsv =
-      normalizeTagsToCsv(body?.tags);
+      normalizeTagsToCsv(
+        body?.tags,
+      );
 
-    const rows = await sql`
-      UPDATE faq_questions
-      SET
-        title =
-          COALESCE(
-            ${title}::text,
-            title
-          ),
-        content =
-          COALESCE(
-            ${content}::text,
-            content
-          ),
-        tags =
-          CASE
-            WHEN ${tagsCsv}::text
-              IS NULL
-              THEN tags
-            WHEN ${tagsCsv}::text = ''
-              THEN ARRAY[]::text[]
-            ELSE
-              string_to_array(
-                ${tagsCsv}::text,
-                ','
-              )
-          END,
-        updated_at =
-          CURRENT_TIMESTAMP
-      WHERE id = ${id}
-      RETURNING
-        id,
-        title,
-        content,
-        tags,
-        uploader,
-        created_at,
-        updated_at
-    `;
+    const rows =
+      await sql`
+        UPDATE faq_questions
+        SET
+          title =
+            COALESCE(
+              ${title}::text,
+              title
+            ),
+          content =
+            COALESCE(
+              ${content}::text,
+              content
+            ),
+          tags =
+            CASE
+              WHEN
+                ${tagsCsv}::text
+                IS NULL
+                THEN tags
+              WHEN
+                ${tagsCsv}::text = ''
+                THEN
+                  ARRAY[]::text[]
+              ELSE
+                string_to_array(
+                  ${tagsCsv}::text,
+                  ','
+                )
+            END,
+          updated_at =
+            CURRENT_TIMESTAMP
+        WHERE id = ${id}
+        RETURNING
+          id,
+          title,
+          content,
+          tags,
+          uploader,
+          created_at,
+          updated_at
+      `;
 
-    const row = rows[0];
+    const row =
+      rows[0];
 
     if (!row) {
       return NextResponse.json(
@@ -328,15 +438,24 @@ export async function PUT(
         },
         {
           status: 404,
-          headers: NO_STORE_HEADERS,
+          headers:
+            NO_STORE_HEADERS,
         },
       );
     }
 
+    invalidate(
+      'faq:list',
+      'faq:detail',
+      `faq:${id}`,
+      'home:faq',
+    );
+
     return NextResponse.json(
       normalizeFaqRow(row),
       {
-        headers: NO_STORE_HEADERS,
+        headers:
+          NO_STORE_HEADERS,
       },
     );
   } catch (error) {
@@ -351,7 +470,8 @@ export async function PUT(
       },
       {
         status: 500,
-        headers: NO_STORE_HEADERS,
+        headers:
+          NO_STORE_HEADERS,
       },
     );
   }
@@ -368,7 +488,8 @@ export async function DELETE(
   },
 ) {
   try {
-    const id = Number(params.id);
+    const id =
+      Number(params.id);
 
     if (
       !Number.isInteger(id) ||
@@ -380,7 +501,8 @@ export async function DELETE(
         },
         {
           status: 400,
-          headers: NO_STORE_HEADERS,
+          headers:
+            NO_STORE_HEADERS,
         },
       );
     }
@@ -390,12 +512,20 @@ export async function DELETE(
       WHERE id = ${id}
     `;
 
+    invalidate(
+      'faq:list',
+      'faq:detail',
+      `faq:${id}`,
+      'home:faq',
+    );
+
     return NextResponse.json(
       {
         ok: true,
       },
       {
-        headers: NO_STORE_HEADERS,
+        headers:
+          NO_STORE_HEADERS,
       },
     );
   } catch (error) {
@@ -410,7 +540,8 @@ export async function DELETE(
       },
       {
         status: 500,
-        headers: NO_STORE_HEADERS,
+        headers:
+          NO_STORE_HEADERS,
       },
     );
   }

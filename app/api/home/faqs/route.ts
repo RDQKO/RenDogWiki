@@ -1,23 +1,26 @@
 // =============================================
-// 실제 적용 경로:
-// app/api/home/faqs/route.ts
-//
+// File: app/api/home/faqs/route.ts
 // 전체 교체용 코드
 //
-// 수정 내용:
-// - FAQ 순위 응답에 질문 본문과 태그를 함께 포함
-// - Home 순위 클릭 시 별도 상세 조회 없이 모달 표시 가능
-// - day / week / total 지원 유지
-// - 주간 데이터가 없으면 누적 통계를 임시 대체 표시
-// - FAQ 통계 조회 실패가 Home 전체에 영향을 주지 않음
+// - FAQ 순위 day/week/total 지원
+// - 질문 본문과 태그를 포함해 Home 모달 즉시 표시
+// - 결과를 5분간 인스턴스 간 공유 캐시
+// - FAQ 수정/삭제 시 faq:list, home:faq 태그로 즉시 무효화
 // =============================================
 
-import { NextResponse } from 'next/server';
+import {
+  NextResponse,
+} from 'next/server';
 
 import {
   runDbRead,
   sql,
 } from '@/wiki/lib/db';
+
+import {
+  cached,
+  cacheKey,
+} from '@/wiki/lib/cache';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
@@ -28,29 +31,39 @@ type RankingRange =
   | 'week'
   | 'total';
 
-type FaqRankRow = {
-  id: number | string;
-  title: string;
-  content: string | null;
-  tags: unknown;
-  uploader: string | null;
-  created_at: Date | string | null;
-  updated_at: Date | string | null;
-  views: number | string | bigint;
-};
-
 type RankingSource =
   | 'day'
   | 'week'
   | 'total'
   | 'total-fallback';
 
+type FaqRankRow = {
+  id: number | string;
+  title: string;
+  content: string | null;
+  tags: unknown;
+  uploader: string | null;
+  created_at:
+    | Date
+    | string
+    | null;
+  updated_at:
+    | Date
+    | string
+    | null;
+  views:
+    | number
+    | string
+    | bigint;
+};
+
 function normalizeRange(
   raw: string | null,
 ): RankingRange | null {
-  const value = String(
-    raw ?? 'week',
-  ).toLowerCase();
+  const value =
+    String(
+      raw ?? 'week',
+    ).toLowerCase();
 
   if (
     value === 'day' ||
@@ -78,7 +91,8 @@ function normalizeTags(
     return [];
   }
 
-  const source = value.trim();
+  const source =
+    value.trim();
 
   if (!source) {
     return [];
@@ -104,7 +118,8 @@ function normalizeTags(
       index < inner.length;
       index += 1
     ) {
-      const character = inner[index];
+      const character =
+        inner[index];
 
       if (
         character === '"' &&
@@ -120,9 +135,13 @@ function normalizeTags(
       ) {
         output.push(
           current
-            .replace(/\\"/g, '"')
+            .replace(
+              /\\"/g,
+              '"',
+            )
             .trim(),
         );
+
         current = '';
         continue;
       }
@@ -132,7 +151,10 @@ function normalizeTags(
 
     output.push(
       current
-        .replace(/\\"/g, '"')
+        .replace(
+          /\\"/g,
+          '"',
+        )
         .trim(),
     );
 
@@ -146,7 +168,10 @@ function normalizeTags(
 }
 
 function normalizeDate(
-  value: Date | string | null,
+  value:
+    | Date
+    | string
+    | null,
 ): string | undefined {
   if (value == null) {
     return undefined;
@@ -156,7 +181,8 @@ function normalizeDate(
     return value.toISOString();
   }
 
-  const text = String(value).trim();
+  const text =
+    String(value).trim();
 
   return text || undefined;
 }
@@ -166,19 +192,26 @@ function normalizeRows(
 ) {
   return rows
     .map((row) => {
-      const id = Number(row.id);
-      const title = String(
-        row.title ?? '',
-      ).trim();
-      const views = Number(
-        row.views ?? 0,
-      );
+      const id =
+        Number(row.id);
+
+      const title =
+        String(
+          row.title ?? '',
+        ).trim();
+
+      const views =
+        Number(
+          row.views ?? 0,
+        );
 
       if (
         !Number.isInteger(id) ||
         id <= 0 ||
         !title ||
-        !Number.isFinite(views) ||
+        !Number.isFinite(
+          views,
+        ) ||
         views <= 0
       ) {
         return null;
@@ -187,21 +220,26 @@ function normalizeRows(
       return {
         id,
         title,
-        content: String(
-          row.content ?? '',
-        ),
-        tags: normalizeTags(
-          row.tags,
-        ),
-        uploader: String(
-          row.uploader ?? '',
-        ),
-        created_at: normalizeDate(
-          row.created_at,
-        ),
-        updated_at: normalizeDate(
-          row.updated_at,
-        ),
+        content:
+          String(
+            row.content ?? '',
+          ),
+        tags:
+          normalizeTags(
+            row.tags,
+          ),
+        uploader:
+          String(
+            row.uploader ?? '',
+          ),
+        created_at:
+          normalizeDate(
+            row.created_at,
+          ),
+        updated_at:
+          normalizeDate(
+            row.updated_at,
+          ),
         views,
       };
     })
@@ -214,18 +252,21 @@ function normalizeRows(
         content: string;
         tags: string[];
         uploader: string;
-        created_at: string | undefined;
-        updated_at: string | undefined;
+        created_at:
+          | string
+          | undefined;
+        updated_at:
+          | string
+          | undefined;
         views: number;
       } => item !== null,
     );
 }
 
-
 async function readTotalRanking(
   limit: number,
 ) {
-  return (await sql`
+  return await sql`
     SELECT
       faq.id,
       faq.title,
@@ -237,7 +278,8 @@ async function readTotalRanking(
       stats.views
     FROM faq_stats_total stats
     JOIN faq_questions faq
-      ON faq.id = stats.faq_id
+      ON faq.id =
+        stats.faq_id
     WHERE stats.views > 0
     ORDER BY
       stats.views DESC,
@@ -245,13 +287,13 @@ async function readTotalRanking(
         NULLS LAST,
       faq.id DESC
     LIMIT ${limit}
-  `) as unknown as FaqRankRow[];
+  ` as unknown as FaqRankRow[];
 }
 
 async function readDayRanking(
   limit: number,
 ) {
-  return (await sql`
+  return await sql`
     SELECT
       faq.id,
       faq.title,
@@ -263,9 +305,11 @@ async function readDayRanking(
       stats.views
     FROM faq_stats_daily stats
     JOIN faq_questions faq
-      ON faq.id = stats.faq_id
+      ON faq.id =
+        stats.faq_id
     WHERE
-      stats.day = CURRENT_DATE
+      stats.day =
+        CURRENT_DATE
       AND stats.views > 0
     ORDER BY
       stats.views DESC,
@@ -273,13 +317,13 @@ async function readDayRanking(
         NULLS LAST,
       faq.id DESC
     LIMIT ${limit}
-  `) as unknown as FaqRankRow[];
+  ` as unknown as FaqRankRow[];
 }
 
 async function readWeekRanking(
   limit: number,
 ) {
-  return (await sql`
+  return await sql`
     WITH weekly_views AS (
       SELECT
         faq_id,
@@ -306,60 +350,28 @@ async function readWeekRanking(
     JOIN faq_questions faq
       ON faq.id =
         weekly_views.faq_id
-    WHERE weekly_views.views > 0
+    WHERE
+      weekly_views.views > 0
     ORDER BY
       weekly_views.views DESC,
       faq.updated_at DESC
         NULLS LAST,
       faq.id DESC
     LIMIT ${limit}
-  `) as unknown as FaqRankRow[];
+  ` as unknown as FaqRankRow[];
 }
 
-export async function GET(
-  request: Request,
-) {
-  const { searchParams } =
-    new URL(request.url);
-
-  const range =
-    normalizeRange(
-      searchParams.get('range'),
-    );
-
-  if (!range) {
-    return NextResponse.json(
-      {
-        ok: false,
-        error: 'invalid_range',
-      },
-      {
-        status: 400,
-        headers: {
-          'Cache-Control': 'no-store',
-        },
-      },
-    );
-  }
-
-  const requestedLimit = Number(
-    searchParams.get('limit') ?? 4,
-  );
-
-  const limit = Number.isFinite(
-    requestedLimit,
-  )
-    ? Math.min(
-        Math.max(
-          Math.trunc(requestedLimit),
-          1,
-        ),
-        10,
-      )
-    : 4;
-
-  try {
-    const result = await runDbRead(
+async function readRanking(
+  range: RankingRange,
+  limit: number,
+): Promise<{
+  source: RankingSource;
+  items: ReturnType<
+    typeof normalizeRows
+  >;
+}> {
+  const result =
+    await runDbRead(
       `api:home:faq-ranking:${range}`,
       async () => {
         if (range === 'total') {
@@ -385,9 +397,13 @@ export async function GET(
         }
 
         const weeklyRows =
-          await readWeekRanking(limit);
+          await readWeekRanking(
+            limit,
+          );
 
-        if (weeklyRows.length > 0) {
+        if (
+          weeklyRows.length > 0
+        ) {
           return {
             source:
               'week' as RankingSource,
@@ -395,13 +411,6 @@ export async function GET(
           };
         }
 
-        /*
-         * 기능 적용 직후에는 누적 통계만 있고
-         * faq_stats_daily가 비어 있을 수 있다.
-         *
-         * 이때 Home이 빈 목록으로 보이지 않도록
-         * 누적 순위를 임시 대체 표시한다.
-         */
         return {
           source:
             'total-fallback' as RankingSource,
@@ -414,21 +423,104 @@ export async function GET(
       1,
     );
 
+  return {
+    source: result.source,
+    items:
+      normalizeRows(
+        result.rows,
+      ),
+  };
+}
+
+function noStoreHeaders() {
+  return {
+    'Cache-Control':
+      'no-store, no-cache, must-revalidate, max-age=0',
+  };
+}
+
+export async function GET(
+  request: Request,
+) {
+  const { searchParams } =
+    new URL(request.url);
+
+  const range =
+    normalizeRange(
+      searchParams.get('range'),
+    );
+
+  if (!range) {
+    return NextResponse.json(
+      {
+        ok: false,
+        error: 'invalid_range',
+      },
+      {
+        status: 400,
+        headers:
+          noStoreHeaders(),
+      },
+    );
+  }
+
+  const requestedLimit =
+    Number(
+      searchParams.get('limit') ??
+        4,
+    );
+
+  const limit =
+    Number.isFinite(
+      requestedLimit,
+    )
+      ? Math.min(
+          Math.max(
+            Math.trunc(
+              requestedLimit,
+            ),
+            1,
+          ),
+          10,
+        )
+      : 4;
+
+  try {
+    const result =
+      await cached(
+        cacheKey(
+          'home',
+          'faq-ranking',
+          'v2',
+          range,
+          limit,
+        ),
+        {
+          ttlSec: 300,
+          tags: [
+            'home:faq',
+            'faq:list',
+          ],
+        },
+        async () =>
+          await readRanking(
+            range,
+            limit,
+          ),
+      );
+
     return NextResponse.json(
       {
         ok: true,
         range,
-        source: result.source,
+        source:
+          result.source,
         items:
-          normalizeRows(
-            result.rows,
-          ),
+          result.items,
       },
       {
-        headers: {
-          'Cache-Control':
-            'no-store, no-cache, must-revalidate, max-age=0',
-        },
+        headers:
+          noStoreHeaders(),
       },
     );
   } catch (error) {
@@ -447,9 +539,8 @@ export async function GET(
       },
       {
         status: 200,
-        headers: {
-          'Cache-Control': 'no-store',
-        },
+        headers:
+          noStoreHeaders(),
       },
     );
   }
