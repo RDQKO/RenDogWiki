@@ -1,28 +1,63 @@
 // app/api/save/route.ts
+// 전체 교체용 코드
+//
+// 문서 저장 직후 로컬 캐시와 Next.js 공유 Data Cache를 즉시 무효화합니다.
+
+import { revalidateTag } from 'next/cache';
 import { NextRequest, NextResponse } from 'next/server';
-import { sql } from '@/wiki/lib/db';
-import { getAuthUser } from '@/wiki/lib/auth';
-import { logActivity, resolveCategoryName } from '@wiki/lib/activity';
-import { invalidate } from '@wiki/lib/cache';
+
 import { requireRole } from '@/app/wiki/lib/requireRole';
+import { getAuthUser } from '@/wiki/lib/auth';
+import { sql } from '@/wiki/lib/db';
+import {
+  logActivity,
+  resolveCategoryName,
+} from '@wiki/lib/activity';
+import { invalidate } from '@wiki/lib/cache';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
 export const revalidate = 0;
 
 const docTag = (id: number) => `doc:${id}`;
-const listTag = (p: string | number) => `doclist:${String(p)}`;
+const listTag = (path: string | number) => `doclist:${String(path)}`;
 
-function normalizeContent(v: unknown): any {
-  if (v == null) return [];
-  if (typeof v === 'string') {
-    try { const parsed = JSON.parse(v); return parsed ?? []; } catch { return []; }
+function normalizeContent(value: unknown): unknown {
+  if (value == null) return [];
+
+  if (typeof value === 'string') {
+    try {
+      return JSON.parse(value) ?? [];
+    } catch {
+      return [];
+    }
   }
-  return v;
+
+  return value;
 }
-function normalizeTags(v: unknown): string[] {
-  if (Array.isArray(v)) return Array.from(new Set(v.map(s => typeof s === 'string' ? s.trim() : '').filter(Boolean)));
-  if (typeof v === 'string') return Array.from(new Set(v.split(',').map(s => s.trim()).filter(Boolean)));
+
+function normalizeTags(value: unknown): string[] {
+  if (Array.isArray(value)) {
+    return Array.from(
+      new Set(
+        value
+          .map((tag) => (typeof tag === 'string' ? tag.trim() : ''))
+          .filter(Boolean),
+      ),
+    );
+  }
+
+  if (typeof value === 'string') {
+    return Array.from(
+      new Set(
+        value
+          .split(',')
+          .map((tag) => tag.trim())
+          .filter(Boolean),
+      ),
+    );
+  }
+
   return [];
 }
 
@@ -35,29 +70,46 @@ export async function POST(req: NextRequest) {
       {
         status: gate.status,
         headers: { 'Cache-Control': 'no-store' },
-      }
+      },
     );
   }
-  
+
   const getColInfo = async (table: string, column: string) => {
     const rows = (await sql`
       SELECT data_type, udt_name
       FROM information_schema.columns
-      WHERE table_schema='public' AND table_name=${table} AND column_name=${column}
+      WHERE
+        table_schema = 'public'
+        AND table_name = ${table}
+        AND column_name = ${column}
       LIMIT 1
-    `) as unknown as Array<{ data_type?: string; udt_name?: string }>;
-    const r = rows?.[0] || {};
+    `) as unknown as Array<{
+      data_type?: string;
+      udt_name?: string;
+    }>;
+
+    const row = rows[0] ?? {};
+
     return {
-      isArray: r.data_type === 'ARRAY' || (r.udt_name || '').startsWith('_'),
-      isJsonOrJsonb: r.data_type === 'json' || r.data_type === 'jsonb' || r.udt_name === 'json' || r.udt_name === 'jsonb',
-      isJsonb: r.data_type === 'jsonb' || r.udt_name === 'jsonb',
+      isArray:
+        row.data_type === 'ARRAY' ||
+        (row.udt_name ?? '').startsWith('_'),
+      isJsonOrJsonb:
+        row.data_type === 'json' ||
+        row.data_type === 'jsonb' ||
+        row.udt_name === 'json' ||
+        row.udt_name === 'jsonb',
+      isJsonb:
+        row.data_type === 'jsonb' ||
+        row.udt_name === 'jsonb',
     };
   };
 
   try {
-    const body = await req.json().catch(() => ({} as any));
+    const body = await req.json().catch(() => ({} as Record<string, unknown>));
     const idRaw = body?.id;
-    const idNum: number | null = idRaw === null || idRaw === undefined ? null : Number(idRaw);
+    const idNum: number | null =
+      idRaw === null || idRaw === undefined ? null : Number(idRaw);
 
     const titleRaw = typeof body?.title === 'string' ? body.title : '';
     const title = titleRaw.trim();
@@ -65,10 +117,21 @@ export async function POST(req: NextRequest) {
     const hasPath = Object.prototype.hasOwnProperty.call(body, 'path');
     const pathVal = body?.path;
 
-    // path=0 허용
-    const pathMissing = !hasPath || pathVal === null || pathVal === undefined || String(pathVal) === '';
+    // path=0은 유효한 루트 경로입니다.
+    const pathMissing =
+      !hasPath ||
+      pathVal === null ||
+      pathVal === undefined ||
+      String(pathVal) === '';
+
     if (pathMissing || !title) {
-      return NextResponse.json({ error: 'path와 title은 필수입니다.' }, { status: 400, headers: { 'Cache-Control': 'no-store' } });
+      return NextResponse.json(
+        { error: 'path와 title은 필수입니다.' },
+        {
+          status: 400,
+          headers: { 'Cache-Control': 'no-store' },
+        },
+      );
     }
 
     const icon = typeof body?.icon === 'string' ? body.icon : '';
@@ -78,8 +141,11 @@ export async function POST(req: NextRequest) {
     const tagsCsv = tagsArr.join(',');
 
     const user = getAuthUser();
-    const uploader =
-      (user?.minecraft_name ?? req.headers.get('x-wiki-username') ?? 'system').toString();
+    const uploader = (
+      user?.minecraft_name ??
+      req.headers.get('x-wiki-username') ??
+      'system'
+    ).toString();
 
     const tagsCol = await getColInfo('documents', 'tags');
     const contentCol = await getColInfo('document_contents', 'content');
@@ -87,20 +153,27 @@ export async function POST(req: NextRequest) {
     let documentId: number;
     let created = false;
 
-    // 신규 생성
+    // 신규 문서 생성
     if (!Number.isFinite(idNum as number)) {
-      const dup = await sql/*sql*/`
-        SELECT id FROM documents WHERE path = ${pathVal} AND title = ${title} LIMIT 1
+      const duplicate = await sql`
+        SELECT id
+        FROM documents
+        WHERE path = ${pathVal}
+          AND title = ${title}
+        LIMIT 1
       `;
-      if (Array.isArray(dup) && dup.length > 0) {
+
+      if (Array.isArray(duplicate) && duplicate.length > 0) {
         return NextResponse.json(
           { error: '같은 카테고리(경로)에 동일한 제목의 문서가 존재합니다.' },
-          { status: 409, headers: { 'Cache-Control': 'no-store' } }
+          {
+            status: 409,
+            headers: { 'Cache-Control': 'no-store' },
+          },
         );
       }
 
-      // path별 다음 order 계산
-      const maxRow = await sql/*sql*/`
+      const maxRow = await sql`
         SELECT COALESCE(MAX("order"), -1) + 1 AS next
         FROM documents
         WHERE path = ${pathVal}
@@ -108,57 +181,99 @@ export async function POST(req: NextRequest) {
       const nextOrder = Number(maxRow[0]?.next ?? 0);
 
       const inserted = tagsCol.isArray
-        ? await sql/*sql*/`
-            INSERT INTO documents (title, path, icon, tags, "order", uploader)
-            VALUES (${title}, ${pathVal}, ${icon}, ${tagsArr as unknown as string[]}::text[], ${nextOrder}, ${uploader})
+        ? await sql`
+            INSERT INTO documents (
+              title,
+              path,
+              icon,
+              tags,
+              "order",
+              uploader
+            )
+            VALUES (
+              ${title},
+              ${pathVal},
+              ${icon},
+              ${tagsArr as unknown as string[]}::text[],
+              ${nextOrder},
+              ${uploader}
+            )
             RETURNING id
           `
-        : await sql/*sql*/`
-            INSERT INTO documents (title, path, icon, tags, "order", uploader)
-            VALUES (${title}, ${pathVal}, ${icon}, ${tagsCsv}, ${nextOrder}, ${uploader})
+        : await sql`
+            INSERT INTO documents (
+              title,
+              path,
+              icon,
+              tags,
+              "order",
+              uploader
+            )
+            VALUES (
+              ${title},
+              ${pathVal},
+              ${icon},
+              ${tagsCsv},
+              ${nextOrder},
+              ${uploader}
+            )
             RETURNING id
           `;
+
       documentId = Number(inserted[0].id);
 
       if (contentCol.isJsonOrJsonb) {
-        await sql/*sql*/`
+        await sql`
           INSERT INTO document_contents (document_id, content)
-          VALUES (${documentId}, ${contentJson}${contentCol.isJsonb ? sql`::jsonb` : sql`::json`})
+          VALUES (
+            ${documentId},
+            ${contentJson}${contentCol.isJsonb ? sql`::jsonb` : sql`::json`}
+          )
         `;
       } else {
-        await sql/*sql*/`
+        await sql`
           INSERT INTO document_contents (document_id, content)
           VALUES (${documentId}, ${contentJson})
         `;
       }
 
       created = true;
-    }
-    // 수정
-    else {
+    } else {
+      // 기존 문서 수정
       documentId = Number(idNum);
 
-      // 기존 path 확보(경로 변경 시 이전 리스트도 무효화하기 위함)
-      const prev = await sql/*sql*/`
-        SELECT path FROM documents WHERE id = ${documentId} LIMIT 1
-      `;
-      const oldPath = prev?.[0]?.path;
-
-      const conflict = await sql/*sql*/`
-        SELECT 1 FROM documents
-        WHERE path = ${pathVal} AND title = ${title} AND id <> ${documentId}
+      const previousRows = await sql`
+        SELECT path
+        FROM documents
+        WHERE id = ${documentId}
         LIMIT 1
       `;
+      const oldPath = previousRows[0]?.path;
+
+      const conflict = await sql`
+        SELECT 1
+        FROM documents
+        WHERE
+          path = ${pathVal}
+          AND title = ${title}
+          AND id <> ${documentId}
+        LIMIT 1
+      `;
+
       if (Array.isArray(conflict) && conflict.length > 0) {
         return NextResponse.json(
           { error: '같은 카테고리(경로)에 동일한 제목의 문서가 존재합니다.' },
-          { status: 409, headers: { 'Cache-Control': 'no-store' } }
+          {
+            status: 409,
+            headers: { 'Cache-Control': 'no-store' },
+          },
         );
       }
 
       if (tagsCol.isArray) {
-        await sql/*sql*/`
-          UPDATE documents SET
+        await sql`
+          UPDATE documents
+          SET
             title = ${title},
             path = ${pathVal},
             icon = ${icon},
@@ -167,8 +282,9 @@ export async function POST(req: NextRequest) {
           WHERE id = ${documentId}
         `;
       } else {
-        await sql/*sql*/`
-          UPDATE documents SET
+        await sql`
+          UPDATE documents
+          SET
             title = ${title},
             path = ${pathVal},
             icon = ${icon},
@@ -178,48 +294,68 @@ export async function POST(req: NextRequest) {
         `;
       }
 
-      const exists = await sql/*sql*/`
-        SELECT 1 FROM document_contents WHERE document_id = ${documentId} LIMIT 1
+      const contentExists = await sql`
+        SELECT 1
+        FROM document_contents
+        WHERE document_id = ${documentId}
+        LIMIT 1
       `;
-      if (Array.isArray(exists) && exists.length > 0) {
+
+      if (Array.isArray(contentExists) && contentExists.length > 0) {
         if (contentCol.isJsonOrJsonb) {
-          await sql/*sql*/`
+          await sql`
             UPDATE document_contents
-            SET content = ${contentJson}${contentCol.isJsonb ? sql`::jsonb` : sql`::json`}
+            SET content = ${contentJson}${
+              contentCol.isJsonb ? sql`::jsonb` : sql`::json`
+            }
             WHERE document_id = ${documentId}
           `;
         } else {
-          await sql/*sql*/`
+          await sql`
             UPDATE document_contents
             SET content = ${contentJson}
             WHERE document_id = ${documentId}
           `;
         }
+      } else if (contentCol.isJsonOrJsonb) {
+        await sql`
+          INSERT INTO document_contents (document_id, content)
+          VALUES (
+            ${documentId},
+            ${contentJson}${contentCol.isJsonb ? sql`::jsonb` : sql`::json`}
+          )
+        `;
       } else {
-        if (contentCol.isJsonOrJsonb) {
-          await sql/*sql*/`
-            INSERT INTO document_contents (document_id, content)
-            VALUES (${documentId}, ${contentJson}${contentCol.isJsonb ? sql`::jsonb` : sql`::json`})
-          `;
-        } else {
-          await sql/*sql*/`
-            INSERT INTO document_contents (document_id, content)
-            VALUES (${documentId}, ${contentJson})
-          `;
-        }
+        await sql`
+          INSERT INTO document_contents (document_id, content)
+          VALUES (${documentId}, ${contentJson})
+        `;
       }
 
-      // 이전 경로도 함께 무효화
-      if (oldPath !== undefined && oldPath !== null && String(oldPath) !== String(pathVal)) {
+      // 경로가 바뀌었다면 이전 경로의 목록 캐시도 무효화합니다.
+      if (
+        oldPath !== undefined &&
+        oldPath !== null &&
+        String(oldPath) !== String(pathVal)
+      ) {
         invalidate(listTag(oldPath));
       }
     }
 
-    // ★ 본문 저장 후 updated_at 최신화(정렬 반영)
-    await sql/*sql*/`UPDATE documents SET updated_at = NOW() WHERE id = ${documentId}`;
+    // 본문 저장 후 최근 수정 순서가 즉시 반영되게 갱신합니다.
+    await sql`
+      UPDATE documents
+      SET updated_at = NOW()
+      WHERE id = ${documentId}
+    `;
+
+    // DB 변경이 완료된 즉시 캐시부터 비웁니다.
+    // 이후 활동 로그가 실패해도 오래된 본문이 계속 노출되지 않습니다.
+    revalidateTag(docTag(documentId));
+    invalidate(docTag(documentId), 'doc:list', listTag(pathVal as string | number));
 
     const categoryLabel = await resolveCategoryName(
-      Number.isFinite(Number(pathVal)) ? Number(pathVal) : null
+      Number.isFinite(Number(pathVal)) ? Number(pathVal) : null,
     );
 
     await logActivity({
@@ -229,21 +365,29 @@ export async function POST(req: NextRequest) {
       targetId: documentId,
       targetName: title,
       targetPath: categoryLabel,
-      meta: { tags: tagsArr, icon, created },
+      meta: {
+        tags: tagsArr,
+        icon,
+        created,
+      },
     });
-
-    // ★ 캐시 무효화: 단건 + 전체목록 + 경로별 목록
-    invalidate(docTag(documentId), 'doc:list', listTag(pathVal));
 
     return NextResponse.json(
       { success: true, id: documentId },
-      { headers: { 'Cache-Control': 'no-store' } }
+      { headers: { 'Cache-Control': 'no-store' } },
     );
-  } catch (err) {
-    console.error('[문서 저장 API] 서버 내부 에러:', err);
+  } catch (error) {
+    console.error('[문서 저장 API] 서버 내부 에러:', error);
+
     return NextResponse.json(
-      { error: '서버 내부 에러', details: String(err) },
-      { status: 500, headers: { 'Cache-Control': 'no-store' } }
+      {
+        error: '서버 내부 에러',
+        details: String(error),
+      },
+      {
+        status: 500,
+        headers: { 'Cache-Control': 'no-store' },
+      },
     );
   }
 }
