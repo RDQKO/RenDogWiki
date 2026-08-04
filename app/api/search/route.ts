@@ -1,11 +1,17 @@
 import { unstable_cache } from 'next/cache';
 import { NextRequest, NextResponse } from 'next/server';
+import {
+  Element as SlateElement,
+  Node,
+  type Descendant,
+} from 'slate';
 
 import {
   isTransientDbError,
   runDbRead,
   sql,
 } from '@/wiki/lib/db';
+import { extractHeadings } from '@/wiki/lib/extractHeadings';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
@@ -13,7 +19,7 @@ export const revalidate = 0;
 
 const SEARCH_CACHE_SECONDS = 60;
 const SEARCH_CACHE_TAG = 'search:index';
-const SEARCH_CACHE_VERSION = 'search:compat-v1';
+const SEARCH_CACHE_VERSION = 'search:original-ux-v2';
 
 type MatchType = 'title' | 'tags' | 'content';
 type SectionMatchSource = 'heading' | 'body';
@@ -25,6 +31,7 @@ type SearchRow = {
   icon?: string | null;
   tags?: string | string[] | null;
   match_type: MatchType;
+  content?: string | Descendant[] | null;
   category_breadcrumb?: string | null;
   score?: number | string | null;
   section_heading?: string | null;
@@ -33,6 +40,22 @@ type SearchRow = {
   section_text?: string | null;
   section_snippet?: string | null;
   section_match_source?: SectionMatchSource | null;
+};
+
+type SearchSection = {
+  headingText: string;
+  domId: string;
+  level: 0 | 1 | 2 | 3;
+  plainText: string;
+};
+
+type SearchSectionMatch = {
+  sectionHeading: string;
+  sectionDomId: string;
+  sectionLevel: 1 | 2 | 3 | null;
+  sectionSnippet: string;
+  sectionMatchSource: SectionMatchSource;
+  score: number;
 };
 
 type SectionMeta = Pick<
@@ -188,6 +211,220 @@ function makeSnippetFromText(
   return `${prefix}${text.slice(start, end)}${suffix}`;
 }
 
+
+function extractSearchSections(
+  value: Descendant[],
+): SearchSection[] {
+  const headings = extractHeadings(value);
+  const sections: SearchSection[] = [];
+
+  let headingCursor = 0;
+  let current: SearchSection = {
+    headingText: '',
+    domId: '',
+    level: 0,
+    plainText: '',
+  };
+
+  const pushCurrent = () => {
+    const plainText = cleanText(current.plainText);
+    if (!plainText) return;
+
+    sections.push({
+      ...current,
+      plainText,
+    });
+  };
+
+  for (const node of value) {
+    if (!SlateElement.isElement(node)) continue;
+
+    const isHeading =
+      node.type === 'heading-one' ||
+      node.type === 'heading-two' ||
+      node.type === 'heading-three';
+
+    if (isHeading) {
+      pushCurrent();
+
+      const meta = headings[headingCursor++];
+      current = {
+        headingText: cleanText(
+          meta?.text ?? Node.string(node),
+        ),
+        domId: meta?.domId ?? '',
+        level: meta?.level ?? 0,
+        plainText: '',
+      };
+      continue;
+    }
+
+    const nodeText = cleanText(Node.string(node));
+    if (!nodeText) continue;
+
+    current.plainText = current.plainText
+      ? `${current.plainText} ${nodeText}`
+      : nodeText;
+  }
+
+  pushCurrent();
+  return sections;
+}
+
+function getHeadingMatchScore(
+  heading: string,
+  query: string,
+) {
+  const normalizedHeading =
+    normalizeSearchText(heading);
+  const normalizedQuery =
+    normalizeSearchText(query);
+  const compactHeading =
+    compactSearchText(heading);
+  const compactQuery =
+    compactSearchText(query);
+
+  if (!normalizedHeading || !compactQuery) return 0;
+
+  if (normalizedHeading === normalizedQuery) return 160;
+  if (compactHeading === compactQuery) return 150;
+  if (
+    normalizedQuery &&
+    normalizedHeading.startsWith(normalizedQuery)
+  ) {
+    return 140;
+  }
+  if (
+    normalizedQuery &&
+    normalizedHeading.includes(normalizedQuery)
+  ) {
+    return 130;
+  }
+
+  return 0;
+}
+
+function getBodyMatchScore(
+  body: string,
+  query: string,
+) {
+  const normalizedBody = normalizeSearchText(body);
+  const normalizedQuery = normalizeSearchText(query);
+
+  if (!normalizedBody || !normalizedQuery) return 0;
+  if (!normalizedBody.includes(normalizedQuery)) {
+    return 0;
+  }
+
+  if (normalizedBody === normalizedQuery) return 100;
+  if (normalizedBody.startsWith(normalizedQuery)) {
+    return 90;
+  }
+
+  return 80;
+}
+
+function toDescendants(
+  value: SearchRow['content'],
+): Descendant[] | null {
+  if (Array.isArray(value)) {
+    return value as Descendant[];
+  }
+
+  if (typeof value !== 'string' || !value.trim()) {
+    return null;
+  }
+
+  try {
+    const parsed = JSON.parse(value);
+    return Array.isArray(parsed)
+      ? (parsed as Descendant[])
+      : null;
+  } catch {
+    return null;
+  }
+}
+
+function findBestSectionMatch(
+  value: Descendant[] | null | undefined,
+  query: string,
+): SearchSectionMatch | null {
+  if (!Array.isArray(value)) return null;
+
+  const sections = extractSearchSections(value);
+  if (sections.length === 0) return null;
+
+  let best: SearchSectionMatch | null = null;
+
+  for (const section of sections) {
+    const headingScore = getHeadingMatchScore(
+      section.headingText,
+      query,
+    );
+    const bodyScore = getBodyMatchScore(
+      section.plainText,
+      query,
+    );
+    const score = Math.max(
+      headingScore,
+      bodyScore,
+    );
+
+    if (score <= 0) continue;
+
+    const snippetSource =
+      bodyScore > headingScore
+        ? section.plainText
+        : cleanText(
+            `${section.headingText} ${section.plainText}`,
+          );
+
+    const snippet =
+      makeSnippetFromText(
+        snippetSource,
+        query,
+        40,
+      ) ??
+      makeSnippetFromText(
+        section.headingText,
+        query,
+        40,
+      ) ??
+      snippetSource.slice(0, 120);
+
+    const candidate: SearchSectionMatch = {
+      sectionHeading: section.headingText,
+      sectionDomId: section.domId,
+      sectionLevel:
+        section.level === 1 ||
+        section.level === 2 ||
+        section.level === 3
+          ? section.level
+          : null,
+      sectionSnippet: snippet,
+      sectionMatchSource:
+        headingScore >= bodyScore
+          ? 'heading'
+          : 'body',
+      score,
+    };
+
+    if (
+      !best ||
+      candidate.score > best.score ||
+      (
+        candidate.score === best.score &&
+        candidate.sectionHeading.length <
+          best.sectionHeading.length
+      )
+    ) {
+      best = candidate;
+    }
+  }
+
+  return best;
+}
+
 function isTitleMatchedForSectionSuppression(
   title: string,
   query: string,
@@ -229,71 +466,6 @@ function normalizeSectionLevel(
     : null;
 }
 
-function enrichSectionRow(
-  row: SearchRow,
-  raw: string,
-): SearchRow {
-  const matchSource: SectionMatchSource | null =
-    row.section_match_source === 'heading'
-      ? 'heading'
-      : row.section_match_source === 'body'
-        ? 'body'
-        : null;
-
-  // 검색 전용 문단 인덱스가 비어 있거나 해당 문단을 찾지 못해도
-  // 원본 본문 검색 결과 자체는 유지합니다.
-  if (!matchSource) {
-    return {
-      ...row,
-      section_heading: null,
-      section_dom_id: null,
-      section_level: null,
-      section_snippet: null,
-      section_match_source: null,
-    };
-  }
-
-  if (
-    isTitleMatchedForSectionSuppression(
-      String(row.title ?? ''),
-      raw,
-    )
-  ) {
-    return {
-      ...row,
-      section_heading: null,
-      section_dom_id: null,
-      section_level: null,
-      section_snippet: null,
-      section_match_source: null,
-    };
-  }
-
-  const heading = cleanText(row.section_heading);
-  const body = cleanText(row.section_text);
-  const source =
-    matchSource === 'heading'
-      ? cleanText(`${heading} ${body}`)
-      : body;
-
-  const snippet =
-    makeSnippetFromText(source, raw, 40) ??
-    makeSnippetFromText(heading, raw, 40) ??
-    source.slice(0, 120);
-
-  return {
-    ...row,
-    section_heading: heading || null,
-    section_dom_id:
-      cleanText(row.section_dom_id) || null,
-    section_level: normalizeSectionLevel(
-      row.section_level,
-    ),
-    section_snippet: snippet || null,
-    section_match_source: matchSource,
-  };
-}
-
 async function searchDocuments(
   raw: string,
   limit: number,
@@ -301,15 +473,13 @@ async function searchDocuments(
   const normalizedRaw = normalizeSearchText(raw);
   const compactRaw = compactSearchText(raw);
   const pattern = `%${raw}%`;
-  const normalizedPattern = `%${normalizedRaw}%`;
   const compactPattern = `%${compactRaw}%`;
-  const normalizedPrefix = `${normalizedRaw}%`;
   const useTrgm = shouldUseTrgm(raw);
   const useLooseRegex = shouldUseLooseRegex(raw);
   const looseRegex = makeLooseRegex(raw);
 
   const dbRows = await runDbRead(
-    'search:index',
+    'search:original-ux',
     async () => {
       const titlePromise = sql`
         SELECT
@@ -340,7 +510,11 @@ async function searchDocuments(
               WHERE pp[i] ~ '^[0-9]+$'
             )
             SELECT COALESCE(
-              string_agg(c.name, ' > ' ORDER BY ids.ord),
+              string_agg(
+                c.name,
+                ' > '
+                ORDER BY ids.ord
+              ),
               ''
             )
             FROM ids
@@ -349,9 +523,13 @@ async function searchDocuments(
           ) AS category_breadcrumb,
           GREATEST(
             CASE
-              WHEN LOWER(COALESCE(d.title, '')) = ${normalizedRaw}
+              WHEN LOWER(
+                COALESCE(d.title, '')
+              ) = ${normalizedRaw}
                 THEN 100
-              WHEN LOWER(COALESCE(d.title, '')) LIKE LOWER(${pattern})
+              WHEN LOWER(
+                COALESCE(d.title, '')
+              ) LIKE LOWER(${pattern})
                 THEN 80
               WHEN regexp_replace(
                 LOWER(COALESCE(d.title, '')),
@@ -381,7 +559,9 @@ async function searchDocuments(
           ) AS score
         FROM documents d
         WHERE
-          LOWER(COALESCE(d.title, '')) LIKE LOWER(${pattern})
+          LOWER(
+            COALESCE(d.title, '')
+          ) LIKE LOWER(${pattern})
           OR regexp_replace(
             LOWER(COALESCE(d.title, '')),
             '\\s+',
@@ -440,7 +620,11 @@ async function searchDocuments(
               WHERE pp[i] ~ '^[0-9]+$'
             )
             SELECT COALESCE(
-              string_agg(c.name, ' > ' ORDER BY ids.ord),
+              string_agg(
+                c.name,
+                ' > '
+                ORDER BY ids.ord
+              ),
               ''
             )
             FROM ids
@@ -449,10 +633,14 @@ async function searchDocuments(
           ) AS category_breadcrumb,
           GREATEST(
             CASE
-              WHEN LOWER(COALESCE(d.tags::text, '')) LIKE LOWER(${pattern})
+              WHEN LOWER(
+                COALESCE(d.tags::text, '')
+              ) LIKE LOWER(${pattern})
                 THEN 60
               WHEN regexp_replace(
-                LOWER(COALESCE(d.tags::text, '')),
+                LOWER(
+                  COALESCE(d.tags::text, '')
+                ),
                 '\\s+',
                 '',
                 'g'
@@ -460,7 +648,9 @@ async function searchDocuments(
                 THEN 54
               WHEN ${useLooseRegex}
                 AND regexp_replace(
-                  LOWER(COALESCE(d.tags::text, '')),
+                  LOWER(
+                    COALESCE(d.tags::text, '')
+                  ),
                   '\\s+',
                   '',
                   'g'
@@ -471,7 +661,9 @@ async function searchDocuments(
             CASE
               WHEN ${useTrgm}
                 THEN similarity(
-                  LOWER(COALESCE(d.tags::text, '')),
+                  LOWER(
+                    COALESCE(d.tags::text, '')
+                  ),
                   ${normalizedRaw}
                 ) * 45
               ELSE 0
@@ -479,9 +671,13 @@ async function searchDocuments(
           ) AS score
         FROM documents d
         WHERE
-          LOWER(COALESCE(d.tags::text, '')) LIKE LOWER(${pattern})
+          LOWER(
+            COALESCE(d.tags::text, '')
+          ) LIKE LOWER(${pattern})
           OR regexp_replace(
-            LOWER(COALESCE(d.tags::text, '')),
+            LOWER(
+              COALESCE(d.tags::text, '')
+            ),
             '\\s+',
             '',
             'g'
@@ -489,7 +685,9 @@ async function searchDocuments(
           OR (
             ${useLooseRegex}
             AND regexp_replace(
-              LOWER(COALESCE(d.tags::text, '')),
+              LOWER(
+                COALESCE(d.tags::text, '')
+              ),
               '\\s+',
               '',
               'g'
@@ -498,7 +696,9 @@ async function searchDocuments(
           OR (
             ${useTrgm}
             AND similarity(
-              LOWER(COALESCE(d.tags::text, '')),
+              LOWER(
+                COALESCE(d.tags::text, '')
+              ),
               ${normalizedRaw}
             ) >= 0.2
           )
@@ -510,214 +710,224 @@ async function searchDocuments(
       `;
 
       /**
-       * 호환 우선 본문 검색
+       * 최초 검색 코드의 목차 판정·본문 영역 판정·미리보기 생성 방식을
+       * 그대로 유지하기 위해 매칭된 후보 문서의 Slate JSON만 가져옵니다.
        *
-       * 기존처럼 document_contents.content 원본 JSON 문자열을 DB 안에서 검색하되,
-       * content 자체는 SELECT 결과로 반환하지 않습니다.
-       *
-       * 따라서 일반 본문, 소제목, 무기 카드, 정보 박스 등 기존에 검색되던
-       * 모든 JSON 속성값의 검색 범위는 유지하면서 Supabase -> Vercel 본문
-       * 전체 전송만 제거합니다.
-       *
-       * document_search_sections는 결과 노출 여부를 결정하지 않고,
-       * 문단 제목·DOM ID·미리보기 보강에만 사용합니다.
+       * 동일 검색어 결과는 아래 unstable_cache에서 60초간 공유되므로
+       * 반복 검색은 DB 본문을 다시 전송하지 않습니다.
        */
-      const sectionPromise = sql`
-        WITH content_matches AS (
-          SELECT
-            d.id,
-            d.title,
-            d.path,
-            d.icon,
-            d.tags,
-            d.updated_at,
-            CASE
-              WHEN LOWER(
-                COALESCE(dc.content::text, '')
-              ) LIKE ${normalizedPattern}
-                THEN 30
-              WHEN regexp_replace(
-                LOWER(COALESCE(dc.content::text, '')),
-                '\\s+',
-                '',
-                'g'
-              ) LIKE ${compactPattern}
-                THEN 28
-              ELSE 0
-            END AS content_score,
-            (
-              WITH parts AS (
-                SELECT regexp_split_to_array(
-                  regexp_replace(
-                    COALESCE((d.path)::text, ''),
-                    '^/+|/+$',
-                    '',
-                    'g'
-                  ),
-                  '/+'
-                ) AS pp
+      const contentPromise = sql`
+        SELECT
+          d.id,
+          d.title,
+          d.path,
+          d.icon,
+          d.tags,
+          'content' AS match_type,
+          dc.content AS content,
+          (
+            WITH parts AS (
+              SELECT regexp_split_to_array(
+                regexp_replace(
+                  COALESCE((d.path)::text, ''),
+                  '^/+|/+$',
+                  '',
+                  'g'
+                ),
+                '/+'
+              ) AS pp
+            ),
+            ids AS (
+              SELECT
+                (pp[i])::bigint AS cid,
+                i AS ord
+              FROM parts,
+                generate_subscripts(pp, 1) AS g(i)
+              WHERE pp[i] ~ '^[0-9]+$'
+            )
+            SELECT COALESCE(
+              string_agg(
+                c.name,
+                ' > '
+                ORDER BY ids.ord
               ),
-              ids AS (
-                SELECT
-                  (pp[i])::bigint AS cid,
-                  i AS ord
-                FROM parts,
-                  generate_subscripts(pp, 1) AS g(i)
-                WHERE pp[i] ~ '^[0-9]+$'
-              )
-              SELECT COALESCE(
-                string_agg(c.name, ' > ' ORDER BY ids.ord),
-                ''
-              )
-              FROM ids
-              JOIN categories c
-                ON c.id = ids.cid
-            ) AS category_breadcrumb
-          FROM documents d
-          JOIN document_contents dc
-            ON dc.document_id = d.id
-          WHERE
-            LOWER(
+              ''
+            )
+            FROM ids
+            JOIN categories c
+              ON c.id = ids.cid
+          ) AS category_breadcrumb,
+          CASE
+            WHEN LOWER(
               COALESCE(dc.content::text, '')
-            ) LIKE ${normalizedPattern}
-            OR regexp_replace(
-              LOWER(COALESCE(dc.content::text, '')),
+            ) LIKE LOWER(${pattern})
+              THEN 30
+            WHEN regexp_replace(
+              LOWER(
+                COALESCE(dc.content::text, '')
+              ),
               '\\s+',
               '',
               'g'
             ) LIKE ${compactPattern}
-          ORDER BY
-            content_score DESC,
-            d.updated_at DESC NULLS LAST,
-            d.id DESC
-          LIMIT ${limit}
-        )
-        SELECT
-          cm.id,
-          cm.title,
-          cm.path,
-          cm.icon,
-          cm.tags,
-          'content' AS match_type,
-          cm.category_breadcrumb,
-          cm.content_score AS score,
-          matched.section_heading,
-          matched.section_dom_id,
-          matched.section_level,
-          matched.section_text,
-          matched.section_match_source
-        FROM content_matches cm
-        LEFT JOIN LATERAL (
-          SELECT
-            s.heading_text AS section_heading,
-            s.dom_id AS section_dom_id,
-            s.level AS section_level,
-            s.plain_text AS section_text,
-            CASE
-              WHEN
-                LOWER(s.heading_text) = ${normalizedRaw}
-                OR s.heading_compact = ${compactRaw}
-                OR LOWER(s.heading_text) LIKE ${normalizedPrefix}
-                OR LOWER(s.heading_text) LIKE ${normalizedPattern}
-                OR s.heading_compact LIKE ${compactPattern}
-                THEN 'heading'
-              ELSE 'body'
-            END AS section_match_source,
-            CASE
-              WHEN LOWER(s.heading_text) = ${normalizedRaw}
-                THEN 160
-              WHEN s.heading_compact = ${compactRaw}
-                THEN 150
-              WHEN LOWER(s.heading_text) LIKE ${normalizedPrefix}
-                THEN 140
-              WHEN LOWER(s.heading_text) LIKE ${normalizedPattern}
-                THEN 130
-              WHEN s.heading_compact LIKE ${compactPattern}
-                THEN 125
-              WHEN LOWER(s.plain_text) = ${normalizedRaw}
-                THEN 100
-              WHEN LOWER(s.plain_text) LIKE ${normalizedPrefix}
-                THEN 90
-              WHEN LOWER(s.plain_text) LIKE ${normalizedPattern}
-                THEN 80
-              WHEN s.compact_text LIKE ${compactPattern}
-                THEN 75
-              ELSE 0
-            END AS section_score
-          FROM document_search_sections s
-          WHERE
-            s.document_id = cm.id
-            AND (
-              LOWER(s.heading_text) LIKE ${normalizedPattern}
-              OR s.heading_compact LIKE ${compactPattern}
-              OR LOWER(s.plain_text) LIKE ${normalizedPattern}
-              OR s.compact_text LIKE ${compactPattern}
-            )
-          ORDER BY
-            section_score DESC,
-            s.section_order ASC
-          LIMIT 1
-        ) matched ON TRUE
+              THEN 28
+            ELSE 0
+          END AS score
+        FROM documents d
+        JOIN document_contents dc
+          ON d.id = dc.document_id
+        WHERE
+          LOWER(
+            COALESCE(dc.content::text, '')
+          ) LIKE LOWER(${pattern})
+          OR regexp_replace(
+            LOWER(
+              COALESCE(dc.content::text, '')
+            ),
+            '\\s+',
+            '',
+            'g'
+          ) LIKE ${compactPattern}
         ORDER BY
-          cm.content_score DESC,
-          cm.updated_at DESC NULLS LAST,
-          cm.id DESC
+          score DESC,
+          d.updated_at DESC NULLS LAST,
+          d.id DESC
+        LIMIT ${limit}
       `;
 
-      const [titleRowsRaw, tagRowsRaw, sectionRowsRaw] =
-        await Promise.all([
-          titlePromise,
-          tagPromise,
-          sectionPromise,
-        ]);
+      const [
+        titleRowsRaw,
+        tagRowsRaw,
+        contentRowsRaw,
+      ] = await Promise.all([
+        titlePromise,
+        tagPromise,
+        contentPromise,
+      ]);
 
       return {
         titleRows: toSearchRows(titleRowsRaw),
         tagRows: toSearchRows(tagRowsRaw),
-        sectionRows: toSearchRows(sectionRowsRaw),
+        contentRows: toSearchRows(contentRowsRaw),
       };
     },
   );
 
   const titleRows = dbRows?.titleRows ?? [];
   const tagRows = dbRows?.tagRows ?? [];
-  const sectionRows = (dbRows?.sectionRows ?? []).map(
-    (row) => enrichSectionRow(row, raw),
-  );
+  const contentRows = dbRows?.contentRows ?? [];
 
-  const sectionMetaById = new Map<number, SectionMeta>();
+  const contentMetaById =
+    new Map<number, SectionMeta>();
 
-  for (const row of sectionRows) {
-    sectionMetaById.set(Number(row.id), {
-      section_heading: row.section_heading ?? null,
-      section_dom_id: row.section_dom_id ?? null,
-      section_level: row.section_level ?? null,
-      section_snippet: row.section_snippet ?? null,
-      section_match_source:
-        row.section_match_source ?? null,
+  const enrichedContentRows: SearchRow[] =
+    contentRows.map((row) => {
+      const next: SearchRow = {
+        ...row,
+        section_heading: null,
+        section_dom_id: null,
+        section_level: null,
+        section_snippet: null,
+        section_match_source: null,
+      };
+
+      const descendants = toDescendants(
+        row.content,
+      );
+
+      if (!descendants) {
+        contentMetaById.set(Number(next.id), {
+          section_heading: null,
+          section_dom_id: null,
+          section_level: null,
+          section_snippet: null,
+          section_match_source: null,
+        });
+        return next;
+      }
+
+      const best = findBestSectionMatch(
+        descendants,
+        raw,
+      );
+      const shouldSuppressSection =
+        isTitleMatchedForSectionSuppression(
+          next.title,
+          raw,
+        );
+
+      if (best && !shouldSuppressSection) {
+        next.section_heading =
+          best.sectionHeading || null;
+        next.section_dom_id =
+          best.sectionDomId || null;
+        next.section_level =
+          best.sectionLevel;
+        next.section_snippet =
+          best.sectionSnippet || null;
+        next.section_match_source =
+          best.sectionMatchSource;
+      }
+
+      contentMetaById.set(Number(next.id), {
+        section_heading:
+          next.section_heading ?? null,
+        section_dom_id:
+          next.section_dom_id ?? null,
+        section_level:
+          next.section_level ?? null,
+        section_snippet:
+          next.section_snippet ?? null,
+        section_match_source:
+          next.section_match_source ?? null,
+      });
+
+      return next;
     });
-  }
 
-  const headingMatchedSectionRows = sectionRows.filter(
-    (row) => row.section_match_source === 'heading',
-  );
-  const bodyMatchedSectionRows = sectionRows.filter(
-    (row) => row.section_match_source === 'body',
-  );
+  const matchedSectionRows =
+    enrichedContentRows.filter(
+      (row) =>
+        Boolean(
+          String(
+            row.section_dom_id ?? '',
+          ).trim(),
+        ),
+    );
+
+  const headingMatchedSectionRows =
+    matchedSectionRows.filter(
+      (row) =>
+        row.section_match_source === 'heading',
+    );
+
+  const bodyMatchedSectionRows =
+    matchedSectionRows.filter(
+      (row) =>
+        row.section_match_source === 'body',
+    );
 
   const seen = new Set<number>();
   const merged: SearchRow[] = [];
 
-  const withSectionMeta = (row: SearchRow): SearchRow => {
-    const meta = sectionMetaById.get(Number(row.id));
+  const withSectionMeta = (
+    row: SearchRow,
+  ): SearchRow => {
+    const meta = contentMetaById.get(
+      Number(row.id),
+    );
 
     if (!meta) {
       return {
         ...row,
-        section_heading: row.section_heading ?? null,
-        section_dom_id: row.section_dom_id ?? null,
-        section_level: row.section_level ?? null,
-        section_snippet: row.section_snippet ?? null,
+        section_heading:
+          row.section_heading ?? null,
+        section_dom_id:
+          row.section_dom_id ?? null,
+        section_level:
+          row.section_level ?? null,
+        section_snippet:
+          row.section_snippet ?? null,
         section_match_source:
           row.section_match_source ?? null,
       };
@@ -755,6 +965,7 @@ async function searchDocuments(
 
       const enriched = withSectionMeta(row);
       const {
+        content: _content,
         section_text: _sectionText,
         ...safeRow
       } = enriched;
@@ -771,7 +982,9 @@ async function searchDocuments(
         ),
         category_breadcrumb:
           enriched.category_breadcrumb
-            ? String(enriched.category_breadcrumb)
+            ? String(
+                enriched.category_breadcrumb,
+              )
             : '',
       });
 
@@ -780,19 +993,23 @@ async function searchDocuments(
     }
   };
 
-  // 기존 UX 순서 유지: 제목 → 제목 문단 → 태그 → 본문 문단.
+  // 최초 코드의 결과 우선순위를 그대로 복구합니다.
   pushUnique(titleRows);
+
   if (merged.length < limit) {
     pushUnique(headingMatchedSectionRows);
   }
+
   if (merged.length < limit) {
     pushUnique(tagRows);
   }
+
   if (merged.length < limit) {
     pushUnique(bodyMatchedSectionRows);
   }
+
   if (merged.length < limit) {
-    pushUnique(sectionRows);
+    pushUnique(enrichedContentRows);
   }
 
   return merged;
