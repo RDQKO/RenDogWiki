@@ -13,6 +13,7 @@ export const revalidate = 0;
 
 const SEARCH_CACHE_SECONDS = 60;
 const SEARCH_CACHE_TAG = 'search:index';
+const SEARCH_CACHE_VERSION = 'search:compat-v1';
 
 type MatchType = 'title' | 'tags' | 'content';
 type SectionMatchSource = 'heading' | 'body';
@@ -232,6 +233,26 @@ function enrichSectionRow(
   row: SearchRow,
   raw: string,
 ): SearchRow {
+  const matchSource: SectionMatchSource | null =
+    row.section_match_source === 'heading'
+      ? 'heading'
+      : row.section_match_source === 'body'
+        ? 'body'
+        : null;
+
+  // 검색 전용 문단 인덱스가 비어 있거나 해당 문단을 찾지 못해도
+  // 원본 본문 검색 결과 자체는 유지합니다.
+  if (!matchSource) {
+    return {
+      ...row,
+      section_heading: null,
+      section_dom_id: null,
+      section_level: null,
+      section_snippet: null,
+      section_match_source: null,
+    };
+  }
+
   if (
     isTitleMatchedForSectionSuppression(
       String(row.title ?? ''),
@@ -251,7 +272,7 @@ function enrichSectionRow(
   const heading = cleanText(row.section_heading);
   const body = cleanText(row.section_text);
   const source =
-    row.section_match_source === 'heading'
+    matchSource === 'heading'
       ? cleanText(`${heading} ${body}`)
       : body;
 
@@ -269,14 +290,11 @@ function enrichSectionRow(
       row.section_level,
     ),
     section_snippet: snippet || null,
-    section_match_source:
-      row.section_match_source === 'heading'
-        ? 'heading'
-        : 'body',
+    section_match_source: matchSource,
   };
 }
 
-async function searchFromIndex(
+async function searchDocuments(
   raw: string,
   limit: number,
 ): Promise<SearchRow[]> {
@@ -491,8 +509,21 @@ async function searchFromIndex(
         LIMIT ${limit}
       `;
 
+      /**
+       * 호환 우선 본문 검색
+       *
+       * 기존처럼 document_contents.content 원본 JSON 문자열을 DB 안에서 검색하되,
+       * content 자체는 SELECT 결과로 반환하지 않습니다.
+       *
+       * 따라서 일반 본문, 소제목, 무기 카드, 정보 박스 등 기존에 검색되던
+       * 모든 JSON 속성값의 검색 범위는 유지하면서 Supabase -> Vercel 본문
+       * 전체 전송만 제거합니다.
+       *
+       * document_search_sections는 결과 노출 여부를 결정하지 않고,
+       * 문단 제목·DOM ID·미리보기 보강에만 사용합니다.
+       */
       const sectionPromise = sql`
-        WITH candidates AS (
+        WITH content_matches AS (
           SELECT
             d.id,
             d.title,
@@ -500,7 +531,84 @@ async function searchFromIndex(
             d.icon,
             d.tags,
             d.updated_at,
-            s.section_order,
+            CASE
+              WHEN LOWER(
+                COALESCE(dc.content::text, '')
+              ) LIKE ${normalizedPattern}
+                THEN 30
+              WHEN regexp_replace(
+                LOWER(COALESCE(dc.content::text, '')),
+                '\\s+',
+                '',
+                'g'
+              ) LIKE ${compactPattern}
+                THEN 28
+              ELSE 0
+            END AS content_score,
+            (
+              WITH parts AS (
+                SELECT regexp_split_to_array(
+                  regexp_replace(
+                    COALESCE((d.path)::text, ''),
+                    '^/+|/+$',
+                    '',
+                    'g'
+                  ),
+                  '/+'
+                ) AS pp
+              ),
+              ids AS (
+                SELECT
+                  (pp[i])::bigint AS cid,
+                  i AS ord
+                FROM parts,
+                  generate_subscripts(pp, 1) AS g(i)
+                WHERE pp[i] ~ '^[0-9]+$'
+              )
+              SELECT COALESCE(
+                string_agg(c.name, ' > ' ORDER BY ids.ord),
+                ''
+              )
+              FROM ids
+              JOIN categories c
+                ON c.id = ids.cid
+            ) AS category_breadcrumb
+          FROM documents d
+          JOIN document_contents dc
+            ON dc.document_id = d.id
+          WHERE
+            LOWER(
+              COALESCE(dc.content::text, '')
+            ) LIKE ${normalizedPattern}
+            OR regexp_replace(
+              LOWER(COALESCE(dc.content::text, '')),
+              '\\s+',
+              '',
+              'g'
+            ) LIKE ${compactPattern}
+          ORDER BY
+            content_score DESC,
+            d.updated_at DESC NULLS LAST,
+            d.id DESC
+          LIMIT ${limit}
+        )
+        SELECT
+          cm.id,
+          cm.title,
+          cm.path,
+          cm.icon,
+          cm.tags,
+          'content' AS match_type,
+          cm.category_breadcrumb,
+          cm.content_score AS score,
+          matched.section_heading,
+          matched.section_dom_id,
+          matched.section_level,
+          matched.section_text,
+          matched.section_match_source
+        FROM content_matches cm
+        LEFT JOIN LATERAL (
+          SELECT
             s.heading_text AS section_heading,
             s.dom_id AS section_dom_id,
             s.level AS section_level,
@@ -535,76 +643,25 @@ async function searchFromIndex(
               WHEN s.compact_text LIKE ${compactPattern}
                 THEN 75
               ELSE 0
-            END AS section_score,
-            (
-              WITH parts AS (
-                SELECT regexp_split_to_array(
-                  regexp_replace(
-                    COALESCE((d.path)::text, ''),
-                    '^/+|/+$',
-                    '',
-                    'g'
-                  ),
-                  '/+'
-                ) AS pp
-              ),
-              ids AS (
-                SELECT
-                  (pp[i])::bigint AS cid,
-                  i AS ord
-                FROM parts,
-                  generate_subscripts(pp, 1) AS g(i)
-                WHERE pp[i] ~ '^[0-9]+$'
-              )
-              SELECT COALESCE(
-                string_agg(c.name, ' > ' ORDER BY ids.ord),
-                ''
-              )
-              FROM ids
-              JOIN categories c
-                ON c.id = ids.cid
-            ) AS category_breadcrumb
+            END AS section_score
           FROM document_search_sections s
-          JOIN documents d
-            ON d.id = s.document_id
           WHERE
-            LOWER(s.heading_text) LIKE ${normalizedPattern}
-            OR s.heading_compact LIKE ${compactPattern}
-            OR LOWER(s.plain_text) LIKE ${normalizedPattern}
-            OR s.compact_text LIKE ${compactPattern}
-        ),
-        ranked AS (
-          SELECT
-            candidates.*,
-            ROW_NUMBER() OVER (
-              PARTITION BY candidates.id
-              ORDER BY
-                candidates.section_score DESC,
-                candidates.section_order ASC
-            ) AS row_number
-          FROM candidates
-        )
-        SELECT
-          id,
-          title,
-          path,
-          icon,
-          tags,
-          'content' AS match_type,
-          category_breadcrumb,
-          section_score AS score,
-          section_heading,
-          section_dom_id,
-          section_level,
-          section_text,
-          section_match_source
-        FROM ranked
-        WHERE row_number = 1
+            s.document_id = cm.id
+            AND (
+              LOWER(s.heading_text) LIKE ${normalizedPattern}
+              OR s.heading_compact LIKE ${compactPattern}
+              OR LOWER(s.plain_text) LIKE ${normalizedPattern}
+              OR s.compact_text LIKE ${compactPattern}
+            )
+          ORDER BY
+            section_score DESC,
+            s.section_order ASC
+          LIMIT 1
+        ) matched ON TRUE
         ORDER BY
-          section_score DESC,
-          updated_at DESC NULLS LAST,
-          id DESC
-        LIMIT ${limit}
+          cm.content_score DESC,
+          cm.updated_at DESC NULLS LAST,
+          cm.id DESC
       `;
 
       const [titleRowsRaw, tagRowsRaw, sectionRowsRaw] =
@@ -748,15 +805,15 @@ async function searchCached(
   const normalizedKey = compactSearchText(raw);
 
   return unstable_cache(
-    async () => searchFromIndex(raw, limit),
+    async () => searchDocuments(raw, limit),
     [
-      'search:index',
+      SEARCH_CACHE_VERSION,
       normalizedKey,
       String(limit),
     ],
     {
       revalidate: SEARCH_CACHE_SECONDS,
-      tags: [SEARCH_CACHE_TAG],
+      tags: [SEARCH_CACHE_TAG, SEARCH_CACHE_VERSION],
     },
   )();
 }
