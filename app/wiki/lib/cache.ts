@@ -146,7 +146,7 @@ export async function cached<T>(
           fn,
         ),
       [
-        'rdwiki:shared-cache:v1',
+        'rdwiki:shared-cache:v2',
         key,
       ],
       {

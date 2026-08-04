@@ -1,197 +1,491 @@
 /**
  * 카테고리 전체 조회/생성 API
- * - GET
- *   - 기본: 모든 카테고리 목록을 parent_id, "order" 순으로 반환
- *   - ?modes=pvp,creative : 지정 모드 태그가 있는 상위 카테고리 + 그 하위 전체 트리만 반환
- *     (상위가 태그를 가지면 하위는 태그 유무와 무관하게 포함)
- * - POST
- *   - 신규 카테고리 생성(name 필수, parent/document/icon/mode_tags 선택)
- * - 메모: "order"는 Postgres 예약어라 항상 쌍따옴표 필요
+ *
+ * 전체 교체용 코드
+ *
+ * - 일반 조회는 10분 공유 Data Cache 사용
+ * - 관리 페이지의 ?ts=... 또는 ?fresh=1 요청은 DB 최신값 직접 조회
+ * - 응답 자체는 no-store
+ * - 생성 직후 활동 로그보다 먼저 관련 캐시 무효화
  */
 
-import { sql } from '@/wiki/lib/db';
-import { NextRequest, NextResponse } from 'next/server';
-import { logActivity, resolveCategoryName } from '@wiki/lib/activity';
-import { getAuthUser } from '@/wiki/lib/auth';
-import { cached, cacheKey, invalidate } from '@wiki/lib/cache';
-import { requireRole } from '@/app/wiki/lib/requireRole';
+import {
+  NextRequest,
+  NextResponse,
+} from 'next/server';
+
+import {
+  sql,
+} from '@/wiki/lib/db';
+
+import {
+  logActivity,
+  resolveCategoryName,
+} from '@wiki/lib/activity';
+
+import {
+  cached,
+  cacheKey,
+  invalidate,
+} from '@wiki/lib/cache';
+
+import {
+  requireRole,
+} from '@/app/wiki/lib/requireRole';
 
 export const runtime = 'nodejs';
+export const dynamic = 'force-dynamic';
+export const revalidate = 0;
 
-// 숫자/문자/널 입력을 정수 또는 null로 정규화
-function toNullableInt(v: unknown): number | null {
-  if (v === null || v === undefined || v === '') return null;
-  const n = Number(v);
-  return Number.isFinite(n) ? Math.trunc(n) : null;
+const NO_STORE_HEADERS = {
+  'Cache-Control':
+    'no-store, no-cache, must-revalidate, max-age=0',
+  Pragma: 'no-cache',
+  Expires: '0',
+};
+
+function toNullableInt(
+  value: unknown,
+): number | null {
+  if (
+    value === null ||
+    value === undefined ||
+    value === ''
+  ) {
+    return null;
+  }
+
+  const numberValue =
+    Number(value);
+
+  return Number.isFinite(
+    numberValue,
+  )
+    ? Math.trunc(
+        numberValue,
+      )
+    : null;
 }
 
-// 쉼표 구분 문자 배열 파싱(공백/중복/빈값 제거, 소문자 통일)
-function parseModes(param: string | null): string[] {
-  if (!param) return [];
-  const arr = param
-    .split(',')
-    .map((s) => s.trim().toLowerCase())
-    .filter(Boolean);
-  return Array.from(new Set(arr));
+function parseModes(
+  value: string | null,
+): string[] {
+  if (!value) {
+    return [];
+  }
+
+  return Array.from(
+    new Set(
+      value
+        .split(',')
+        .map((mode) =>
+          mode
+            .trim()
+            .toLowerCase(),
+        )
+        .filter(Boolean),
+    ),
+  );
 }
 
-export async function GET(req: NextRequest) {
+export async function GET(
+  request: NextRequest,
+) {
   try {
-    const modes = parseModes(req.nextUrl.searchParams.get('modes'));
+    const searchParams =
+      request.nextUrl
+        .searchParams;
 
-    // 모드 미지정: 전체 조회(캐시)
-    if (modes.length === 0) {
-      const rows = await cached(
-        'category:all',
-        { ttlSec: 600, tags: ['category:list', 'category:tree'] },
-        async () => sql`SELECT * FROM categories ORDER BY parent_id, "order"`
+    const modes =
+      parseModes(
+        searchParams.get(
+          'modes',
+        ),
       );
-      return NextResponse.json(rows, {
-        headers: { 'Cache-Control': 'no-store, no-cache, must-revalidate, max-age=0' },
-      });
+
+    /*
+     * 관리 페이지는 기존부터 ts를 붙여 최신 조회를 요청합니다.
+     * 이 요청만 Data Cache를 우회해 저장 직후 DB 값을 보장합니다.
+     */
+    const bypassCache =
+      searchParams.has('ts') ||
+      searchParams.get(
+        'fresh',
+      ) === '1';
+
+    if (
+      modes.length === 0
+    ) {
+      const rows =
+        await cached(
+          'category:all:v2',
+          {
+            ttlSec:
+              bypassCache
+                ? 0
+                : 600,
+            tags: [
+              'category:list',
+              'category:tree',
+            ],
+          },
+          async () =>
+            await sql`
+              SELECT *
+              FROM categories
+              ORDER BY
+                parent_id,
+                "order"
+            `,
+        );
+
+      return NextResponse.json(
+        rows,
+        {
+          headers:
+            NO_STORE_HEADERS,
+        },
+      );
     }
 
-    // 모드 지정: roots만 고른 뒤 재귀 확장(캐시)
-    const key = cacheKey('category:tree', 'modes', ...modes);
-    const rows = await cached(
-      key,
-      { ttlSec: 600, tags: ['category:tree', 'category:list'] },
-      async () => {
-        // postgres 드라이버 호환을 위해 EXISTS + ANY 사용
-        return sql`
-          WITH RECURSIVE roots AS (
-            SELECT id
-            FROM categories
-            WHERE EXISTS (
-              SELECT 1
-              FROM unnest(COALESCE(mode_tags, '{}'::text[])) t
-              WHERE t = ANY(${modes})
+    const key =
+      cacheKey(
+        'category:tree',
+        'v2',
+        'modes',
+        ...modes,
+      );
+
+    const rows =
+      await cached(
+        key,
+        {
+          ttlSec:
+            bypassCache
+              ? 0
+              : 600,
+          tags: [
+            'category:tree',
+            'category:list',
+          ],
+        },
+        async () => {
+          return await sql`
+            WITH RECURSIVE roots AS (
+              SELECT id
+              FROM categories
+              WHERE EXISTS (
+                SELECT 1
+                FROM unnest(
+                  COALESCE(
+                    mode_tags,
+                    '{}'::text[]
+                  )
+                ) tag
+                WHERE
+                  tag = ANY(${modes})
+              )
+            ),
+            tree AS (
+              SELECT category.*
+              FROM categories category
+              JOIN roots
+                ON roots.id =
+                  category.id
+
+              UNION ALL
+
+              SELECT child.*
+              FROM categories child
+              JOIN tree parent
+                ON child.parent_id =
+                  parent.id
             )
-          ),
-          tree AS (
-            SELECT c.*
-            FROM categories c
-            JOIN roots r ON r.id = c.id
-            UNION ALL
-            SELECT c2.*
-            FROM categories c2
-            JOIN tree t ON c2.parent_id = t.id
-          )
-          SELECT * FROM tree
-          ORDER BY parent_id, "order"
-        `;
-      }
+            SELECT *
+            FROM tree
+            ORDER BY
+              parent_id,
+              "order"
+          `;
+        },
+      );
+
+    return NextResponse.json(
+      rows,
+      {
+        headers:
+          NO_STORE_HEADERS,
+      },
+    );
+  } catch (error) {
+    console.error(
+      '[categories GET] unexpected error:',
+      error,
     );
 
-    return NextResponse.json(rows, {
-      headers: { 'Cache-Control': 'no-store, no-cache, must-revalidate, max-age=0' },
-    });
-  } catch (err) {
-    console.error('[categories GET] unexpected error:', err);
     return NextResponse.json(
-      { error: '카테고리 목록을 가져오는 중 오류가 발생했습니다.' },
-      { status: 500 }
+      {
+        error:
+          '카테고리 목록을 가져오는 중 오류가 발생했습니다.',
+      },
+      {
+        status: 500,
+        headers:
+          NO_STORE_HEADERS,
+      },
     );
   }
 }
 
-export async function POST(req: NextRequest) {
-  const gate = await requireRole(['writer', 'admin']);
+export async function POST(
+  request: NextRequest,
+) {
+  const gate =
+    await requireRole([
+      'writer',
+      'admin',
+    ]);
+
   if (!gate.ok) {
-    return new Response(JSON.stringify({ error: gate.error }), {
-      status: gate.status,
-      headers: { 'content-type': 'application/json' },
-    });
+    return new Response(
+      JSON.stringify({
+        error:
+          gate.error,
+      }),
+      {
+        status:
+          gate.status,
+        headers: {
+          'content-type':
+            'application/json',
+          ...NO_STORE_HEADERS,
+        },
+      },
+    );
   }
 
   try {
-    // 1) 입력 파싱
-    const body = await req.json().catch(() => null);
-    const rawName = typeof body?.name === 'string' ? body.name : '';
-    const name = rawName.trim();
-    const parent_id = toNullableInt(body?.parent_id);
-    const document_id = toNullableInt(body?.document_id);
+    const body =
+      await request
+        .json()
+        .catch(() => null);
+
+    const rawName =
+      typeof body?.name ===
+      'string'
+        ? body.name
+        : '';
+
+    const name =
+      rawName.trim();
+
+    const parentId =
+      toNullableInt(
+        body?.parent_id,
+      );
+
+    const documentId =
+      toNullableInt(
+        body?.document_id,
+      );
+
     const icon =
-      typeof body?.icon === 'string' && body.icon.trim() !== ''
+      typeof body?.icon ===
+        'string' &&
+      body.icon.trim() !== ''
         ? body.icon.trim()
         : null;
 
-    // TEXT[] 모드 태그(선택)
-    const mode_tags: string[] = Array.isArray(body?.mode_tags)
-      ? Array.from(
-          new Set(
-            body.mode_tags
-              .map((s: unknown) => (typeof s === 'string' ? s.trim().toLowerCase() : ''))
-              .filter(Boolean)
+    const modeTags:
+      string[] =
+      Array.isArray(
+        body?.mode_tags,
+      )
+        ? Array.from(
+            new Set(
+              body.mode_tags
+                .map(
+                  (
+                    value:
+                      unknown,
+                  ) =>
+                    typeof value ===
+                    'string'
+                      ? value
+                          .trim()
+                          .toLowerCase()
+                      : '',
+                )
+                .filter(Boolean),
+            ),
           )
-        )
-      : [];
+        : [];
 
     if (!name) {
       return NextResponse.json(
-        { error: 'name is required' },
-        { status: 400, headers: { 'Cache-Control': 'no-store' } }
+        {
+          error:
+            'name is required',
+        },
+        {
+          status: 400,
+          headers:
+            NO_STORE_HEADERS,
+        },
       );
     }
 
-    // 2) 같은 parent 내 다음 order 계산 -> MAX("order") + 1
-    let nextOrder = 0;
-    const orderResult = (await sql`
-      SELECT MAX("order") AS max_order
-      FROM categories
-      WHERE parent_id ${parent_id === null ? sql`IS NULL` : sql`= ${parent_id}`}
-    `) as unknown as Array<{ max_order: number | string | null }>;
+    const orderRows =
+      await sql`
+        SELECT
+          MAX("order")
+            AS max_order
+        FROM categories
+        WHERE
+          parent_id
+          ${
+            parentId === null
+              ? sql`IS NULL`
+              : sql`= ${parentId}`
+          }
+      ` as unknown as Array<{
+        max_order:
+          | number
+          | string
+          | null;
+      }>;
 
-    const maxOrder = orderResult?.[0]?.max_order;
-    if (maxOrder !== null && maxOrder !== undefined) {
-      const parsed = Number(maxOrder);
-      nextOrder = Number.isFinite(parsed) ? parsed + 1 : 0;
+    const maxOrder =
+      orderRows[0]
+        ?.max_order;
+
+    const parsedMaxOrder =
+      Number(maxOrder);
+
+    const nextOrder =
+      maxOrder !== null &&
+      maxOrder !== undefined &&
+      Number.isFinite(
+        parsedMaxOrder,
+      )
+        ? parsedMaxOrder + 1
+        : 0;
+
+    const uploader =
+      gate.dbUser
+        .minecraft_name ??
+      gate.dbUser.username;
+
+    const insertRows =
+      await sql`
+        INSERT INTO categories (
+          name,
+          parent_id,
+          "order",
+          document_id,
+          icon,
+          mode_tags,
+          uploader
+        )
+        VALUES (
+          ${name},
+          ${parentId},
+          ${nextOrder},
+          ${documentId},
+          ${icon},
+          ${modeTags},
+          ${uploader}
+        )
+        RETURNING id
+      ` as unknown as Array<{
+        id:
+          | number
+          | string;
+      }>;
+
+    const newId =
+      Number(
+        insertRows[0]?.id,
+      );
+
+    /*
+     * 데이터 반영 직후 먼저 무효화합니다.
+     * 활동 로그가 늦거나 실패해도 새 카테고리가 이전 캐시에 가려지지 않습니다.
+     *
+     * doc:list도 함께 지워 홈 최근 문서의 카테고리 이름/경로를 갱신합니다.
+     */
+    invalidate(
+      'category:list',
+      'category:tree',
+      'category:modes',
+      'doc:list',
+    );
+
+    try {
+      const parentLabel =
+        await resolveCategoryName(
+          parentId,
+        );
+
+      await logActivity({
+        action:
+          'category.create',
+        username:
+          uploader,
+        targetType:
+          'category',
+        targetId:
+          newId,
+        targetName:
+          name,
+        targetPath:
+          parentLabel,
+        meta: {
+          parent_id:
+            parentId,
+          order:
+            nextOrder,
+          document_id:
+            documentId ??
+            null,
+          icon:
+            icon ?? null,
+          mode_tags:
+            modeTags,
+        },
+      });
+    } catch (logError) {
+      console.error(
+        '[categories POST] activity log failed:',
+        logError,
+      );
     }
 
-    // 3) uploader
-    const me = getAuthUser();
-    const uploader = gate.dbUser.minecraft_name ?? gate.dbUser.username;
-
-    // 4) INSERT -> 새 id 반환
-    const insertRows = (await sql`
-      INSERT INTO categories (name, parent_id, "order", document_id, icon, mode_tags, uploader)
-      VALUES (${name}, ${parent_id}, ${nextOrder}, ${document_id}, ${icon}, ${mode_tags}, ${uploader})
-      RETURNING id
-    `) as unknown as Array<{ id: number | string }>;
-    const newId = Number(insertRows?.[0]?.id);
-
-    // 5) 활동 로그
-    const parentLabel = await resolveCategoryName(parent_id);
-
-    await logActivity({
-      action: 'category.create',
-      username: uploader,
-      targetType: 'category',
-      targetId: newId,
-      targetName: name,
-      targetPath: parentLabel,
-      meta: {
-        parent_id,
-        order: nextOrder,
-        document_id: document_id ?? null,
-        icon: icon ?? null,
-        mode_tags: mode_tags,
+    return NextResponse.json(
+      {
+        id: newId,
       },
-    });
-
-    // ✅ 캐시 무효화
-    invalidate('category:list', 'category:tree', 'category:modes');
-
-    // 6) 생성된 id 반환
-    return NextResponse.json(
-      { id: newId },
-      { headers: { 'Cache-Control': 'no-store' } }
+      {
+        headers:
+          NO_STORE_HEADERS,
+      },
     );
-  } catch (err) {
-    console.error('[categories POST] unexpected error:', err);
+  } catch (error) {
+    console.error(
+      '[categories POST] unexpected error:',
+      error,
+    );
+
     return NextResponse.json(
-      { error: '카테고리 생성 중 오류가 발생했습니다.' },
-      { status: 500 }
+      {
+        error:
+          '카테고리 생성 중 오류가 발생했습니다.',
+      },
+      {
+        status: 500,
+        headers:
+          NO_STORE_HEADERS,
+      },
     );
   }
 }

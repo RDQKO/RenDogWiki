@@ -203,6 +203,12 @@ async function findDocumentIdByPath(path: string) {
 export async function GET(req: NextRequest) {
   const searchParams = req.nextUrl.searchParams;
 
+  // 관리 페이지는 ?ts=...를 사용하므로 문서 메타데이터 공유 캐시를 우회합니다.
+  // 일반 사용자 요청은 기존 공유 캐시를 계속 사용합니다.
+  const bypassMetadataCache =
+    searchParams.has('ts') ||
+    searchParams.get('fresh') === '1';
+
   // 문서 목록에는 본문이 없으므로 기존 목록 캐시를 유지합니다.
   if (searchParams.get('list') === '1') {
     try {
@@ -210,9 +216,9 @@ export async function GET(req: NextRequest) {
       const pathNorm = pathParam === '' ? '0' : pathParam;
 
       const data = await cached(
-        cacheKey('doclist', pathNorm),
+        cacheKey('doclist', 'v2', pathNorm),
         {
-          ttlSec: 600,
+          ttlSec: bypassMetadataCache ? 0 : 600,
           tags: ['doc:list', listTag(pathNorm)],
         },
         async () => {
@@ -304,10 +310,7 @@ export async function GET(req: NextRequest) {
       );
 
       return NextResponse.json(data, {
-        headers: {
-          'Cache-Control':
-            'public, max-age=0, s-maxage=300, stale-while-revalidate=600',
-        },
+        headers: noStoreHeaders(),
       });
     } catch (error) {
       console.error('[documents GET list] error:', error);
@@ -378,9 +381,9 @@ export async function GET(req: NextRequest) {
   if (all === '1') {
     try {
       const result = await cached(
-        'doc:all',
+        'doc:all:v2',
         {
-          ttlSec: 600,
+          ttlSec: bypassMetadataCache ? 0 : 600,
           tags: ['doc:list'],
         },
         async () => {
@@ -415,10 +418,7 @@ export async function GET(req: NextRequest) {
       );
 
       return NextResponse.json(result, {
-        headers: {
-          'Cache-Control':
-            'public, max-age=0, s-maxage=300, stale-while-revalidate=600',
-        },
+        headers: noStoreHeaders(),
       });
     } catch (error) {
       console.error('[documents GET all] error:', error);
