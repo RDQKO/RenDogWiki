@@ -2,12 +2,17 @@
 // File: app/components/image/ImageUploadModal.tsx
 // 전체 교체용 코드
 //
-// 기존 업로드 모달 UI 구조는 유지하고,
-// 파일 선택 후 목록과 업로드 버튼이 갱신되지 않는 문제만 수정
+// 기존 업로드 모달 UI와 업로드 API 흐름은 유지하고,
+// 파일 선택·드롭 후 목록과 업로드 버튼이 갱신되지 않는 문제 수정
+//
+// 핵심:
+// - 선택된 File 객체를 MIME 판정으로 조용히 폐기하지 않음
+// - 모달 인스턴스마다 고유한 file input id 사용
+// - 같은 이름·크기의 서로 다른 파일도 lastModified로 구분
 // =============================================
 'use client';
 
-import { useRef, useState } from "react";
+import { useId, useRef, useState } from "react";
 import { ModalCard } from "@/components/common/Modal";
 
 type ImageFile = {
@@ -41,62 +46,13 @@ const MAX_BATCH_BYTES = 3.5 * 1024 * 1024;
  */
 const SINGLE_FILE_LIMIT_BYTES = 3.9 * 1024 * 1024;
 
-/**
- * 브라우저가 MIME 타입을 빈 문자열로 넘기는 경우를 대비한 확장자 목록
- */
-const IMAGE_EXTENSIONS = new Set([
-  "apng",
-  "avif",
-  "bmp",
-  "gif",
-  "heic",
-  "heif",
-  "ico",
-  "jfif",
-  "jpeg",
-  "jpg",
-  "png",
-  "svg",
-  "tif",
-  "tiff",
-  "webp",
-]);
-
-const VIDEO_EXTENSIONS = new Set([
-  "m4v",
-  "mov",
-  "mp4",
-  "mpeg",
-  "mpg",
-  "ogg",
-  "ogv",
-  "webm",
-]);
-
-function getFileExtension(fileName: string) {
-  const dotIndex = fileName.lastIndexOf(".");
-
-  if (dotIndex < 0 || dotIndex === fileName.length - 1) {
-    return "";
-  }
-
-  return fileName.slice(dotIndex + 1).toLowerCase();
-}
-
-function acceptFile(file: File) {
-  if (
-    file.type.startsWith("image/") ||
-    file.type.startsWith("video/")
-  ) {
-    return true;
-  }
-
-  const extension = getFileExtension(file.name);
-
-  return (
-    IMAGE_EXTENSIONS.has(extension) ||
-    VIDEO_EXTENSIONS.has(extension)
-  );
+function fileKey(file: File) {
+  return [
+    file.name,
+    file.size,
+    file.lastModified,
+    file.type,
+  ].join(":");
 }
 
 export default function ImageUploadModal({
@@ -105,6 +61,7 @@ export default function ImageUploadModal({
   folderId,
   onUploaded,
 }: Props) {
+  const inputId = useId();
   const [files, setFiles] = useState<File[]>([]);
   const [loading, setLoading] = useState(false);
   const [dragOver, setDragOver] = useState(false);
@@ -113,27 +70,39 @@ export default function ImageUploadModal({
 
   /**
    * 파일 배열 병합
-   * 이름과 크기가 같은 파일은 중복 추가하지 않는다.
+   *
+   * input의 accept 속성은 탐색기 필터 역할만 한다.
+   * 브라우저·운영체제가 MIME을 빈 문자열이나 예상 밖 값으로 넘겨도
+   * 실제로 전달된 File 객체는 상태에서 조용히 버리지 않는다.
    */
   const addFiles = (incoming: File[]) => {
-    const acceptedFiles = incoming.filter(acceptFile);
+    if (incoming.length === 0) return;
 
     setFiles((previousFiles) => {
-      const nextFiles = [...previousFiles];
+      const existingKeys = new Set(
+        previousFiles.map(fileKey),
+      );
+      const additions: File[] = [];
 
-      for (const file of acceptedFiles) {
-        const duplicated = nextFiles.some(
-          (previousFile) =>
-            previousFile.name === file.name &&
-            previousFile.size === file.size,
-        );
+      for (const file of incoming) {
+        const key = fileKey(file);
 
-        if (!duplicated) {
-          nextFiles.push(file);
+        if (existingKeys.has(key)) {
+          continue;
         }
+
+        existingKeys.add(key);
+        additions.push(file);
       }
 
-      return nextFiles;
+      if (additions.length === 0) {
+        return previousFiles;
+      }
+
+      return [
+        ...previousFiles,
+        ...additions,
+      ];
     });
   };
 
@@ -177,13 +146,12 @@ export default function ImageUploadModal({
   };
 
   const handleRemove = (file: File) => {
+    const targetKey = fileKey(file);
+
     setFiles((previousFiles) =>
       previousFiles.filter(
         (previousFile) =>
-          !(
-            previousFile.name === file.name &&
-            previousFile.size === file.size
-          ),
+          fileKey(previousFile) !== targetKey,
       ),
     );
   };
@@ -248,7 +216,7 @@ export default function ImageUploadModal({
     batchIndex: number,
     batchCount: number,
   ) => {
-    if (!folderId) {
+    if (folderId == null) {
       throw new Error("업로드할 폴더를 선택하세요.");
     }
 
@@ -292,7 +260,7 @@ export default function ImageUploadModal({
   const handleUpload = async () => {
     if (!files.length) return;
 
-    if (!folderId) {
+    if (folderId == null) {
       alert("업로드할 폴더를 선택하세요.");
       return;
     }
@@ -343,7 +311,7 @@ export default function ImageUploadModal({
       width={520}
     >
       <label
-        htmlFor="rd-upload-input"
+        htmlFor={inputId}
         className={`custum-file-upload ${
           dragOver ? "dragover" : ""
         }`}
@@ -358,7 +326,18 @@ export default function ImageUploadModal({
         }}
         onDragLeave={(event) => {
           event.preventDefault();
-          setDragOver(false);
+
+          const nextTarget =
+            event.relatedTarget as Node | null;
+
+          if (
+            nextTarget == null ||
+            !event.currentTarget.contains(
+              nextTarget,
+            )
+          ) {
+            setDragOver(false);
+          }
         }}
         onDrop={handleDrop}
       >
@@ -378,7 +357,7 @@ export default function ImageUploadModal({
         </div>
 
         <input
-          id="rd-upload-input"
+          id={inputId}
           ref={inputRef}
           type="file"
           multiple
@@ -391,7 +370,7 @@ export default function ImageUploadModal({
         <div className="rd-upload-filelist">
           {files.map((file) => (
             <div
-              key={`${file.name}-${file.size}`}
+              key={fileKey(file)}
               className="rd-upload-file"
             >
               <div className="name" title={file.name}>
@@ -459,7 +438,7 @@ export default function ImageUploadModal({
           disabled={
             loading ||
             !files.length ||
-            !folderId
+            folderId == null
           }
         >
           {loading ? "업로드 중..." : "업로드"}
