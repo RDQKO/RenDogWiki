@@ -1,11 +1,10 @@
 // app/api/documents/route.ts
 // 전체 교체용 코드
 //
-// 공개 문서 본문은 문서 ID별 Next.js Data Cache에 1시간 저장합니다.
+// 공개 문서 본문은 문서 ID별 Next.js Data Cache에 24시간 저장합니다.
 // 문서 저장/삭제 시 doc:{id} 태그를 즉시 무효화합니다.
 // API 응답 자체는 no-store를 유지해 브라우저에 오래된 본문이 남지 않게 합니다.
 
-import { revalidateTag, unstable_cache } from 'next/cache';
 import { NextRequest, NextResponse } from 'next/server';
 
 import {
@@ -13,6 +12,10 @@ import {
   runDbRead,
   sql,
 } from '@/wiki/lib/db';
+import {
+  getCachedDocumentById,
+  invalidateDocumentCache,
+} from '@/wiki/lib/documentCache';
 import {
   logActivity,
   resolveCategoryName,
@@ -28,10 +31,8 @@ export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
 export const revalidate = 0;
 
-const DOCUMENT_DETAIL_CACHE_SECONDS = 60 * 60;
 const DELETE_PASSWORD = process.env.MANAGE_DELETE_PASSWORD ?? '1290';
 
-const docTag = (id: number) => `doc:${id}`;
 const listTag = (path: string | number) => `doclist:${String(path)}`;
 
 type DocumentRow = {
@@ -103,66 +104,6 @@ function transientDocUnavailable() {
       headers: noStoreHeaders(),
     },
   );
-}
-
-function serializeDocument(row: DocumentRow) {
-  return {
-    id: row.id,
-    title: row.title,
-    path: row.path,
-    icon: row.icon,
-    tags: splitTags(row.tags),
-    created_at: row.created_at,
-    updated_at: row.updated_at,
-    special: row.special ?? null,
-    order: Number(row.order ?? 0),
-    content: toContentArray(row.content ?? []),
-  };
-}
-
-async function getDocumentByIdFresh(id: number) {
-  const rows = (await runDbRead(
-    'documents:getDocById',
-    async () => {
-      return await sql`
-        SELECT
-          d.id,
-          d.title,
-          d.path,
-          d.icon,
-          d.tags,
-          d.created_at,
-          d.updated_at,
-          d.special,
-          d."order",
-          dc.content
-        FROM documents d
-        LEFT JOIN document_contents dc
-          ON dc.document_id = d.id
-        WHERE d.id = ${id}
-        LIMIT 1
-      `;
-    },
-    0,
-  )) as unknown as DocumentRow[];
-
-  const row = rows[0];
-  return row ? serializeDocument(row) : null;
-}
-
-/**
- * 동일한 문서 본문을 여러 요청/서버 인스턴스에서 반복해서 DB로부터
- * 전송받지 않도록 문서 ID별 공유 Data Cache를 사용합니다.
- */
-async function getDocumentByIdCached(id: number) {
-  return unstable_cache(
-    async () => getDocumentByIdFresh(id),
-    ['documents:detail', String(id)],
-    {
-      revalidate: DOCUMENT_DETAIL_CACHE_SECONDS,
-      tags: [docTag(id)],
-    },
-  )();
 }
 
 async function findDocumentIdByPathAndTitle(path: string, title: string) {
@@ -353,7 +294,7 @@ export async function GET(req: NextRequest) {
         );
       }
 
-      const data = await getDocumentByIdCached(id);
+      const data = await getCachedDocumentById(id);
 
       if (!data) {
         return new NextResponse(null, {
@@ -461,7 +402,7 @@ export async function GET(req: NextRequest) {
       });
     }
 
-    const data = await getDocumentByIdCached(Number(documentId));
+    const data = await getCachedDocumentById(Number(documentId));
 
     if (!data) {
       return new NextResponse(null, {
@@ -547,13 +488,13 @@ export async function DELETE(req: NextRequest) {
       WHERE id = ${id}
     `;
 
-    // 삭제가 끝난 직후 로컬 캐시와 공유 Data Cache를 모두 무효화합니다.
+    // 삭제가 끝난 직후 문서 본문, 목록, 검색 결과 캐시를 모두 무효화합니다.
+    invalidateDocumentCache(id);
     invalidate(
-      docTag(id),
       'doc:list',
       listTag(document.path ?? '0'),
+      'search:index',
     );
-    revalidateTag(docTag(id));
 
     const username =
       gate.dbUser.minecraft_name ||

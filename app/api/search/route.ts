@@ -12,6 +12,9 @@ import {
   sql,
 } from '@/wiki/lib/db';
 import { extractHeadings } from '@/wiki/lib/extractHeadings';
+import {
+  getCachedDocumentsByIds,
+} from '@/wiki/lib/documentCache';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
@@ -19,7 +22,7 @@ export const revalidate = 0;
 
 const SEARCH_CACHE_SECONDS = 60;
 const SEARCH_CACHE_TAG = 'search:index';
-const SEARCH_CACHE_VERSION = 'search:original-ux-v2';
+const SEARCH_CACHE_VERSION = 'search:hybrid-document-cache-v1';
 
 type MatchType = 'title' | 'tags' | 'content';
 type SectionMatchSource = 'heading' | 'body';
@@ -710,11 +713,11 @@ async function searchDocuments(
       `;
 
       /**
-       * 최초 검색 코드의 목차 판정·본문 영역 판정·미리보기 생성 방식을
-       * 그대로 유지하기 위해 매칭된 후보 문서의 Slate JSON만 가져옵니다.
+       * 검색 대상과 점수 계산은 기존과 동일하게 원본 JSON 전체를 DB 안에서
+       * 검사합니다. 단, dc.content 자체는 SELECT 결과로 반환하지 않습니다.
        *
-       * 동일 검색어 결과는 아래 unstable_cache에서 60초간 공유되므로
-       * 반복 검색은 DB 본문을 다시 전송하지 않습니다.
+       * 아래에서 후보 문서 ID를 공통 24시간 문서 캐시와 결합한 뒤,
+       * 기존 목차 판정·본문 영역 판정·미리보기·정렬 코드를 그대로 실행합니다.
        */
       const contentPromise = sql`
         SELECT
@@ -724,7 +727,6 @@ async function searchDocuments(
           d.icon,
           d.tags,
           'content' AS match_type,
-          dc.content AS content,
           (
             WITH parts AS (
               SELECT regexp_split_to_array(
@@ -817,11 +819,46 @@ async function searchDocuments(
   const tagRows = dbRows?.tagRows ?? [];
   const contentRows = dbRows?.contentRows ?? [];
 
+  /*
+   * 후보 ID와 점수는 기존 SQL 결과를 그대로 사용합니다.
+   * Slate JSON만 문서 열람 API와 동일한 24시간 문서 캐시에서 가져옵니다.
+   *
+   * 따라서 아래의 목차 판정, 미리보기, section_dom_id, 결과 병합 순서는
+   * 기존 코드와 동일하며 검색 UX가 바뀌지 않습니다.
+   */
+  const cachedDocuments =
+    await getCachedDocumentsByIds(
+      contentRows.map(
+        (row) =>
+          Number(row.id),
+      ),
+      6,
+    );
+
+  const hydratedContentRows:
+    SearchRow[] =
+    contentRows.map((row) => {
+      const document =
+        cachedDocuments.get(
+          Number(row.id),
+        );
+
+      return {
+        ...row,
+        content:
+          document
+            ? (
+                document.content as Descendant[]
+              )
+            : null,
+      };
+    });
+
   const contentMetaById =
     new Map<number, SectionMeta>();
 
   const enrichedContentRows: SearchRow[] =
-    contentRows.map((row) => {
+    hydratedContentRows.map((row) => {
       const next: SearchRow = {
         ...row,
         section_heading: null,
@@ -1062,7 +1099,7 @@ export async function GET(req: NextRequest) {
     return NextResponse.json(results, {
       headers: {
         'Cache-Control':
-          'public, max-age=0, s-maxage=60, stale-while-revalidate=120',
+          'no-store, no-cache, must-revalidate, max-age=0',
       },
     });
   } catch (error) {

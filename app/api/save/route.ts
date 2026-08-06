@@ -3,12 +3,14 @@
 //
 // 문서 저장 직후 로컬 캐시와 Next.js 공유 Data Cache를 즉시 무효화합니다.
 
-import { revalidateTag } from 'next/cache';
 import { NextRequest, NextResponse } from 'next/server';
 
 import { requireRole } from '@/app/wiki/lib/requireRole';
 import { getAuthUser } from '@/wiki/lib/auth';
 import { sql } from '@/wiki/lib/db';
+import {
+  invalidateDocumentCache,
+} from '@/wiki/lib/documentCache';
 import {
   replaceDocumentSearchSections,
 } from '@/wiki/lib/documentSearchIndex';
@@ -22,7 +24,6 @@ export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
 export const revalidate = 0;
 
-const docTag = (id: number) => `doc:${id}`;
 const listTag = (path: string | number) => `doclist:${String(path)}`;
 const SEARCH_CACHE_TAG = 'search:index';
 
@@ -371,9 +372,12 @@ export async function POST(req: NextRequest) {
 
     // DB 변경이 완료된 즉시 캐시부터 비웁니다.
     // 이후 활동 로그가 실패해도 오래된 본문이 계속 노출되지 않습니다.
-    revalidateTag(docTag(documentId));
-    revalidateTag(SEARCH_CACHE_TAG);
-    invalidate(docTag(documentId), 'doc:list', listTag(pathVal as string | number));
+    invalidateDocumentCache(documentId);
+    invalidate(
+      SEARCH_CACHE_TAG,
+      'doc:list',
+      listTag(pathVal as string | number),
+    );
 
     const categoryLabel = await resolveCategoryName(
       Number.isFinite(Number(pathVal)) ? Number(pathVal) : null,
