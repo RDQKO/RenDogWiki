@@ -3,8 +3,8 @@
 // 전체 신규 파일
 //
 // 문서 열람 API와 검색 API가 동일한 문서별 공유 캐시를 사용합니다.
-// 캐시는 24시간 유지되지만 문서 저장/삭제 직후 태그를 즉시 무효화하므로
-// 사용자가 오래된 본문을 보게 되는 TTL 지연은 발생하지 않습니다.
+// 캐시 함수는 모듈 최상단에서 한 번만 생성하고 문서 ID를 인자로 전달합니다.
+// 캐시는 24시간 유지되며 문서 저장/삭제 직후 본문 캐시 태그를 무효화합니다.
 // =============================================
 
 import 'server-only';
@@ -23,7 +23,10 @@ export const DOCUMENT_DETAIL_CACHE_SECONDS =
   60 * 60 * 24;
 
 const DOCUMENT_DETAIL_CACHE_VERSION =
-  'document:detail:v4';
+  'document:detail:v5';
+
+const DOCUMENT_CONTENT_CACHE_TAG =
+  'document:content:v5';
 
 export type CachedDocument = {
   id: number;
@@ -51,10 +54,17 @@ type DocumentRow = {
   content?: unknown;
 };
 
+/**
+ * 기존 호출부 호환용입니다.
+ *
+ * 고정된 unstable_cache 함수에서는 options.tags를 문서 ID별로
+ * 동적으로 만들 수 없으므로 문서 본문 전체가 하나의 태그를 공유합니다.
+ * 캐시 키 자체에는 함수 인자 id가 포함되므로 문서별 결과는 분리됩니다.
+ */
 export function documentCacheTag(
-  id: number,
+  _id: number,
 ) {
-  return `doc:${id}`;
+  return DOCUMENT_CONTENT_CACHE_TAG;
 }
 
 function toContentArray(
@@ -181,6 +191,32 @@ export async function getDocumentByIdFresh(
 }
 
 /**
+ * 모듈이 로드될 때 한 번만 생성되는 고정 Data Cache 함수입니다.
+ *
+ * Next.js unstable_cache는 호출 인자를 캐시 키에 포함하므로
+ * 문서별 결과는 id 기준으로 서로 분리됩니다.
+ */
+const loadCachedDocumentById =
+  unstable_cache(
+    async (
+      id: number,
+    ): Promise<CachedDocument | null> =>
+      await getDocumentByIdFresh(
+        id,
+      ),
+    [
+      DOCUMENT_DETAIL_CACHE_VERSION,
+    ],
+    {
+      revalidate:
+        DOCUMENT_DETAIL_CACHE_SECONDS,
+      tags: [
+        DOCUMENT_CONTENT_CACHE_TAG,
+      ],
+    },
+  );
+
+/**
  * 문서 ID별 24시간 공유 Data Cache입니다.
  *
  * 검색과 문서 열람이 이 함수를 함께 사용하므로,
@@ -197,23 +233,9 @@ export async function getCachedDocumentById(
     return null;
   }
 
-  return unstable_cache(
-    async () =>
-      await getDocumentByIdFresh(
-        id,
-      ),
-    [
-      DOCUMENT_DETAIL_CACHE_VERSION,
-      String(id),
-    ],
-    {
-      revalidate:
-        DOCUMENT_DETAIL_CACHE_SECONDS,
-      tags: [
-        documentCacheTag(id),
-      ],
-    },
-  )();
+  return await loadCachedDocumentById(
+    id,
+  );
 }
 
 /**
@@ -306,6 +328,10 @@ export async function getCachedDocumentsByIds(
 
 /**
  * 문서 저장/삭제 직후 호출합니다.
+ *
+ * 수정은 상대적으로 드문 관리 작업이므로 문서 하나가 바뀌면
+ * 공유 본문 태그를 비웁니다. 다음 실제 열람/검색 시 필요한 문서만
+ * 다시 채워지며 브라우저/API 응답은 계속 no-store입니다.
  */
 export function invalidateDocumentCache(
   id: number,
@@ -318,6 +344,6 @@ export function invalidateDocumentCache(
   }
 
   revalidateTag(
-    documentCacheTag(id),
+    DOCUMENT_CONTENT_CACHE_TAG,
   );
 }

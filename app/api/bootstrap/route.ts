@@ -23,8 +23,11 @@ import {
 } from '@/wiki/lib/cache';
 
 export const runtime = 'nodejs';
-export const dynamic = 'force-dynamic';
-export const revalidate = 0;
+
+/*
+ * Request URL을 읽는 동적 GET이며 응답 헤더도 no-store입니다.
+ * force-dynamic/revalidate=0은 내부 공유 Data Cache까지 끄므로 사용하지 않습니다.
+ */
 
 type BootstrapDocument = {
   id: number;

@@ -2,7 +2,8 @@
 // 전체 교체용 코드
 //
 // 공개 문서 본문은 문서 ID별 Next.js Data Cache에 24시간 저장합니다.
-// 문서 저장/삭제 시 doc:{id} 태그를 즉시 무효화합니다.
+// 검색과 문서 열람이 같은 본문 캐시를 공유합니다.
+// 문서 저장/삭제 시 본문 공유 태그를 즉시 무효화합니다.
 // API 응답 자체는 no-store를 유지해 브라우저에 오래된 본문이 남지 않게 합니다.
 
 import { NextRequest, NextResponse } from 'next/server';
@@ -28,8 +29,12 @@ import {
 import { requireRole } from '@/app/wiki/lib/requireRole';
 
 export const runtime = 'nodejs';
-export const dynamic = 'force-dynamic';
-export const revalidate = 0;
+
+/*
+ * NextRequest 기반 GET + no-store 응답을 유지합니다.
+ * force-dynamic/revalidate=0은 내부 Next.js Data Cache까지 비활성화하므로
+ * 문서 본문/목록 공유 캐시를 위해 의도적으로 사용하지 않습니다.
+ */
 
 const DELETE_PASSWORD = process.env.MANAGE_DELETE_PASSWORD ?? '1290';
 

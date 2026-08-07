@@ -34,8 +34,11 @@ import {
 } from '@/app/wiki/lib/requireRole';
 
 export const runtime = 'nodejs';
-export const dynamic = 'force-dynamic';
-export const revalidate = 0;
+
+/*
+ * NextRequest URL을 읽는 동적 GET이고 응답은 no-store입니다.
+ * force-dynamic/revalidate=0은 내부 공유 Data Cache까지 끄므로 사용하지 않습니다.
+ */
 
 const NO_STORE_HEADERS = {
   'Cache-Control':

@@ -17,12 +17,18 @@ import {
 } from '@/wiki/lib/documentCache';
 
 export const runtime = 'nodejs';
-export const dynamic = 'force-dynamic';
-export const revalidate = 0;
+
+/*
+ * 중요:
+ * 이 GET은 NextRequest를 읽기 때문에 Route Handler 응답 자체는 동적입니다.
+ * dynamic='force-dynamic' / revalidate=0은 사용하지 않습니다.
+ * Next.js 14에서 해당 설정은 내부 Data Cache까지 건너뛰게 만들어
+ * 검색/문서 공유 캐시가 매 요청 MISS가 될 수 있습니다.
+ */
 
 const SEARCH_CACHE_SECONDS = 60;
 const SEARCH_CACHE_TAG = 'search:index';
-const SEARCH_CACHE_VERSION = 'search:hybrid-document-cache-v1';
+const SEARCH_CACHE_VERSION = 'search:hybrid-document-cache-v2';
 
 type MatchType = 'title' | 'tags' | 'content';
 type SectionMatchSource = 'heading' | 'body';
