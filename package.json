@@ -6,7 +6,8 @@
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "lint": "next lint"
+    "lint": "next lint",
+    "test:storage": "node --test tests/browser-storage.test.cjs"
   },
   "dependencies": {
     "@aws-sdk/client-s3": "^3.840.0",

@@ -18,6 +18,11 @@ import {
 import {
   createPortal,
 } from 'react-dom';
+import {
+  getLocalStorage,
+  readLocalStorage,
+  writeLocalStorage,
+} from '@lib/browserStorage';
 
 import styles from '@/wiki/css/docBadgeModeSwitcher.module.css';
 
@@ -59,7 +64,7 @@ function readBadgeMode(): DocBadgeMode {
     return 'quick';
   }
 
-  return window.localStorage.getItem(
+  return readLocalStorage(
     BADGE_MODE_STORAGE,
   ) === 'favorites'
     ? 'favorites'
@@ -257,7 +262,7 @@ export default function DocBadgeModeSwitcher() {
         ? 'favorites'
         : 'quick';
 
-    window.localStorage.setItem(
+    writeLocalStorage(
       BADGE_MODE_STORAGE,
       nextMode,
     );
@@ -274,7 +279,7 @@ export default function DocBadgeModeSwitcher() {
           newValue:
             nextMode,
           storageArea:
-            window.localStorage,
+            getLocalStorage(),
         },
       ),
     );

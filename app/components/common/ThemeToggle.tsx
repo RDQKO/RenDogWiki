@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
+import { readLocalStorage, writeLocalStorage } from '@lib/browserStorage';
 
 type Theme = 'light' | 'dark';
 
@@ -9,7 +10,7 @@ const THEME_STORAGE_KEY = 'rdwiki-theme';
 function getPreferredTheme(): Theme {
   if (typeof window === 'undefined') return 'light';
 
-  const saved = window.localStorage.getItem(THEME_STORAGE_KEY);
+  const saved = readLocalStorage(THEME_STORAGE_KEY);
   if (saved === 'light' || saved === 'dark') return saved;
 
   return 'light';
@@ -35,7 +36,7 @@ export default function ThemeToggle() {
   const toggleTheme = () => {
     const next: Theme = theme === 'dark' ? 'light' : 'dark';
     setTheme(next);
-    window.localStorage.setItem(THEME_STORAGE_KEY, next);
+    writeLocalStorage(THEME_STORAGE_KEY, next);
     applyTheme(next);
   };
 
