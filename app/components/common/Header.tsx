@@ -21,6 +21,7 @@ import HamburgerMenu from '@/components/common/HamburgerMenu';
 import SearchBox from '@/components/common/SearchBox';
 import ThemeToggle from '@/components/common/ThemeToggle';
 import DocBadgeModeSwitcher from '@/components/wiki/DocBadgeModeSwitcher';
+import { readLocalStorage, writeLocalStorage } from '@lib/browserStorage';
 
 import '@/wiki/css/header.css';
 import '@/wiki/css/categoryTree.css';
@@ -74,7 +75,7 @@ export default function WikiHeader({
     const urlMode =
       url.searchParams.get(MODE_PARAM);
     const storedMode =
-      window.localStorage.getItem(
+      readLocalStorage(
         MODE_STORAGE,
       );
 
@@ -100,7 +101,7 @@ export default function WikiHeader({
       );
     }
 
-    window.localStorage.setItem(
+    writeLocalStorage(
       MODE_STORAGE,
       nextMode,
     );

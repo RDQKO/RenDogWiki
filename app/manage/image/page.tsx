@@ -27,6 +27,7 @@ import WikiHeader from '@/components/common/Header';
 import { ModalCard } from '@/components/common/Modal';
 import ImageUploadModal from '@/components/image/ImageUploadModal';
 import { toProxyUrl } from '@lib/cdn';
+import { readLocalStorage, writeLocalStorage } from '@lib/browserStorage';
 import '@/wiki/css/image.css';
 
 type Role = 'guest' | 'writer' | 'admin';
@@ -74,7 +75,7 @@ const FAVORITE_FOLDER_STORAGE_KEY = 'imgmgr.favoriteFolders.v1';
 
 function saveTreeState(next: Record<number, boolean>) {
   if (typeof window === 'undefined') return;
-  window.localStorage.setItem(TREE_STORAGE_KEY, JSON.stringify(next));
+  writeLocalStorage(TREE_STORAGE_KEY, JSON.stringify(next));
 }
 
 function readFavoriteFolderIds(): number[] {
@@ -82,7 +83,7 @@ function readFavoriteFolderIds(): number[] {
 
   try {
     const parsed = JSON.parse(
-      window.localStorage.getItem(FAVORITE_FOLDER_STORAGE_KEY) ?? '[]',
+      readLocalStorage(FAVORITE_FOLDER_STORAGE_KEY) ?? '[]',
     );
 
     if (!Array.isArray(parsed)) return [];
@@ -101,7 +102,7 @@ function readFavoriteFolderIds(): number[] {
 
 function writeFavoriteFolderIds(ids: number[]) {
   if (typeof window === 'undefined') return;
-  window.localStorage.setItem(
+  writeLocalStorage(
     FAVORITE_FOLDER_STORAGE_KEY,
     JSON.stringify(ids),
   );
@@ -651,7 +652,7 @@ export default function ImageManagePage() {
 
       if (typeof window === 'undefined') return;
 
-      const savedTree = window.localStorage.getItem(TREE_STORAGE_KEY);
+      const savedTree = readLocalStorage(TREE_STORAGE_KEY);
       if (savedTree) {
         try {
           const parsed = JSON.parse(savedTree) as Record<string, boolean>;
@@ -679,7 +680,7 @@ export default function ImageManagePage() {
 
       if (!restoreSelection) return;
 
-      const savedSelection = window.localStorage.getItem(
+      const savedSelection = readLocalStorage(
         SELECTED_FOLDER_STORAGE_KEY,
       );
       if (!savedSelection || savedSelection === 'null') {
@@ -717,7 +718,7 @@ export default function ImageManagePage() {
   useEffect(() => {
     setSelectedItems([]);
     if (typeof window !== 'undefined') {
-      window.localStorage.setItem(
+      writeLocalStorage(
         SELECTED_FOLDER_STORAGE_KEY,
         selectedFolder == null ? 'null' : String(selectedFolder),
       );

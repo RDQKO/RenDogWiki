@@ -1,3 +1,5 @@
+import { readLocalStorage, writeLocalStorage } from './browserStorage';
+
 export const DOC_FAVORITES_STORAGE_KEY = 'wiki:doc-favorites';
 export const DOC_BADGE_MODE_STORAGE_KEY = 'wiki:doc-badge-mode';
 export const DOC_BADGE_MODE_EVENT = 'wiki-doc-badge-mode-change';
@@ -21,13 +23,13 @@ export function isDocBadgeMode(value: unknown): value is DocBadgeMode {
 
 export function readDocBadgeMode(): DocBadgeMode {
   if (typeof window === 'undefined') return 'quick';
-  const raw = window.localStorage.getItem(DOC_BADGE_MODE_STORAGE_KEY);
+  const raw = readLocalStorage(DOC_BADGE_MODE_STORAGE_KEY);
   return isDocBadgeMode(raw) ? raw : 'quick';
 }
 
 export function writeDocBadgeMode(mode: DocBadgeMode) {
   if (typeof window === 'undefined') return;
-  window.localStorage.setItem(DOC_BADGE_MODE_STORAGE_KEY, mode);
+  writeLocalStorage(DOC_BADGE_MODE_STORAGE_KEY, mode);
   window.dispatchEvent(
     new CustomEvent(DOC_BADGE_MODE_EVENT, {
       detail: { mode },
@@ -72,7 +74,7 @@ export function readDocFavorites(): StoredDocFavorite[] {
   if (typeof window === 'undefined') return [];
 
   try {
-    const raw = window.localStorage.getItem(DOC_FAVORITES_STORAGE_KEY);
+    const raw = readLocalStorage(DOC_FAVORITES_STORAGE_KEY);
     if (!raw) return [];
     return sanitizeDocFavorites(JSON.parse(raw));
   } catch {
@@ -83,7 +85,7 @@ export function readDocFavorites(): StoredDocFavorite[] {
 export function writeDocFavorites(items: StoredDocFavorite[]) {
   if (typeof window === 'undefined') return;
   const safe = sanitizeDocFavorites(items);
-  window.localStorage.setItem(DOC_FAVORITES_STORAGE_KEY, JSON.stringify(safe));
+  writeLocalStorage(DOC_FAVORITES_STORAGE_KEY, JSON.stringify(safe));
   window.dispatchEvent(
     new CustomEvent(DOC_FAVORITES_EVENT, {
       detail: { items: safe },
