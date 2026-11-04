@@ -12,6 +12,7 @@ import {
   Editor,
   Transforms,
 } from 'slate';
+import { HistoryEditor } from 'slate-history';
 
 import ImageSelectModal from '@/components/image/ImageSelectModal';
 import {
@@ -95,6 +96,96 @@ export default function PriceTableEditorAdapter({
     useLivePriceTableItems(
       sourceItems as any[],
     );
+
+  const sourceSyncSignature =
+    React.useMemo(
+      () =>
+        JSON.stringify(
+          sourceItems.map((item: any) => ({
+            id: item?.id ?? null,
+            name: item?.name ?? '',
+            name_key:
+              item?.name_key ??
+              item?.nameKey ??
+              '',
+            mode: item?.mode ?? '',
+            stages: Array.isArray(item?.stages)
+              ? item.stages
+              : [],
+            prices: Array.isArray(item?.prices)
+              ? item.prices.map((value: any) =>
+                  String(value ?? ''),
+                )
+              : [],
+          })),
+        ),
+      [sourceItems],
+    );
+
+  const liveSyncSignature =
+    React.useMemo(
+      () =>
+        JSON.stringify(
+          viewItems.map((item: any) => ({
+            id: item?.id ?? null,
+            name: item?.name ?? '',
+            name_key:
+              item?.name_key ??
+              item?.nameKey ??
+              '',
+            mode: item?.mode ?? '',
+            stages: Array.isArray(item?.stages)
+              ? item.stages
+              : [],
+            prices: Array.isArray(item?.prices)
+              ? item.prices.map((value: any) =>
+                  String(value ?? ''),
+                )
+              : [],
+          })),
+        ),
+      [viewItems],
+    );
+
+  React.useEffect(() => {
+    if (
+      sourceSyncSignature ===
+      liveSyncSignature
+    ) {
+      return;
+    }
+
+    try {
+      const path = ReactEditor.findPath(
+        editor as ReactEditor,
+        element,
+      );
+
+      HistoryEditor.withoutSaving(
+        editor as HistoryEditor,
+        () => {
+          Transforms.setNodes(
+            editor,
+            {
+              items: viewItems,
+            } as Partial<PriceTableCardElement>,
+            { at: path },
+          );
+        },
+      );
+    } catch (error) {
+      console.error(
+        '시세표 최신 시세 자동 동기화 실패',
+        error,
+      );
+    }
+  }, [
+    editor,
+    element,
+    liveSyncSignature,
+    sourceSyncSignature,
+    viewItems,
+  ]);
 
   const {
     hoveredIndex: hovered,
