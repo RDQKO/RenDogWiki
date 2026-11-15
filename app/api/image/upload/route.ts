@@ -39,7 +39,7 @@ import {
   requireRole,
 } from '@/wiki/lib/requireRole';
 
-import sharp from 'sharp';
+import sharp, { type Metadata } from 'sharp';
 import crypto from 'crypto';
 
 // @ts-ignore
@@ -369,7 +369,7 @@ async function processImageIfNeeded(
   }
 
   let metadata:
-    sharp.Metadata | null =
+    Metadata | null =
     null;
 
   try {
@@ -950,7 +950,7 @@ export async function POST(
       );
 
     const authUser =
-      getAuthUser();
+      await getAuthUser();
 
     const headerName =
       req.headers.get(

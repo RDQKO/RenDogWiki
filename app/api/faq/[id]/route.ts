@@ -1,3 +1,4 @@
+import { requireRole } from '@/wiki/lib/requireRole';
 // =============================================
 // File: app/api/faq/[id]/route.ts
 // 전체 교체용 코드
@@ -245,14 +246,9 @@ async function readFaqDetail(
 
 export async function GET(
   _: NextRequest,
-  {
-    params,
-  }: {
-    params: {
-      id: string;
-    };
-  },
+  { params: pendingParams }: { params: Promise<{ id: string }> }
 ) {
+  const params = await pendingParams;
   try {
     const id =
       Number(params.id);
@@ -335,14 +331,14 @@ export async function GET(
 
 export async function PUT(
   request: NextRequest,
-  {
-    params,
-  }: {
-    params: {
-      id: string;
-    };
-  },
+  { params: pendingParams }: { params: Promise<{ id: string }> }
 ) {
+  const params = await pendingParams;
+  const gate = await requireRole(['writer', 'admin']);
+  if (!gate.ok) {
+    return NextResponse.json({ error: gate.error }, { status: gate.status, headers: NO_STORE_HEADERS });
+  }
+
   try {
     const id =
       Number(params.id);
@@ -479,14 +475,14 @@ export async function PUT(
 
 export async function DELETE(
   _: NextRequest,
-  {
-    params,
-  }: {
-    params: {
-      id: string;
-    };
-  },
+  { params: pendingParams }: { params: Promise<{ id: string }> }
 ) {
+  const params = await pendingParams;
+  const gate = await requireRole(['admin']);
+  if (!gate.ok) {
+    return NextResponse.json({ error: gate.error }, { status: gate.status, headers: NO_STORE_HEADERS });
+  }
+
   try {
     const id =
       Number(params.id);

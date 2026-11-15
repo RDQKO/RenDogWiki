@@ -15,6 +15,7 @@
 
 'use client';
 
+import { useAuth } from '@/components/auth/AuthProvider';
 import {
   useEffect,
   useMemo,
@@ -44,26 +45,6 @@ type HamburgerMenuProps = {
   username?: string;
   uuid?: string;
   onLogout: () => void | Promise<void>;
-};
-
-type Role =
-  | 'guest'
-  | 'writer'
-  | 'admin';
-
-type AuthUser = {
-  id?: number;
-  username?: string;
-  email?: string;
-  minecraft_name?: string;
-  minecraft_uuid?: string;
-  role?: string | null;
-};
-
-type AuthMeResponse = {
-  loggedIn?: boolean;
-  role?: string | null;
-  user?: AuthUser | null;
 };
 
 type MenuItem = {
@@ -170,24 +151,6 @@ const menuItems: ReadonlyArray<MenuItem> = [
   },
 ];
 
-function normalizeRole(
-  value: unknown,
-): Role {
-  const normalized =
-    String(value ?? '')
-      .trim()
-      .toLowerCase();
-
-  if (
-    normalized === 'admin' ||
-    normalized === 'writer'
-  ) {
-    return normalized;
-  }
-
-  return 'guest';
-}
-
 function ArrowIcon() {
   return (
     <svg
@@ -267,7 +230,6 @@ function LogoutIcon() {
 export default function HamburgerMenu({
   isOpen = true,
   onClose,
-  isLoggedIn,
   username = '',
   uuid,
   onLogout,
@@ -282,245 +244,39 @@ export default function HamburgerMenu({
     setLoggingOut,
   ] = useState(false);
 
-  const [
-    authChecking,
-    setAuthChecking,
-  ] = useState(true);
-
-  const [
-    effectiveLoggedIn,
-    setEffectiveLoggedIn,
-  ] = useState(isLoggedIn);
-
-  const [
-    effectiveUsername,
-    setEffectiveUsername,
-  ] = useState(username);
-
-  const [
-    resolvedUUID,
-    setResolvedUUID,
-  ] = useState<string | null>(
-    uuid || null,
-  );
-
-  const [
-    role,
-    setRole,
-  ] = useState<Role>('guest');
-
-  const [
-    roleLoaded,
-    setRoleLoaded,
-  ] = useState(false);
-
-  const [
-    denyOpen,
-    setDenyOpen,
-  ] = useState(false);
-
-  useEffect(() => {
-    setEffectiveLoggedIn(
-      isLoggedIn,
-    );
-    setEffectiveUsername(
-      username || '',
-    );
-    setResolvedUUID(
-      uuid || null,
-    );
-
-    /*
-     * props는 빠른 첫 표시를 위한 힌트다.
-     * 실제 로그인/권한 상태는 메뉴가 열릴 때
-     * /api/auth/me 응답으로 다시 확정한다.
-     */
-    setRole('guest');
-    setRoleLoaded(false);
-  }, [
-    isLoggedIn,
-    username,
-    uuid,
-  ]);
+  const auth = useAuth();
+  const { refreshAuth } = auth;
+  const authChecking = auth.loading || !auth.hydrated;
+  const effectiveLoggedIn = auth.loggedIn;
+  const effectiveUsername = auth.user?.minecraft_name || auth.user?.username || username;
+  const role = auth.role;
+  const roleLoaded = auth.hydrated && !auth.loading;
+  const [resolvedUUID, setResolvedUUID] = useState<string | null>(uuid || null);
+  const [denyOpen, setDenyOpen] = useState(false);
 
   useEffect(() => {
     setMounted(true);
-
-    return () => {
-      setMounted(false);
-    };
+    return () => setMounted(false);
   }, []);
 
   useEffect(() => {
-    if (!isOpen) {
-      return;
-    }
-
-    let aborted = false;
-
-    setAuthChecking(true);
-    setRoleLoaded(false);
+    if (!isOpen) return;
     setDenyOpen(false);
+    void refreshAuth();
+  }, [isOpen, refreshAuth]);
 
-    const fetchUuidByName =
-      async (
-        minecraftName: string,
-      ) => {
-        try {
-          const response =
-            await fetch(
-              `/api/mojang/uuid?name=${encodeURIComponent(
-                minecraftName,
-              )}`,
-              {
-                cache: 'no-store',
-                credentials:
-                  'same-origin',
-              },
-            );
-
-          if (!response.ok) {
-            return;
-          }
-
-          const payload =
-            await response
-              .json()
-              .catch(() => ({}));
-
-          const nextUuid =
-            typeof payload?.uuid ===
-            'string'
-              ? payload.uuid.trim()
-              : '';
-
-          if (
-            !aborted &&
-            nextUuid
-          ) {
-            setResolvedUUID(
-              nextUuid,
-            );
-          }
-        } catch {
-          /*
-           * UUID 조회 실패는 로그인 상태와 무관하다.
-           * 사용자명 표시는 그대로 유지한다.
-           */
-        }
-      };
-
-    void (async () => {
-      try {
-        const response =
-          await fetch(
-            '/api/auth/me',
-            {
-              cache: 'no-store',
-              credentials: 'include',
-            },
-          );
-
-        const payload:
-          AuthMeResponse | null =
-          response.ok
-            ? await response
-                .json()
-                .catch(() => null)
-            : null;
-
-        const authUser =
-          payload?.user ?? null;
-
-        const nextLoggedIn =
-          Boolean(
-            payload?.loggedIn &&
-              authUser,
-          );
-
-        const nextRole =
-          normalizeRole(
-            authUser?.role ??
-              payload?.role,
-          );
-
-        const nextUsername =
-          String(
-            authUser?.minecraft_name ??
-              authUser?.username ??
-              username ??
-              '',
-          ).trim();
-
-        const nextUuid =
-          String(
-            uuid ??
-              authUser?.minecraft_uuid ??
-              '',
-          ).trim();
-
-        if (aborted) {
-          return;
-        }
-
-        setEffectiveLoggedIn(
-          nextLoggedIn,
-        );
-        setEffectiveUsername(
-          nextUsername,
-        );
-        setRole(nextRole);
-        setRoleLoaded(true);
-
-        if (nextUuid) {
-          setResolvedUUID(
-            nextUuid,
-          );
-        } else {
-          setResolvedUUID(null);
-
-          if (nextUsername) {
-            void fetchUuidByName(
-              nextUsername,
-            );
-          }
-        }
-      } catch {
-        if (aborted) {
-          return;
-        }
-
-        /*
-         * API가 일시적으로 실패하면 호출부에서 전달한
-         * 로그인 정보는 유지하고 권한만 보수적으로 guest 처리한다.
-         */
-        setEffectiveLoggedIn(
-          isLoggedIn,
-        );
-        setEffectiveUsername(
-          username || '',
-        );
-        setResolvedUUID(
-          uuid || null,
-        );
-        setRole('guest');
-        setRoleLoaded(true);
-      } finally {
-        if (!aborted) {
-          setAuthChecking(false);
-        }
-      }
-    })();
-
-    return () => {
-      aborted = true;
-    };
-  }, [
-    isOpen,
-    isLoggedIn,
-    username,
-    uuid,
-  ]);
+  useEffect(() => {
+    if (!isOpen || !effectiveLoggedIn || !effectiveUsername) return;
+    if (uuid) { setResolvedUUID(uuid); return; }
+    const controller = new AbortController();
+    setResolvedUUID(null);
+    void fetch(`/api/mojang/uuid?name=${encodeURIComponent(effectiveUsername)}`, {
+      cache: 'no-store', signal: controller.signal,
+    }).then(async response => response.ok ? response.json() : null).then(payload => {
+      if (!controller.signal.aborted && typeof payload?.uuid === 'string') setResolvedUUID(payload.uuid);
+    }).catch(() => { /* Skin lookup does not change authentication. */ });
+    return () => controller.abort();
+  }, [isOpen, effectiveLoggedIn, effectiveUsername, uuid]);
 
   useEffect(() => {
     if (!isOpen) {
@@ -606,6 +362,8 @@ export default function HamburgerMenu({
     role === 'admin';
 
   const permissionMessage =
+    authChecking ? '로그인 및 권한 정보를 확인하고 있습니다. 잠시 후 다시 시도해주세요.' :
+    auth.degraded ? '서버 연결 문제로 권한을 확인하지 못했습니다. 잠시 후 다시 시도해주세요.' :
     !effectiveLoggedIn
       ? '로그인이 필요합니다.'
       : '권한이 없습니다.\n관리자에게 문의해주세요.';

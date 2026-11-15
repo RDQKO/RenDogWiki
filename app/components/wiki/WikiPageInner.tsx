@@ -6,6 +6,9 @@
 'use client';
 
 import { useState, useEffect, useRef, useMemo } from 'react';
+import { consumeNextDocumentHeading } from '@/wiki/lib/documentScrollIntent';
+import { useAuth } from '@/components/auth/AuthProvider';
+import { revealCollapsedAncestors } from '@/wiki/lib/collapsible';
 import WikiHeader from '@/components/common/Header';
 import WikiReadRenderer from '@/wiki/lib/WikiReadRenderer';
 import { extractHeadings } from '@/wiki/lib/extractHeadings';
@@ -38,6 +41,8 @@ import {
   markNextDocViewSource,
 } from '@/wiki/lib/viewSource';
 import '@/wiki/css/wiki-final-polish.css';
+import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
+import { faCheck, faLink, faStar } from '@fortawesome/free-solid-svg-icons';
 import {
   DEFAULT_WIKI_DOCUMENT_ID,
   DEFAULT_WIKI_DOCUMENT_PATH_ID,
@@ -267,100 +272,6 @@ async function fetchDocJsonWithRetry(
   throw lastError ?? new Error('doc-fetch-failed');
 }
 
-// ---- 권한 체크(Writer+)
-function useCanWrite(user: Props['user']) {
-  const [can, setCan] = useState(false);
-
-  useEffect(() => {
-    let cancelled = false;
-
-    if (!user) {
-      setCan(false);
-      return;
-    }
-
-    (async () => {
-      try {
-        const res = await fetch('/api/auth/me', {
-          cache: 'no-store',
-          credentials: 'include',
-        });
-
-        if (!res.ok) {
-          if (!cancelled) setCan(false);
-          return;
-        }
-
-        const data = await res.json();
-        const role = String(
-          data?.role ??
-          data?.user?.role ??
-          '',
-        ).toLowerCase();
-
-        const rawPermissions =
-          data?.permissions ??
-          data?.roles ??
-          data?.user?.permissions ??
-          data?.user?.roles ??
-          [];
-
-        const perms = Array.isArray(rawPermissions)
-          ? rawPermissions
-              .map((value: unknown) => {
-                if (
-                  value &&
-                  typeof value === 'object'
-                ) {
-                  const row =
-                    value as Record<string, unknown>;
-
-                  return String(
-                    row.name ??
-                    row.role ??
-                    row.permission ??
-                    row.key ??
-                    '',
-                  ).toLowerCase();
-                }
-
-                return String(
-                  value ?? '',
-                ).toLowerCase();
-              })
-              .filter(Boolean)
-          : [];
-
-        const allowed =
-          Boolean(
-            data?.canWrite ??
-            data?.user?.canWrite,
-          ) ||
-          Boolean(
-            data?.isAdmin ??
-            data?.user?.isAdmin,
-          ) ||
-          role === 'writer' ||
-          role === 'admin' ||
-          role === 'manager' ||
-          perms.includes('writer') ||
-          perms.includes('admin') ||
-          perms.includes('manager');
-
-        if (!cancelled) setCan(allowed);
-      } catch {
-        if (!cancelled) setCan(false);
-      }
-    })();
-
-    return () => {
-      cancelled = true;
-    };
-  }, [user?.id]);
-
-  return can;
-}
-
 // ---- Special 파서
 type SpecialMeta =
   | { kind: 'quest' | 'npc' | 'head'; label: string; village: string }
@@ -402,7 +313,9 @@ function parseSpecial(raw?: string | null): SpecialMeta {
   return { kind, label, village };
 }
 
-export default function WikiPageInner({ user }: Props) {
+export default function WikiPageInner({ user: initialUser }: Props) {
+  const auth = useAuth();
+  const user = auth.user ?? initialUser;
   const DEFAULT_MODE = 'RPG';
   const [mode, setMode] = useState<string>(getInitialMode() ?? DEFAULT_MODE);
   const [quickBadgeMode, setQuickBadgeMode] = useState<DocBadgeMode>('quick');
@@ -418,6 +331,8 @@ export default function WikiPageInner({ user }: Props) {
   const [allDocuments, setAllDocuments] = useState<Document[]>([]);
 
   const [selectedDocId, setSelectedDocId] = useState<number | null>(null);
+  const selectedDocIdRef = useRef(selectedDocId);
+  selectedDocIdRef.current = selectedDocId;
   const [selectedDocTitle, setSelectedDocTitle] = useState<string | null>(null);
   const [selectedDocPath, setSelectedDocPath] = useState<number[] | null>(null);
   const [selectedCategoryPath, setSelectedCategoryPath] = useState<
@@ -606,7 +521,7 @@ export default function WikiPageInner({ user }: Props) {
     };
   }, []);
 
-  const canWrite = useCanWrite(user);
+  const canWrite = auth.canWrite;
   const ignoreNextUrlSyncRef = useRef(false);
   const router = useRouter();
   const searchParams = useSearchParams();
@@ -861,7 +776,11 @@ export default function WikiPageInner({ user }: Props) {
     };
 
     const onSearchHashNav = (evt: Event) => {
-      const detail = (evt as CustomEvent<{ domId?: string }>).detail;
+      const detail = (evt as CustomEvent<{ domId?: string; documentId?: number }>).detail;
+      if (detail?.documentId != null) {
+        if (detail.documentId !== selectedDocIdRef.current) return;
+        consumeNextDocumentHeading(detail.documentId);
+      }
       const requestedHash = detail?.domId
         ? `#${detail.domId}`
         : window.location.hash;
@@ -872,6 +791,14 @@ export default function WikiPageInner({ user }: Props) {
       });
     };
 
+    const onTopNav = () => {
+      cancelHeadingScrollCorrection();
+      const url = new URL(window.location.href);
+      url.hash = '';
+      window.history.replaceState(window.history.state, '', url);
+      scrollDocumentToTop();
+    };
+    window.addEventListener('rdwiki:document-top-nav', onTopNav);
     window.addEventListener('hashchange', onHashChange);
     window.addEventListener(
       'rdwiki:search-hash-nav',
@@ -879,6 +806,7 @@ export default function WikiPageInner({ user }: Props) {
     );
 
     return () => {
+      window.removeEventListener('rdwiki:document-top-nav', onTopNav);
       window.removeEventListener('hashchange', onHashChange);
       window.removeEventListener(
         'rdwiki:search-hash-nav',
@@ -1046,6 +974,7 @@ export default function WikiPageInner({ user }: Props) {
 
       const target = document.getElementById(domId);
       if (!target) return false;
+      revealCollapsedAncestors(target);
 
       const scrollParent = getPreferredScrollContainer(target) || null;
 
@@ -1466,6 +1395,7 @@ export default function WikiPageInner({ user }: Props) {
         const mod = await import('@/wiki/lib/buildCategoryTree');
         const tree = mod.buildCategoryTree(catData) as CategoryNode[];
         if (cancelled || !mountedRef.current) return;
+        lastOpenedUrlRef.current = null;
         setCategories(tree);
 
         // 맵/경로 구축
@@ -1527,14 +1457,19 @@ export default function WikiPageInner({ user }: Props) {
   }, [mode]);
 
   // 쿼리 진입: /wiki?path=...&title=...
-  // ✅ allDocuments/카테고리 맵이 준비된 뒤 실행되며, 루트(path=0)는 id 우선 로딩
+  const lastOpenedUrlRef = useRef<string | null>(null);
+
+  // Open each document URL once; metadata refreshes must not replay its old anchor.
   useEffect(() => {
     if (!bootstrapReady) return;
 
+    const documentUrl = `${window.location.pathname}?${searchParams.toString()}`;
     if (ignoreNextUrlSyncRef.current) {
       ignoreNextUrlSyncRef.current = false;
+      lastOpenedUrlRef.current = documentUrl;
       return;
     }
+    if (!popNavigationRef.current && lastOpenedUrlRef.current === documentUrl) return;
 
     const idParamRaw = searchParams.get('id');
     const idParam = idParamRaw ? Number(idParamRaw) : NaN;
@@ -1543,8 +1478,10 @@ export default function WikiPageInner({ user }: Props) {
     const titleParam = titleParamRaw ? titleParamRaw.replace(/_/g, ' ') : null;
 
     if (Number.isFinite(idParam) && idParam > 0) {
+      lastOpenedUrlRef.current = documentUrl;
+      const requestedHash = consumeNextDocumentHeading(idParam);
       if (typeof window !== 'undefined') {
-        preparePendingScrollForOpen(window.location.hash, popNavigationRef.current);
+        preparePendingScrollForOpen(requestedHash, popNavigationRef.current);
       }
 
       const meta = allDocuments.find((d) => d.id === idParam) ?? null;
@@ -1563,15 +1500,17 @@ export default function WikiPageInner({ user }: Props) {
         skipUrlSync: true,
         clearCategoryPath: true,
         presetPath: isRoot ? [] : fullPath,
-        requestedHash: window.location.hash,
+        requestedHash,
         isPopNavigation: popNavigationRef.current,
       });
       return;
     }
     if (!pathParam || !titleParam) return;
+    if (allDocuments.length === 0) return;
+    lastOpenedUrlRef.current = documentUrl;
 
     if (typeof window !== 'undefined') {
-      preparePendingScrollForOpen(window.location.hash, popNavigationRef.current);
+      preparePendingScrollForOpen('', popNavigationRef.current);
     }
 
     const openByIdIfFound = (isRoot: boolean, id?: number, presetPath?: number[] | null) => {
@@ -1583,7 +1522,7 @@ export default function WikiPageInner({ user }: Props) {
           skipUrlSync: true,
           deferVisibleState: true,
           presetPath: isRoot ? [] : (presetPath ?? []),
-          requestedHash: window.location.hash,
+          requestedHash: '',
           isPopNavigation: popNavigationRef.current,
         });
         return true;
@@ -1610,7 +1549,7 @@ export default function WikiPageInner({ user }: Props) {
         skipUrlSync: true,
         deferVisibleState: true,
         presetPath: [],
-        requestedHash: window.location.hash,
+        requestedHash: '',
         isPopNavigation: popNavigationRef.current,
       });
     } else {
@@ -1623,7 +1562,7 @@ export default function WikiPageInner({ user }: Props) {
           skipUrlSync: true,
           deferVisibleState: true,
           presetPath: fullPath,
-          requestedHash: window.location.hash,
+          requestedHash: '',
           isPopNavigation: popNavigationRef.current,
         });
       }
@@ -1779,6 +1718,11 @@ export default function WikiPageInner({ user }: Props) {
     );
 
     if (!hasExplicitRequestedHeading) {
+      const url = new URL(window.location.href);
+      if (url.hash) {
+        url.hash = '';
+        window.history.replaceState(window.history.state, '', url);
+      }
       resetTopScrollImmediatelyIfNeeded();
     }
 
@@ -2043,6 +1987,11 @@ export default function WikiPageInner({ user }: Props) {
     );
 
     if (!hasExplicitRequestedHeading) {
+      const url = new URL(window.location.href);
+      if (url.hash) {
+        url.hash = '';
+        window.history.replaceState(window.history.state, '', url);
+      }
       resetTopScrollImmediatelyIfNeeded();
     }
 
@@ -3005,14 +2954,7 @@ export default function WikiPageInner({ user }: Props) {
                   />
                 </div>
 
-                <div
-                  style={{
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'space-between',
-                    gap: 12,
-                  }}
-                >
+                <div className="wiki-doc-header">
                   <div className="wiki-doc-title-wrap">
                     <h2 className="wiki-content-title-row wiki-content-title">
                       {currentDoc?.icon ? (
@@ -3061,7 +3003,7 @@ export default function WikiPageInner({ user }: Props) {
                         title="문서 링크 복사"
                         aria-label="문서 링크 복사"
                       >
-                        {copiedDocLink ? '✔' : '🔗'}
+                        <FontAwesomeIcon icon={copiedDocLink ? faCheck : faLink} />
                       </button>
 
                       <button
@@ -3073,8 +3015,9 @@ export default function WikiPageInner({ user }: Props) {
                         onClick={handleToggleCurrentDocFavorite}
                         title={currentDocFavorited ? '즐겨찾기 해제' : '즐겨찾기 추가'}
                         aria-label={currentDocFavorited ? '즐겨찾기 해제' : '즐겨찾기 추가'}
+                        aria-pressed={currentDocFavorited}
                       >
-                        {currentDocFavorited ? '★' : '☆'}
+                        <FontAwesomeIcon icon={faStar} />
                       </button>
                     </h2>
                   </div>
@@ -3218,6 +3161,7 @@ export default function WikiPageInner({ user }: Props) {
                 ) : Array.isArray(docContent) && docContent.length > 0 ? (
                   <div className="wiki-read-mobile-scope">
                     <WikiReadRenderer
+                      key={selectedDocId}
                       content={docContent}
                       readOnly
                       onWikiRefClick={handleWikiRefClick}
@@ -3346,6 +3290,18 @@ export default function WikiPageInner({ user }: Props) {
           opacity: 1;
         }
 
+        .wiki-doc-header {
+          display: flex;
+          align-items: center;
+          justify-content: space-between;
+          gap: 12px;
+        }
+
+        .wiki-doc-header > .wiki-doc-title-wrap {
+          flex: 1;
+          min-width: 0;
+        }
+
         .wiki-doc-title-wrap {
           display: flex;
           align-items: center;
@@ -3435,8 +3391,7 @@ export default function WikiPageInner({ user }: Props) {
           background: transparent;
           color: #9ca3af;
           font-size: 13px;
-          opacity: 0;
-          pointer-events: none;
+          opacity: 0.6;
           cursor: pointer;
           transition: all 0.15s ease;
         }
@@ -3471,12 +3426,6 @@ export default function WikiPageInner({ user }: Props) {
         .wiki-doc-favorite-btn--active {
           background: #fff7ed;
           color: #f59e0b;
-        }
-
-        @import url('https://fonts.googleapis.com/css2?family=Jua&display=swap');
-        :root {
-          --wiki-round-font: 'Jua', 'Pretendard', 'Malgun Gothic',
-            system-ui, sans-serif;
         }
 
         .wiki-paged-section {
@@ -3917,12 +3866,10 @@ function FaqAddButton({ onClick }: { onClick: () => void }) {
           flex: 0 0 auto;
           align-items: stretch;
           overflow: hidden;
-          background: linear-gradient(180deg, #66b968 0%, #51a75a 100%);
-          border: 1px solid rgba(46, 128, 57, 0.44);
-          border-radius: 13px;
-          box-shadow:
-            0 9px 20px rgba(68, 153, 78, 0.2),
-            inset 0 1px 0 rgba(255, 255, 255, 0.24);
+          background: var(--rd-btn-primary-bg);
+          border: 1px solid var(--rd-btn-primary-bg);
+          border-radius: 11px;
+          box-shadow: 0 6px 14px rgba(47, 135, 72, 0.2);
         }
 
         .faq-add-seg {
@@ -3931,7 +3878,7 @@ function FaqAddButton({ onClick }: { onClick: () => void }) {
           align-items: center;
           gap: 8px;
           padding: 0 15px;
-          color: #fff;
+          color: var(--rd-btn-primary-fg);
           font-size: 13px;
           font-weight: 800;
           line-height: 1;
@@ -3953,8 +3900,8 @@ function FaqAddButton({ onClick }: { onClick: () => void }) {
         }
 
         .faq-add-seg:focus-visible {
-          outline: none;
-          box-shadow: inset 0 0 0 2px rgba(56, 179, 93, 0.18);
+          outline: 2px solid #fff;
+          outline-offset: -5px;
         }
 
         .faq-add-ic {

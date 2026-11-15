@@ -18,7 +18,7 @@ const MIN_LENGTH = 8;
 export async function PUT(req: NextRequest) {
   try {
     // 1) 인증 확인
-    const auth = getAuthUser();
+    const auth = await getAuthUser();
     if (!auth) {
       return NextResponse.json(
         { error: '인증 필요' },
@@ -40,9 +40,9 @@ export async function PUT(req: NextRequest) {
       );
     }
 
-    if (newPassword.length < MIN_LENGTH) {
+    if (newPassword.length < MIN_LENGTH || Buffer.byteLength(newPassword, 'utf8') > 72) {
       return NextResponse.json(
-        { error: `새 비밀번호는 ${MIN_LENGTH}자 이상이어야 합니다.` },
+        { error: `새 비밀번호는 ${MIN_LENGTH}자 이상, UTF-8 기준 72바이트 이내여야 합니다.` },
         { status: 400, headers: { 'Cache-Control': 'no-store' } }
       );
     }

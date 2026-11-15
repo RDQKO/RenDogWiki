@@ -82,7 +82,7 @@ export async function PATCH(req: NextRequest) {
     await sql`UPDATE image_folders SET name = ${name} WHERE id = ${idNum}`;
 
     // 5) 활동 로그 -> 사용자명은 로그인 정보 우선, 없으면 헤더
-    const user = getAuthUser();
+    const user = await getAuthUser();
     const username = user?.minecraft_name ?? req.headers.get('x-wiki-username') ?? null;
 
     await logActivity({

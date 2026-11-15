@@ -11,6 +11,7 @@
 
 import { NextResponse } from 'next/server';
 import Ably from 'ably';
+import { requireRole } from '@/wiki/lib/requireRole';
 
 export const dynamic = 'force-dynamic';
 export const runtime = 'nodejs';
@@ -20,6 +21,12 @@ const MAX_PAYLOAD_BYTES = 64 * 1024; // 64KB
 
 export async function POST(req: Request) {
   try {
+    const gate = await requireRole(['admin']);
+    if (!gate.ok) {
+      return NextResponse.json({ error: gate.error }, {
+        status: gate.status, headers: { 'Cache-Control': 'no-store' },
+      });
+    }
     // 1) 본문 파싱
     const body = await req.json().catch(() => ({} as any));
     const rawType = body?.type;
@@ -46,7 +53,7 @@ export async function POST(req: Request) {
     // 4) payload 직렬화 및 크기 제한
     //    기존 코드와 동일하게 문자열(JSON)로 전송 -> 클라이언트 호환 유지
     const serialized = JSON.stringify(data);
-    if (serialized.length > MAX_PAYLOAD_BYTES) {
+    if (Buffer.byteLength(serialized, 'utf8') > MAX_PAYLOAD_BYTES) {
       return NextResponse.json(
         { ok: false, error: 'payload-too-large' },
         { status: 413, headers: { 'Cache-Control': 'no-store', 'X-App-Cache': 'OFF' } }

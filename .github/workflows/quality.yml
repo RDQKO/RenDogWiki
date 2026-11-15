@@ -1,0 +1,34 @@
+name: Wiki quality checks
+on:
+  pull_request:
+  workflow_dispatch:
+permissions:
+  contents: read
+concurrency:
+  group: wiki-quality-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    env:
+      NEXT_TELEMETRY_DISABLED: '1'
+      DATABASE_URL: postgres://postgres:postgres@127.0.0.1:6543/postgres
+      DB_SSL: disable
+      JWT_SECRET: local-audit-build-secret-2026
+      MANAGE_DELETE_PASSWORD: local-audit-delete
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v7
+        with:
+          node-version: '22'
+          cache: npm
+      - run: npm ci
+      - run: npm test
+      - run: npm run lint
+      - run: npm run build
+      - run: npm run typecheck
+      - run: npm run test:http
+      - run: npm audit --audit-level=high

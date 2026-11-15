@@ -23,7 +23,7 @@ export const DOCUMENT_DETAIL_CACHE_SECONDS =
   60 * 60 * 24;
 
 const DOCUMENT_DETAIL_CACHE_VERSION =
-  'document:detail:v5';
+  'document:detail:v6';
 
 const DOCUMENT_CONTENT_CACHE_TAG =
   'document:content:v5';
@@ -54,17 +54,11 @@ type DocumentRow = {
   content?: unknown;
 };
 
-/**
- * 기존 호출부 호환용입니다.
- *
- * 고정된 unstable_cache 함수에서는 options.tags를 문서 ID별로
- * 동적으로 만들 수 없으므로 문서 본문 전체가 하나의 태그를 공유합니다.
- * 캐시 키 자체에는 함수 인자 id가 포함되므로 문서별 결과는 분리됩니다.
- */
+/** Shared cache keys and invalidation tags are both scoped to one document. */
 export function documentCacheTag(
-  _id: number,
+  id: number,
 ) {
-  return DOCUMENT_CONTENT_CACHE_TAG;
+  return `${DOCUMENT_CONTENT_CACHE_TAG}:${id}`;
 }
 
 function toContentArray(
@@ -191,32 +185,6 @@ export async function getDocumentByIdFresh(
 }
 
 /**
- * 모듈이 로드될 때 한 번만 생성되는 고정 Data Cache 함수입니다.
- *
- * Next.js unstable_cache는 호출 인자를 캐시 키에 포함하므로
- * 문서별 결과는 id 기준으로 서로 분리됩니다.
- */
-const loadCachedDocumentById =
-  unstable_cache(
-    async (
-      id: number,
-    ): Promise<CachedDocument | null> =>
-      await getDocumentByIdFresh(
-        id,
-      ),
-    [
-      DOCUMENT_DETAIL_CACHE_VERSION,
-    ],
-    {
-      revalidate:
-        DOCUMENT_DETAIL_CACHE_SECONDS,
-      tags: [
-        DOCUMENT_CONTENT_CACHE_TAG,
-      ],
-    },
-  );
-
-/**
  * 문서 ID별 24시간 공유 Data Cache입니다.
  *
  * 검색과 문서 열람이 이 함수를 함께 사용하므로,
@@ -233,9 +201,11 @@ export async function getCachedDocumentById(
     return null;
   }
 
-  return await loadCachedDocumentById(
-    id,
-  );
+  return unstable_cache(
+    async () => getDocumentByIdFresh(id),
+    [DOCUMENT_DETAIL_CACHE_VERSION, String(id)],
+    { revalidate: DOCUMENT_DETAIL_CACHE_SECONDS, tags: [documentCacheTag(id)] },
+  )();
 }
 
 /**
@@ -330,7 +300,7 @@ export async function getCachedDocumentsByIds(
  * 문서 저장/삭제 직후 호출합니다.
  *
  * 수정은 상대적으로 드문 관리 작업이므로 문서 하나가 바뀌면
- * 공유 본문 태그를 비웁니다. 다음 실제 열람/검색 시 필요한 문서만
+ * 해당 문서의 공유 본문 태그를 비웁니다. 다음 실제 열람/검색 시 필요한 문서만
  * 다시 채워지며 브라우저/API 응답은 계속 no-store입니다.
  */
 export function invalidateDocumentCache(
@@ -344,6 +314,6 @@ export function invalidateDocumentCache(
   }
 
   revalidateTag(
-    DOCUMENT_CONTENT_CACHE_TAG,
+    documentCacheTag(id),
   );
 }

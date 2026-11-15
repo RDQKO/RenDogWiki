@@ -1,3 +1,4 @@
+import { boundedInteger } from '@/wiki/lib/apiInput';
 // =============================================
 // File: app/api/search/quest/route.ts
 // (새 파일 전체 코드)
@@ -31,10 +32,7 @@ export async function GET(req: NextRequest) {
   try {
     const sp = req.nextUrl.searchParams;
     const raw = (sp.get('query') ?? '').trim();
-    const lim = Number(sp.get('limit'));
-    const limit = Number.isFinite(lim)
-      ? Math.min(50, Math.max(1, Math.trunc(lim)))
-      : 10;
+    const limit = boundedInteger(sp.get('limit'), 10, 1, 50);
 
     if (!raw) {
       return NextResponse.json([], {

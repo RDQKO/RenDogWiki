@@ -228,7 +228,7 @@
   display: inline-block;
   margin-bottom: 4px;
   color: #4f8757;
-  font-size: 11px;
+  font-size: 12px;
   font-weight: 850;
   letter-spacing: 0.06em;
 }
@@ -250,7 +250,7 @@
 .faq-upsert-header p {
   margin: 5px 0 0;
   color: #7a847c;
-  font-size: 12px;
+  font-size: 13.5px;
   font-weight: 620;
   line-height: 1.5;
 }
@@ -317,7 +317,7 @@
   align-items: center;
   gap: 7px;
   color: #273029;
-  font-size: 12px;
+  font-size: 13.5px;
   font-weight: 850;
 }
 
@@ -328,7 +328,7 @@
   align-items: center;
   box-sizing: border-box;
   padding: 0 7px;
-  font-size: 9px;
+  font-size: 11px;
   font-style: normal;
   font-weight: 850;
   border-radius: 999px;
@@ -356,7 +356,7 @@
   box-sizing: border-box;
   color: #202921;
   font: inherit;
-  font-size: 13px;
+  font-size: 15px;
   font-weight: 620;
   background:
     rgba(255, 255, 255, 0.96);
@@ -399,7 +399,7 @@
 
 .faq-form-field > small {
   color: #929c94;
-  font-size: 10px;
+  font-size: 12px;
   font-weight: 650;
 }
 
@@ -430,7 +430,7 @@ small {
   box-sizing: border-box;
   padding: 0 9px;
   color: #527357;
-  font-size: 11px;
+  font-size: 12.5px;
   font-weight: 760;
   white-space: nowrap;
   background: #f4faf2;
@@ -443,7 +443,7 @@ small {
 .faq-form-message {
   min-height: 19px;
   color: #879188;
-  font-size: 11px;
+  font-size: 12.5px;
   font-weight: 680;
   line-height: 1.5;
 }
@@ -477,7 +477,7 @@ small {
   gap: 8px;
   box-sizing: border-box;
   padding: 0 15px;
-  font-size: 12px;
+  font-size: 14px;
   font-weight: 830;
   white-space: nowrap;
   cursor: pointer;
@@ -499,19 +499,10 @@ small {
 
 .faq-upsert-submit {
   min-width: 110px;
-  color: #fff;
-  background:
-    linear-gradient(
-      180deg,
-      #63b669,
-      #50a558
-    );
-  border:
-    1px solid
-    #46984f;
-  box-shadow:
-    0 8px 18px
-    rgba(66, 148, 75, 0.18);
+  color: var(--rd-btn-primary-fg, #fff);
+  background: var(--rd-btn-primary-bg, #2f8748);
+  border: 1px solid var(--rd-btn-primary-bg, #2f8748);
+  box-shadow: 0 6px 14px rgba(47, 135, 72, 0.2);
 }
 
 .faq-upsert-cancel:hover:not(
@@ -534,12 +525,8 @@ small {
 .faq-upsert-submit:hover:not(
   :disabled
 ) {
-  background:
-    linear-gradient(
-      180deg,
-      #5aae61,
-      #489b51
-    );
+  background: var(--rd-btn-primary-bg-hover, #26733c);
+  border-color: var(--rd-btn-primary-bg-hover, #26733c);
 }
 
 .faq-upsert-cancel:disabled,
@@ -909,339 +896,10 @@ body > .faq-modal-backdrop .qa-text {
   overflow-wrap: anywhere !important;
 }
 
-/* ===== 검색 결과에서 여는 기존 FAQ 상세 모달 =====
-   SearchBox의 inline style보다 우선하도록 구조와 !important를 사용한다. */
-
-body div[style*='z-index: 10000'][style*='position: fixed'],
-body div[style*='z-index:10000'][style*='position:fixed'] {
-  position: fixed !important;
-  inset: 0 !important;
-  z-index: 10000 !important;
-  display: grid !important;
-  width: 100vw !important;
-  height: 100dvh !important;
-  place-items: center !important;
-  box-sizing: border-box !important;
-  margin: 0 !important;
-  padding: 16px !important;
-  overflow: auto !important;
-  background: rgba(0, 0, 0, 0.45) !important;
-}
-
-/* 검색 FAQ 모달의 최상위 카드 */
-body div[style*='z-index: 10000'][style*='position: fixed'] > div,
-body div[style*='z-index:10000'][style*='position:fixed'] > div {
-  position: relative !important;
-  width: min(760px, 100%) !important;
-  max-width: 760px !important;
-  max-height: calc(100dvh - 32px) !important;
-  box-sizing: border-box !important;
-  margin: auto !important;
-  padding: 18px 18px 20px !important;
-  overflow: auto !important;
-  color: var(--foreground, #0f172a) !important;
-  background: var(--surface-elevated, #fff) !important;
-  border: 1px solid var(--border, #e5e7eb) !important;
-  border-radius: 20px !important;
-  box-shadow: var(
-    --shadow-xl,
-    0 24px 80px rgba(0, 0, 0, 0.28)
-  ) !important;
-}
-
-/* 검색 FAQ 모달 헤더 */
-body div[style*='z-index: 10000'][style*='position: fixed']
-  > div
-  > div:first-child,
-body div[style*='z-index:10000'][style*='position:fixed']
-  > div
-  > div:first-child {
-  display: flex !important;
-  align-items: center !important;
-  justify-content: space-between !important;
-  gap: 10px !important;
-  margin: 0 0 8px !important;
-  padding: 0 !important;
-  border: 0 !important;
-}
-
-body div[style*='z-index: 10000'][style*='position: fixed']
-  > div
-  > div:first-child
-  > div:first-child,
-body div[style*='z-index:10000'][style*='position:fixed']
-  > div
-  > div:first-child
-  > div:first-child {
-  display: inline-flex !important;
-  min-width: 0 !important;
-  align-items: center !important;
-  gap: 12px !important;
-}
-
-body div[style*='z-index: 10000'][style*='position: fixed']
-  > div
-  > div:first-child
-  span:first-child,
-body div[style*='z-index:10000'][style*='position:fixed']
-  > div
-  > div:first-child
-  span:first-child {
-  display: inline-flex !important;
-  width: 22px !important;
-  height: 22px !important;
-  flex: 0 0 22px !important;
-  align-items: center !important;
-  justify-content: center !important;
-  color: #1d4ed8 !important;
-  font-size: 13.5px !important;
-  font-weight: 900 !important;
-  line-height: 1 !important;
-  background: rgba(59, 130, 246, 0.12) !important;
-  border: 0 !important;
-  border-radius: 999px !important;
-  transform: translateY(-1px) !important;
-}
-
-body div[style*='z-index: 10000'][style*='position: fixed']
-  > div
-  > div:first-child
-  h3,
-body div[style*='z-index:10000'][style*='position:fixed']
-  > div
-  > div:first-child
-  h3 {
-  min-width: 0 !important;
-  margin: 0 !important;
-  color: var(--foreground, #0f172a) !important;
-  font-size: 20px !important;
-  font-weight: 800 !important;
-  line-height: 1.4 !important;
-  word-break: break-word !important;
-}
-
-body div[style*='z-index: 10000'][style*='position: fixed']
-  > div
-  > div:first-child
-  button,
-body div[style*='z-index:10000'][style*='position:fixed']
-  > div
-  > div:first-child
-  button {
-  display: grid !important;
-  width: 36px !important;
-  height: 36px !important;
-  flex: 0 0 36px !important;
-  place-items: center !important;
-  box-sizing: border-box !important;
-  padding: 0 !important;
-  color: #ef4444 !important;
-  cursor: pointer !important;
-  background: transparent !important;
-  border: 0 !important;
-  border-radius: 10px !important;
-}
-
-/* 검색 FAQ 모달의 두 번째 자식은 답변 래퍼이고,
-   그 안의 첫 번째 div가 실제 답변 카드다. */
-body div[style*='z-index: 10000'][style*='position: fixed']
-  > div
-  > div:nth-child(2),
-body div[style*='z-index:10000'][style*='position:fixed']
-  > div
-  > div:nth-child(2) {
-  display: block !important;
-  margin: 6px 0 0 !important;
-  padding: 0 !important;
-  background: transparent !important;
-  border: 0 !important;
-}
-
-body div[style*='z-index: 10000'][style*='position: fixed']
-  > div
-  > div:nth-child(2)
-  > div:first-child,
-body div[style*='z-index:10000'][style*='position:fixed']
-  > div
-  > div:nth-child(2)
-  > div:first-child {
-  display: flex !important;
-  align-items: flex-start !important;
-  gap: 12px !important;
-  box-sizing: border-box !important;
-  margin: 0 !important;
-  padding: 12px 14px !important;
-  color: var(--foreground, #111827) !important;
-  background: rgba(239, 68, 68, 0.06) !important;
-  border: 1px solid rgba(239, 68, 68, 0.14) !important;
-  border-radius: 12px !important;
-}
-
-body div[style*='z-index: 10000'][style*='position: fixed']
-  > div
-  > div:nth-child(2)
-  > div:first-child
-  > span:first-child,
-body div[style*='z-index:10000'][style*='position:fixed']
-  > div
-  > div:nth-child(2)
-  > div:first-child
-  > span:first-child {
-  display: inline-flex !important;
-  width: 22px !important;
-  height: 22px !important;
-  flex: 0 0 22px !important;
-  align-items: center !important;
-  justify-content: center !important;
-  color: #dc2626 !important;
-  font-size: 13.5px !important;
-  font-weight: 900 !important;
-  line-height: 1 !important;
-  background: rgba(239, 68, 68, 0.12) !important;
-  border: 0 !important;
-  border-radius: 999px !important;
-  transform: translateY(-1px) !important;
-}
-
-body div[style*='z-index: 10000'][style*='position: fixed']
-  > div
-  > div:nth-child(2)
-  > div:first-child
-  :is(pre, p),
-body div[style*='z-index:10000'][style*='position:fixed']
-  > div
-  > div:nth-child(2)
-  > div:first-child
-  :is(pre, p) {
-  min-width: 0 !important;
-  margin: 0 !important;
-  color: var(--foreground, #111827) !important;
-  font: inherit !important;
-  font-size: 14px !important;
-  line-height: 1.6 !important;
-  white-space: pre-wrap !important;
-  overflow-wrap: anywhere !important;
-}
-
-/* FAQ 영역 상세 모달에는 태그 행이 없으므로 검색 모달도 동일하게 숨긴다. */
-body div[style*='z-index: 10000'][style*='position: fixed']
-  > div
-  > div:nth-child(2)
-  > div:nth-child(n + 2),
-body div[style*='z-index:10000'][style*='position:fixed']
-  > div
-  > div:nth-child(2)
-  > div:nth-child(n + 2) {
-  display: none !important;
-}
-
-[data-theme='dark'] body > .faq-modal-backdrop .faq-qa.q,
-[data-theme='dark']
-  body
-  div[style*='z-index: 10000'][style*='position: fixed']
-  > div
-  > div:first-child
-  span:first-child {
-  color: #93c5fd !important;
-  background: rgba(96, 165, 250, 0.18) !important;
-}
-
-[data-theme='dark'] body > .faq-modal-backdrop .faq-qa.a,
-[data-theme='dark']
-  body
-  div[style*='z-index: 10000'][style*='position: fixed']
-  > div
-  > div:nth-child(2)
-  > div:first-child
-  > span:first-child {
-  color: #fca5a5 !important;
-  background: rgba(248, 113, 113, 0.18) !important;
-}
-
-[data-theme='dark'] body > .faq-modal-backdrop .qa-line.a,
-[data-theme='dark']
-  body
-  div[style*='z-index: 10000'][style*='position: fixed']
-  > div
-  > div:nth-child(2)
-  > div:first-child {
-  background: rgba(248, 113, 113, 0.08) !important;
-  border-color: rgba(248, 113, 113, 0.18) !important;
-}
-
 @media (max-width: 768px) {
-  body > .faq-modal-backdrop,
-  body div[style*='z-index: 10000'][style*='position: fixed'],
-  body div[style*='z-index:10000'][style*='position:fixed'] {
-    padding: 10px !important;
-  }
-
-  body > .faq-modal-backdrop > .faq-modal,
-  body div[style*='z-index: 10000'][style*='position: fixed'] > div,
-  body div[style*='z-index:10000'][style*='position:fixed'] > div {
-    width: min(100%, 340px) !important;
-    max-height: calc(100dvh - 20px) !important;
-    padding: 12px 12px 14px !important;
-    border-radius: 14px !important;
-  }
 
   body > .faq-modal-backdrop .faq-modal-title {
     gap: 8px !important;
-  }
-
-  body > .faq-modal-backdrop .faq-modal-title h3,
-  body div[style*='z-index: 10000'][style*='position: fixed']
-    > div
-    > div:first-child
-    h3 {
-    font-size: 12px !important;
-    line-height: 1.35 !important;
-  }
-
-  body > .faq-modal-backdrop .faq-modal-close,
-  body div[style*='z-index: 10000'][style*='position: fixed']
-    > div
-    > div:first-child
-    button {
-    width: 30px !important;
-    height: 30px !important;
-    flex-basis: 30px !important;
-  }
-
-  body > .faq-modal-backdrop .faq-qa,
-  body div[style*='z-index: 10000'][style*='position: fixed']
-    > div
-    > div:first-child
-    span:first-child,
-  body div[style*='z-index: 10000'][style*='position: fixed']
-    > div
-    > div:nth-child(2)
-    > div:first-child
-    > span:first-child {
-    width: 18px !important;
-    height: 18px !important;
-    flex-basis: 18px !important;
-    font-size: 10px !important;
-  }
-
-  body > .faq-modal-backdrop .qa-line,
-  body div[style*='z-index: 10000'][style*='position: fixed']
-    > div
-    > div:nth-child(2)
-    > div:first-child {
-    gap: 8px !important;
-    padding: 8px 9px !important;
-    border-radius: 10px !important;
-  }
-
-  body > .faq-modal-backdrop .qa-text,
-  body div[style*='z-index: 10000'][style*='position: fixed']
-    > div
-    > div:nth-child(2)
-    > div:first-child
-    :is(pre, p) {
-    font-size: 12px !important;
-    line-height: 1.5 !important;
   }
 }
 
@@ -1277,89 +935,6 @@ body > .faq-modal-backdrop
 .faq-modal-title
 .faq-qa.q {
   transform: none !important;
-}
-
-/* 검색 영역 FAQ 상세 모달 */
-body div[style*='z-index: 10000'][style*='position: fixed']
-  > div
-  > div:first-child,
-body div[style*='z-index:10000'][style*='position:fixed']
-  > div
-  > div:first-child {
-  min-height: 40px !important;
-}
-
-body div[style*='z-index: 10000'][style*='position: fixed']
-  > div
-  > div:first-child
-  > div:first-child,
-body div[style*='z-index:10000'][style*='position:fixed']
-  > div
-  > div:first-child
-  > div:first-child {
-  min-height: 36px !important;
-  align-items: center !important;
-}
-
-body div[style*='z-index: 10000'][style*='position: fixed']
-  > div
-  > div:first-child
-  h3,
-body div[style*='z-index:10000'][style*='position:fixed']
-  > div
-  > div:first-child
-  h3 {
-  display: flex !important;
-  min-height: 36px !important;
-  align-items: center !important;
-  box-sizing: border-box !important;
-}
-
-body div[style*='z-index: 10000'][style*='position: fixed']
-  > div
-  > div:first-child
-  span:first-child,
-body div[style*='z-index:10000'][style*='position:fixed']
-  > div
-  > div:first-child
-  span:first-child {
-  transform: none !important;
-}
-
-@media (max-width: 768px) {
-  body > .faq-modal-backdrop
-  .faq-modal-header,
-  body div[style*='z-index: 10000'][style*='position: fixed']
-    > div
-    > div:first-child,
-  body div[style*='z-index:10000'][style*='position:fixed']
-    > div
-    > div:first-child {
-    min-height: 32px !important;
-  }
-
-  body > .faq-modal-backdrop
-  .faq-modal-title,
-  body > .faq-modal-backdrop
-  .faq-modal-title h3,
-  body div[style*='z-index: 10000'][style*='position: fixed']
-    > div
-    > div:first-child
-    > div:first-child,
-  body div[style*='z-index: 10000'][style*='position: fixed']
-    > div
-    > div:first-child
-    h3,
-  body div[style*='z-index:10000'][style*='position:fixed']
-    > div
-    > div:first-child
-    > div:first-child,
-  body div[style*='z-index:10000'][style*='position:fixed']
-    > div
-    > div:first-child
-    h3 {
-    min-height: 30px !important;
-  }
 }
 
 /* =============================================
@@ -1451,74 +1026,8 @@ body div[style*='z-index:10000'][style*='position:fixed']
  * 따라서 #wiki-scroll-root 내부의 다크모드 변수가 상속되지 않는다.
  * role=tooltip과 고유 z-index 조합으로 해당 미리보기만 지정한다.
  */
-:root[data-theme='dark']
-body
-> [role='tooltip'][style*='z-index: 9998'],
-:root[data-theme='dark']
-body
-> [role='tooltip'][style*='z-index:9998'],
-:is(
-  body[data-theme='dark'],
-  html.dark,
-  body.dark
-)
-body
-> [role='tooltip'][style*='z-index: 9998'],
-:is(
-  body[data-theme='dark'],
-  html.dark,
-  body.dark
-)
-body
-> [role='tooltip'][style*='z-index:9998'] {
-  --foreground: #edf5ef;
-  --muted: #a7b7ad;
-  --muted-2: #87998e;
-  --accent: #8ed69a;
-  --accent-soft: rgba(67, 123, 77, 0.34);
-  --surface: #111d17;
-  --surface-soft: #14241b;
-  --surface-elevated: #17271d;
-  --border: rgba(139, 194, 150, 0.2);
-  --border-strong: rgba(145, 207, 157, 0.3);
-  --shadow-lg:
-    0 20px 48px rgba(0, 0, 0, 0.42),
-    0 5px 16px rgba(0, 0, 0, 0.24);
-
-  color: var(--foreground) !important;
-  background: var(--surface-elevated) !important;
-  border-color: var(--border) !important;
-}
 
 /* 태그는 기존 보라색 잔색 대신 사이트의 초록 계열로 정리 */
-:root[data-theme='dark']
-body
-> [role='tooltip'][style*='z-index: 9998']
-span[style*='border-radius: 999'],
-:root[data-theme='dark']
-body
-> [role='tooltip'][style*='z-index:9998']
-span[style*='border-radius: 999'],
-:is(
-  body[data-theme='dark'],
-  html.dark,
-  body.dark
-)
-body
-> [role='tooltip'][style*='z-index: 9998']
-span[style*='border-radius: 999'],
-:is(
-  body[data-theme='dark'],
-  html.dark,
-  body.dark
-)
-body
-> [role='tooltip'][style*='z-index:9998']
-span[style*='border-radius: 999'] {
-  color: #95dca1 !important;
-  background: rgba(61, 118, 72, 0.36) !important;
-  border-color: rgba(135, 202, 148, 0.24) !important;
-}
 
 /* =============================================
    내부 링크 미리보기 정확한 선택자 보정

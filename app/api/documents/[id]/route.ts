@@ -10,7 +10,7 @@ export const revalidate = 0;
 
 function requestWithDocumentId(req: NextRequest, id: string): NextRequest {
   const url = new URL(req.url);
-  if (!url.searchParams.has('id')) url.searchParams.set('id', id);
+  url.searchParams.set('id', id);
   return new NextRequest(url, {
     method: req.method,
     headers: req.headers,
@@ -19,20 +19,16 @@ function requestWithDocumentId(req: NextRequest, id: string): NextRequest {
 
 export async function GET(
   req: NextRequest,
-  { params }: { params: { id: string } }
+  { params: pendingParams }: { params: Promise<{ id: string }> }
 ) {
-  const hasExplicitLookup =
-    req.nextUrl.searchParams.has('id') ||
-    req.nextUrl.searchParams.has('path') ||
-    req.nextUrl.searchParams.has('list') ||
-    req.nextUrl.searchParams.has('all');
-
-  return getDocuments(hasExplicitLookup ? req : requestWithDocumentId(req, params.id));
+  const params = await pendingParams;
+  return getDocuments(requestWithDocumentId(req, params.id));
 }
 
 export async function DELETE(
   req: NextRequest,
-  { params }: { params: { id: string } }
+  { params: pendingParams }: { params: Promise<{ id: string }> }
 ) {
+  const params = await pendingParams;
   return deleteDocument(requestWithDocumentId(req, params.id));
 }

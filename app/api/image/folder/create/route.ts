@@ -32,7 +32,7 @@ export async function POST(req: NextRequest) {
 
   try {
     // 1) 인증
-    const user = getAuthUser();
+    const user = await getAuthUser();
     if (!user) {
       return NextResponse.json(
         { error: '로그인 필요' },

@@ -64,7 +64,7 @@ export async function PATCH(req: NextRequest) {
     await sql`UPDATE images SET name = ${name} WHERE id = ${idNum}`;
 
     // 4) 활동 로그(폴더 라벨은 사람이 읽는 이름으로)
-    const user = getAuthUser();
+    const user = await getAuthUser();
     const username =
       user?.minecraft_name ?? req.headers.get('x-wiki-username') ?? null;
     const folderLabel = await resolveFolderName(old?.folder_id ?? null);

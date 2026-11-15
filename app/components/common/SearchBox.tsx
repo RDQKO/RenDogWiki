@@ -17,6 +17,7 @@
 
 'use client';
 
+import { setNextDocumentHeading } from '@/wiki/lib/documentScrollIntent';
 import {
   useCallback,
   useEffect,
@@ -1343,6 +1344,7 @@ export default function SearchBox({
       'search',
     );
 
+    setNextDocumentHeading(Number(result.id), nextHashDomId);
     router.push(href, {
       scroll: false,
     });
@@ -1361,6 +1363,7 @@ export default function SearchBox({
                 detail: {
                   domId:
                     nextHashDomId,
+                  documentId: Number(result.id),
                 },
               },
             ),

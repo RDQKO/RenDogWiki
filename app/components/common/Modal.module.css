@@ -1,0 +1,55 @@
+.overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 2147483000;
+  display: grid;
+  place-items: center;
+  padding: 20px;
+  background: rgba(20, 34, 23, .44);
+  backdrop-filter: blur(4px);
+  overscroll-behavior: contain;
+}
+.card, .bare {
+  position: relative;
+  box-sizing: border-box;
+  min-width: 0;
+  max-width: calc(100vw - 40px);
+  max-height: calc(100vh - 40px);
+  max-height: calc(100dvh - 40px);
+  overscroll-behavior: contain;
+  touch-action: pan-y;
+}
+.bare { overflow: auto; }
+.card {
+  display: flex;
+  flex-direction: column;
+  padding: 24px;
+  border: 1px solid var(--rd-line-strong, #d4ded4);
+  border-radius: 18px;
+  color: var(--rd-ink, #202b23);
+  background: var(--rd-panel, #fff);
+  box-shadow: 0 26px 60px rgba(21,43,24,.22);
+}
+.header { display: flex; flex: 0 0 auto; gap: 16px; align-items: flex-start; margin-bottom: 14px; }
+.title { flex: 1; min-width: 0; margin: 0; font-size: 20px; font-weight: 800; line-height: 1.4; letter-spacing: -0.02em; color: inherit; }
+.close { display: inline-grid; place-items: center; flex: 0 0 auto; width: 34px; height: 34px; padding: 0; border: 1px solid transparent; border-radius: 10px; background: transparent; color: var(--rd-ink-3, inherit); font-size: 24px; line-height: 1; cursor: pointer; transition: background-color .15s ease, color .15s ease; }
+.close:hover { background: var(--rd-brand-soft, #e8f5e4); color: var(--rd-ink, inherit); }
+.content { display: flex; flex-direction: column; gap: 9px; min-height: 0; overflow-y: auto; overflow-x: hidden; overscroll-behavior: contain; overflow-wrap: anywhere; }
+.actions { display: flex; flex: 0 0 auto; justify-content: flex-end; flex-wrap: wrap; gap: 8px; padding-top: 16px; }
+.card :global(.rd-card-description) { color: inherit; }
+.card :global(.rd-input) { color: inherit; background: var(--input-bg, #fff); border-color: var(--rd-line-strong, #c9d5c9); }
+/* 다른 화면의 전역 .rd-btn 배치 규칙이 모달 버튼을 숨기거나 겹치지 않도록 배치만 고정한다.
+   색은 globals.css의 공용 버튼 토큰을 그대로 따른다(변형이 없으면 secondary 모양). */
+.card :global(.rd-btn) { position: static; inset: auto; display: inline-flex; align-items: center; justify-content: center; min-height: 40px; height: auto; }
+.card :global(.rd-btn:not(.primary):not(.danger)) { color: var(--rd-btn-secondary-fg, inherit); background: var(--rd-btn-secondary-bg, #f3f6f3); border: 1px solid var(--rd-line-strong, #c9d5c9); }
+.card :global(.rd-btn.primary) { color: var(--rd-btn-primary-fg, #fff); background: var(--rd-btn-primary-bg, #2f8748); border: 1px solid var(--rd-btn-primary-bg, #2f8748); }
+.card :global(.rd-btn.danger) { color: #fff; background: var(--rd-btn-danger-bg, #c93a44); border: 1px solid var(--rd-btn-danger-bg, #c93a44); }
+.card :global(.rd-btn:disabled) { opacity: .5; cursor: not-allowed; }
+@media (max-width: 520px) {
+  .overlay { padding: 12px; }
+  .card { padding: 18px; border-radius: 16px; }
+  .card, .bare { max-width: calc(100vw - 24px); max-height: calc(100dvh - 24px); }
+  .title { font-size: 18px; }
+  /* 좁은 화면에서는 확인·취소 버튼을 같은 폭으로 나눠 누르기 쉽게 한다. */
+  .actions :global(.rd-btn) { flex: 1 1 0; min-height: 44px; }
+}

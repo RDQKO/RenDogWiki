@@ -11,9 +11,10 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { useRouter } from 'next/navigation';
+import { useRouter, useParams } from 'next/navigation';
 
-export default function VerifyPage({ params }: { params: { token: string } }) {
+export default function VerifyPage() {
+  const params = useParams<{ token: string }>();
   // 인증 상태: 로딩/성공/실패
   const [status, setStatus] = useState<'loading' | 'success' | 'error'>('loading');
   const [message, setMessage] = useState('');

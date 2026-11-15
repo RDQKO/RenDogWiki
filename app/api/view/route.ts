@@ -7,7 +7,7 @@
 // =============================================
 
 import { NextRequest, NextResponse } from 'next/server';
-import { sql } from '@/wiki/lib/db';
+import { recordView } from '@/wiki/lib/recordView';
 import crypto from 'crypto';
 
 export const runtime = 'nodejs';
@@ -46,128 +46,6 @@ function normalizeSource(raw: unknown): DocViewSource {
     : 'other';
 }
 
-async function bumpTotal(documentId: number, source: DocViewSource) {
-  switch (source) {
-    case 'category':
-      await sql`
-        INSERT INTO document_stats_total (
-          document_id, views, category_views, updated_at
-        )
-        VALUES (${documentId}, 1, 1, NOW())
-        ON CONFLICT (document_id) DO UPDATE
-        SET
-          views = document_stats_total.views + 1,
-          category_views = document_stats_total.category_views + 1,
-          updated_at = NOW()
-      `;
-      return;
-
-    case 'search':
-      await sql`
-        INSERT INTO document_stats_total (
-          document_id, views, search_views, updated_at
-        )
-        VALUES (${documentId}, 1, 1, NOW())
-        ON CONFLICT (document_id) DO UPDATE
-        SET
-          views = document_stats_total.views + 1,
-          search_views = document_stats_total.search_views + 1,
-          updated_at = NOW()
-      `;
-      return;
-
-    case 'link':
-      await sql`
-        INSERT INTO document_stats_total (
-          document_id, views, link_views, updated_at
-        )
-        VALUES (${documentId}, 1, 1, NOW())
-        ON CONFLICT (document_id) DO UPDATE
-        SET
-          views = document_stats_total.views + 1,
-          link_views = document_stats_total.link_views + 1,
-          updated_at = NOW()
-      `;
-      return;
-
-    case 'other':
-    default:
-      await sql`
-        INSERT INTO document_stats_total (
-          document_id, views, other_views, updated_at
-        )
-        VALUES (${documentId}, 1, 1, NOW())
-        ON CONFLICT (document_id) DO UPDATE
-        SET
-          views = document_stats_total.views + 1,
-          other_views = document_stats_total.other_views + 1,
-          updated_at = NOW()
-      `;
-      return;
-  }
-}
-
-async function bumpDaily(documentId: number, source: DocViewSource) {
-  switch (source) {
-    case 'category':
-      await sql`
-        INSERT INTO document_stats_daily (
-          day, document_id, views, category_views, updated_at
-        )
-        VALUES (CURRENT_DATE, ${documentId}, 1, 1, NOW())
-        ON CONFLICT (day, document_id) DO UPDATE
-        SET
-          views = document_stats_daily.views + 1,
-          category_views = document_stats_daily.category_views + 1,
-          updated_at = NOW()
-      `;
-      return;
-
-    case 'search':
-      await sql`
-        INSERT INTO document_stats_daily (
-          day, document_id, views, search_views, updated_at
-        )
-        VALUES (CURRENT_DATE, ${documentId}, 1, 1, NOW())
-        ON CONFLICT (day, document_id) DO UPDATE
-        SET
-          views = document_stats_daily.views + 1,
-          search_views = document_stats_daily.search_views + 1,
-          updated_at = NOW()
-      `;
-      return;
-
-    case 'link':
-      await sql`
-        INSERT INTO document_stats_daily (
-          day, document_id, views, link_views, updated_at
-        )
-        VALUES (CURRENT_DATE, ${documentId}, 1, 1, NOW())
-        ON CONFLICT (day, document_id) DO UPDATE
-        SET
-          views = document_stats_daily.views + 1,
-          link_views = document_stats_daily.link_views + 1,
-          updated_at = NOW()
-      `;
-      return;
-
-    case 'other':
-    default:
-      await sql`
-        INSERT INTO document_stats_daily (
-          day, document_id, views, other_views, updated_at
-        )
-        VALUES (CURRENT_DATE, ${documentId}, 1, 1, NOW())
-        ON CONFLICT (day, document_id) DO UPDATE
-        SET
-          views = document_stats_daily.views + 1,
-          other_views = document_stats_daily.other_views + 1,
-          updated_at = NOW()
-      `;
-      return;
-  }
-}
-
 export async function POST(req: NextRequest) {
   let body: any = null;
 
@@ -183,7 +61,7 @@ export async function POST(req: NextRequest) {
   const documentId = Number(body?.documentId);
   const source = normalizeSource(body?.source);
 
-  if (!Number.isFinite(documentId) || documentId <= 0) {
+  if (!Number.isSafeInteger(documentId) || documentId <= 0) {
     return NextResponse.json(
       { ok: false, error: 'invalid_documentId' },
       { status: 400, headers: noStoreHeaders() }
@@ -224,35 +102,11 @@ export async function POST(req: NextRequest) {
   }
 
   try {
-    const recentRows = await sql<{ last_viewed_at: string }[]>`
-      SELECT last_viewed_at
-      FROM document_view_recent
-      WHERE document_id = ${documentId}
-        AND visitor_id = ${visitorId}
-      LIMIT 1
-    `;
-
-    const now = Date.now();
-    const lastViewedAt = recentRows[0]?.last_viewed_at
-      ? new Date(recentRows[0].last_viewed_at).getTime()
-      : 0;
-
-    const cooldownMs = VIEW_COOLDOWN_MINUTES * 60 * 1000;
-    const withinCooldown = !!lastViewedAt && now - lastViewedAt < cooldownMs;
-
-    if (!withinCooldown) {
-      await bumpTotal(documentId, source);
-      await bumpDaily(documentId, source);
+    const recorded = await recordView('document', documentId, visitorId, source);
+    if (!recorded.exists) {
+      return NextResponse.json({ ok: false, error: 'not_found' }, { status: 404, headers: noStoreHeaders() });
     }
-
-    await sql`
-      INSERT INTO document_view_recent (
-        document_id, visitor_id, last_viewed_at
-      )
-      VALUES (${documentId}, ${visitorId}, NOW())
-      ON CONFLICT (document_id, visitor_id)
-      DO UPDATE SET last_viewed_at = NOW()
-    `;
+    const withinCooldown = !recorded.counted;
 
     const res = NextResponse.json(
       {

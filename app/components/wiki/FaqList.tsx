@@ -4,8 +4,8 @@
 //
 // - 기존 FAQ 문서 목록 디자인 복원
 // - 기존 FAQ 상세 모달 디자인 복원
-// - writer / manager / admin에게 항목별 편집 버튼만 추가
-// - admin 삭제 메뉴 유지
+// - 공용 로그인 상태로 편집 권한 확인
+// - 질문 우클릭/Shift+F10으로 수정, 관리자 삭제 메뉴 표시
 // - 질문 추가·편집 모달은 FaqUpsertModal을 그대로 사용
 // =============================================
 
@@ -20,6 +20,7 @@ import {
   createPortal,
 } from 'react-dom';
 
+import { useAuth } from '@/components/auth/AuthProvider';
 import FaqUpsertModal from '@/components/wiki/FaqUpsertModal';
 import {
   recordFaqView,
@@ -42,11 +43,6 @@ export type FaqItem = {
   updated_at?: string;
 };
 
-type AuthFlags = {
-  canWrite: boolean;
-  isAdmin: boolean;
-};
-
 type MenuState = {
   open: boolean;
   id: number | null;
@@ -60,135 +56,6 @@ const CLOSED_MENU: MenuState = {
   x: 0,
   y: 0,
 };
-
-function normalizeRoleList(
-  value: unknown,
-) {
-  if (!Array.isArray(value)) {
-    return [];
-  }
-
-  return value
-    .map((item) => {
-      if (
-        item &&
-        typeof item === 'object'
-      ) {
-        const row =
-          item as Record<string, unknown>;
-
-        return String(
-          row.name ??
-          row.role ??
-          row.permission ??
-          row.key ??
-          '',
-        ).toLowerCase();
-      }
-
-      return String(
-        item ?? '',
-      ).toLowerCase();
-    })
-    .filter(Boolean);
-}
-
-function useAuthFlags(
-  user: User,
-) {
-  const [
-    flags,
-    setFlags,
-  ] = useState<AuthFlags>({
-    canWrite: false,
-    isAdmin: false,
-  });
-
-  useEffect(() => {
-    let cancelled = false;
-
-    if (!user) {
-      setFlags({
-        canWrite: false,
-        isAdmin: false,
-      });
-      return;
-    }
-
-    void (async () => {
-      try {
-        const response = await fetch(
-          '/api/auth/me',
-          {
-            cache: 'no-store',
-            credentials: 'include',
-          },
-        );
-
-        if (!response.ok) {
-          throw new Error(
-            `auth-fetch-failed:${response.status}`,
-          );
-        }
-
-        const data =
-          await response.json();
-
-        const role = String(
-          data?.role ??
-          data?.user?.role ??
-          '',
-        ).toLowerCase();
-
-        const roles = normalizeRoleList(
-          data?.roles ??
-          data?.permissions ??
-          data?.user?.roles ??
-          data?.user?.permissions,
-        );
-
-        const isAdmin =
-          Boolean(
-            data?.isAdmin ??
-            data?.user?.isAdmin,
-          ) ||
-          role === 'admin' ||
-          roles.includes('admin');
-
-        const canWrite =
-          Boolean(
-            data?.canWrite ??
-            data?.user?.canWrite,
-          ) ||
-          isAdmin ||
-          role === 'writer' ||
-          role === 'manager' ||
-          roles.includes('writer') ||
-          roles.includes('manager');
-
-        if (!cancelled) {
-          setFlags({
-            canWrite,
-            isAdmin,
-          });
-        }
-      } catch {
-        if (!cancelled) {
-          setFlags({
-            canWrite: false,
-            isAdmin: false,
-          });
-        }
-      }
-    })();
-
-    return () => {
-      cancelled = true;
-    };
-  }, [user?.id]);
-
-  return flags;
-}
 
 function normalizeFaqItem(
   value: unknown,
@@ -417,7 +284,7 @@ export default function FaqList({
   const {
     canWrite,
     isAdmin,
-  } = useAuthFlags(user);
+  } = useAuth();
 
   const [
     items,
@@ -941,6 +808,11 @@ export default function FaqList({
       },
     );
 
+    if (!response.ok) {
+      const data = await response.json().catch(() => null);
+      alert(data?.error || '질문을 삭제하지 못했습니다. 다시 시도해주세요.');
+      return;
+    }
     if (response.ok) {
       if (
         selected?.id ===
@@ -972,6 +844,14 @@ export default function FaqList({
               <div
                 key={item.id}
                 className="faq-row"
+                onContextMenu={event => {
+                  if (!canWrite) return;
+                  event.preventDefault();
+                  setMenu({ open: true, id: item.id,
+                    x: Math.max(8, Math.min(event.clientX, window.innerWidth - 168)),
+                    y: Math.max(8, Math.min(event.clientY, window.innerHeight - 100)),
+                  });
+                }}
               >
                 <button
                   type="button"
@@ -981,7 +861,14 @@ export default function FaqList({
                       item,
                     );
                   }}
-                  title={item.title}
+                  title={canWrite ? `${item.title} (우클릭: 수정·삭제)` : item.title}
+                  onKeyDown={event => {
+                    if (canWrite && (event.key === 'ContextMenu' || (event.shiftKey && event.key === 'F10'))) {
+                      event.preventDefault();
+                      const rect = event.currentTarget.getBoundingClientRect();
+                      setMenu({ open: true, id: item.id, x: Math.max(8, Math.min(rect.left, window.innerWidth - 168)), y: Math.max(8, Math.min(rect.bottom, window.innerHeight - 100)) });
+                    }
+                  }}
                 >
                   <span
                     className="faq-q"
@@ -995,102 +882,33 @@ export default function FaqList({
                   </span>
                 </button>
 
+                {/* 터치·키보드 사용자를 위한 관리 메뉴 진입점. 우클릭 메뉴와 같은 권한 규칙·같은 메뉴를 쓴다. */}
                 {canWrite && (
-                  <div className="faq-row-actions">
-                    <button
-                      type="button"
-                      className="faq-inline-edit"
-                      onClick={(event) => {
-                        event.stopPropagation();
-
-                        void openEdit(
-                          item,
-                        );
-                      }}
-                      title="질문 편집"
-                      aria-label={
-                        `${item.title} 편집`
-                      }
-                    >
-                      <svg
-                        viewBox="0 0 24 24"
-                        fill="none"
-                        stroke="currentColor"
-                        strokeWidth="2"
-                        aria-hidden="true"
-                      >
-                        <path
-                          d="M12 20h9"
-                          strokeLinecap="round"
-                        />
-                        <path
-                          d="M16.5 3.5a2.12 2.12 0 0 1 3 3L8 18l-4 1 1-4Z"
-                          strokeLinecap="round"
-                          strokeLinejoin="round"
-                        />
-                      </svg>
-
-                      <span>편집</span>
-                    </button>
-
-                    {isAdmin && (
-                      <div className="faq-menu">
-                        <button
-                          type="button"
-                          className="faq-menu-btn"
-                          aria-label={
-                            `${item.title} 관리 메뉴`
-                          }
-                          aria-expanded={
-                            menu.open &&
-                            menu.id ===
-                            item.id
-                          }
-                          onClick={(event) => {
-                            event.stopPropagation();
-
-                            const rect =
-                              event.currentTarget
-                                .getBoundingClientRect();
-
-                            const width = 104;
-
-                            const x =
-                              Math.min(
-                                window.innerWidth -
-                                width -
-                                8,
-                                Math.max(
-                                  8,
-                                  rect.right -
-                                  width,
-                                ),
-                              );
-
-                            const y =
-                              rect.bottom +
-                              6;
-
-                            setMenu((current) =>
-                              current.open &&
-                              current.id ===
-                              item.id
-                                ? CLOSED_MENU
-                                : {
-                                    open: true,
-                                    id: item.id,
-                                    x,
-                                    y,
-                                  },
-                            );
-                          }}
-                        >
-                          ⋯
-                        </button>
-                      </div>
-                    )}
-                  </div>
+                  <button
+                    type="button"
+                    className="faq-row-menu-btn"
+                    aria-label={`${item.title} 관리 메뉴`}
+                    aria-haspopup="menu"
+                    title="질문 관리"
+                    onClick={event => {
+                      event.stopPropagation();
+                      const rect = event.currentTarget.getBoundingClientRect();
+                      setMenu({
+                        open: true,
+                        id: item.id,
+                        x: Math.max(8, Math.min(rect.right - 160, window.innerWidth - 168)),
+                        y: Math.max(8, Math.min(rect.bottom + 4, window.innerHeight - 100)),
+                      });
+                    }}
+                  >
+                    <svg viewBox="0 0 20 20" width="18" height="18" fill="currentColor" aria-hidden="true">
+                      <circle cx="4" cy="10" r="1.7" />
+                      <circle cx="10" cy="10" r="1.7" />
+                      <circle cx="16" cy="10" r="1.7" />
+                    </svg>
+                  </button>
                 )}
+
               </div>
             ),
           )
@@ -1226,49 +1044,23 @@ export default function FaqList({
         </label>
       </div>
 
-      {menu.open && (
-        <div
-          className="faq-menu-pop faq-popover"
-          style={{
-            position: 'fixed',
-            left: menu.x,
-            top: menu.y,
-            zIndex: 2500,
-            width: 104,
-            padding: 4,
-          }}
-        >
-          <button
-            type="button"
-            style={{
-              width: '100%',
-              minHeight: 34,
-              padding: '0 10px',
-              color: '#d24646',
-              textAlign: 'left',
-              cursor: 'pointer',
-              background: 'transparent',
-              border: 0,
-              borderRadius: 7,
-            }}
+      {menu.open && canWrite && createPortal(
+        <div className="faq-menu-pop faq-popover" role="menu" aria-label="질문 관리"
+          onContextMenu={event => event.preventDefault()}
+          style={{ position: 'fixed', left: menu.x, top: menu.y, zIndex: 100000, width: 160, padding: 4 }}>
+          <button type="button" role="menuitem" className="faq-menu-item" autoFocus
             onClick={() => {
-              const id =
-                menu.id;
-
-              setMenu(
-                CLOSED_MENU,
-              );
-
-              if (id != null) {
-                void handleDelete(
-                  id,
-                );
-              }
-            }}
-          >
-            삭제
-          </button>
-        </div>
+              const item = items.find(item => item.id === menu.id);
+              setMenu(CLOSED_MENU);
+              if (item) void openEdit(item);
+            }}>질문 수정</button>
+          {isAdmin && <button type="button" role="menuitem" className="faq-menu-item faq-menu-item--danger"
+            onClick={() => {
+              const id = menu.id;
+              setMenu(CLOSED_MENU);
+              if (id != null) void handleDelete(id);
+            }}>질문 삭제</button>}
+        </div>, document.body,
       )}
 
       {selected && (

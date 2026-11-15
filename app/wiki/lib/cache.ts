@@ -15,6 +15,9 @@ import {
   unstable_cache,
 } from 'next/cache';
 
+const MAX_LOCAL_ENTRIES = 512;
+const MAX_STALE_MS = 5 * 60 * 1000;
+
 type Fn<T> = () => Promise<T> | T;
 
 type CacheEntry = {
@@ -33,6 +36,9 @@ declare global {
   var __wiki_local_cache__:
     | Map<string, CacheEntry>
     | undefined;
+
+  // eslint-disable-next-line no-var
+  var __wiki_cache_generation__: number | undefined;
 
   // eslint-disable-next-line no-var
   var __wiki_local_cache_pending__:
@@ -129,8 +135,8 @@ export async function cached<T>(
    * 매 요청이 공유 Data Cache를 확인해야 즉시 새 데이터로 바뀝니다.
    * 로컬 값은 공유 재검증이 실패했을 때의 stale fallback으로만 사용합니다.
    */
-  const staleEntry =
-    store.get(key);
+  const staleEntry = store.get(key);
+  const generation = global.__wiki_cache_generation__ ?? 0;
 
   const pending =
     pendingStore.get(key);
@@ -158,6 +164,12 @@ export async function cached<T>(
   const loader =
     sharedLoader()
       .then((value) => {
+        if ((global.__wiki_cache_generation__ ?? 0) !== generation) return value;
+        for (const [entryKey, entry] of store) {
+          if (entry.expiresAt + MAX_STALE_MS < Date.now()) store.delete(entryKey);
+        }
+        store.delete(key);
+        if (store.size >= MAX_LOCAL_ENTRIES) store.delete(store.keys().next().value!);
         store.set(key, {
           value,
           expiresAt:
@@ -169,7 +181,8 @@ export async function cached<T>(
         return value;
       })
       .catch((error) => {
-        if (staleEntry) {
+        if (staleEntry && staleEntry.expiresAt + MAX_STALE_MS >= Date.now() &&
+          (global.__wiki_cache_generation__ ?? 0) === generation) {
           console.warn(
             '[cache] shared refresh failed, serving local stale:',
             key,
@@ -182,7 +195,7 @@ export async function cached<T>(
         throw error;
       })
       .finally(() => {
-        pendingStore.delete(key);
+        if (pendingStore.get(key) === loader) pendingStore.delete(key);
       });
 
   pendingStore.set(
@@ -209,9 +222,10 @@ export function invalidate(
     return;
   }
 
+  global.__wiki_cache_generation__ = (global.__wiki_cache_generation__ ?? 0) + 1;
   const store = getStore();
-  const pendingStore =
-    getPendingStore();
+  const pendingStore = getPendingStore();
+  pendingStore.clear();
 
   for (
     const [key, entry]

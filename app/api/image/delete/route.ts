@@ -4,7 +4,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { sql } from '@/wiki/lib/db';
 import { S3Client, DeleteObjectsCommand } from '@aws-sdk/client-s3';
 import { logActivity } from '@wiki/lib/activity';
-import { requireRole } from '@/wiki/lib/requireRole';
+import { requireRole, canDeleteUploaded } from '@/wiki/lib/requireRole';
 
 export const runtime = 'nodejs';
 
@@ -47,14 +47,18 @@ export async function DELETE(req: NextRequest) {
       );
     }
 
-    const username = req.headers.get('x-wiki-username') ?? null;
+    const username = gate.dbUser.minecraft_name || gate.dbUser.username;
 
     // S3 key 조회
-    const rows = await sql<{ s3_key: string | null }[]>`
-      SELECT s3_key
+    const rows = await sql<{ s3_key: string | null; uploader: string | null }[]>`
+      SELECT s3_key, uploader
       FROM images
       WHERE id = ANY(${ids})
     `;
+
+    if (rows.some((row) => !canDeleteUploaded(gate.dbUser, row.uploader))) {
+      return NextResponse.json({ error: '본인이 업로드한 이미지만 삭제할 수 있습니다.' }, { status: 403 });
+    }
 
     const keys = rows
       .map((r) => (r?.s3_key ? String(r.s3_key) : ''))
@@ -75,12 +79,13 @@ export async function DELETE(req: NextRequest) {
       const s3 = new S3Client({ region: process.env.AWS_REGION });
 
       for (let i = 0; i < keys.length; i += 1000) {
-        await s3.send(
+        const deleted = await s3.send(
           new DeleteObjectsCommand({
             Bucket: bucket,
             Delete: { Objects: keys.slice(i, i + 1000) },
           })
         );
+        if (deleted.Errors?.length) throw new Error('S3 deletion was incomplete; database references were preserved.');
       }
     }
 

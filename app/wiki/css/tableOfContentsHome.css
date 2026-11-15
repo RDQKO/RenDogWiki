@@ -585,7 +585,8 @@ button:focus-visible {
  * 9. 반응형 및 모션 최소화
  * --------------------------------------------- */
 
-@media (max-width: 1023px) {
+/* 본문 폭 확보: 1200px 미만에서는 사이드 목차를 숨기고 플로팅 목차 버튼을 쓴다. */
+@media (max-width: 1199px) {
   .wiki-toc-sidebar-desktop {
     display: none !important;
   }
@@ -606,4 +607,88 @@ button:focus-visible {
   > div[aria-hidden] {
     transition: none !important;
   }
+}
+
+
+/* ---------------------------------------------
+ * 목차 항목 정리 (2026-11 디자인 검수)
+ *
+ * - 아이콘이 없는 제목은 빈 아이콘 칸을 그리지 않는다.
+ * - 긴 제목은 두 줄까지 줄바꿈하고 전체 제목은 title로 확인한다.
+ * - 행 높이를 줄여 긴 목차도 한눈에 보이게 한다.
+ * 데스크톱 사이드 목차와 모바일 목차 패널에 함께 적용된다.
+ * --------------------------------------------- */
+
+aside[role='navigation'] button[data-toc-index] > .rd-toc-icon[data-empty='true'],
+.wiki-toc-sidebar > aside[role='navigation'] > ul:last-of-type > li > button[data-toc-index] > span.rd-toc-icon[data-empty='true'] {
+  display: none !important;
+}
+
+aside[role='navigation'] .rd-toc-doc-icon[data-empty='true'],
+.wiki-toc-sidebar > aside[role='navigation'] > ul:first-of-type > li:first-child > button > span.rd-toc-doc-icon[data-empty='true'],
+.wiki-toc-sidebar > aside[role='navigation'] > button[title] > span.rd-toc-doc-icon[data-empty='true'] {
+  display: none !important;
+}
+
+aside[role='navigation'] button[data-toc-index] > .rd-toc-text {
+  display: -webkit-box !important;
+  white-space: normal !important;
+  line-height: 1.35;
+  word-break: keep-all;
+  overflow-wrap: anywhere;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+}
+
+.wiki-toc-sidebar > aside[role='navigation'] > ul:last-of-type {
+  gap: 1px !important;
+}
+
+.wiki-toc-sidebar > aside[role='navigation'] > ul:last-of-type > li > button[data-toc-index] {
+  min-height: 32px;
+  padding-top: 5px !important;
+  padding-bottom: 5px !important;
+}
+
+/* 단계별 들여쓰기: 아이콘 칸이 없어도 위계가 드러나게 한다. */
+.wiki-toc-sidebar > aside[role='navigation'] > ul:last-of-type > li > button[data-toc-level='1'] {
+  padding-left: 10px !important;
+  font-weight: 750 !important;
+}
+
+.wiki-toc-sidebar > aside[role='navigation'] > ul:last-of-type > li > button[data-toc-level='2'] {
+  padding-left: 22px !important;
+}
+
+.wiki-toc-sidebar > aside[role='navigation'] > ul:last-of-type > li > button[data-toc-level='3'] {
+  padding-left: 34px !important;
+  font-size: 13px !important;
+}
+
+/* 목차 제목 아이콘을 키워 한눈에 구분되게 한다. */
+.wiki-toc-sidebar > aside[role='navigation'] > ul:last-of-type > li > button[data-toc-index] > span.rd-toc-icon:not([data-empty='true']) {
+  flex: 0 0 32px !important;
+  width: 32px !important;
+  height: 32px !important;
+  margin-right: 9px !important;
+  border-radius: 9px !important;
+}
+
+.wiki-toc-sidebar > aside[role='navigation'] > ul:last-of-type > li > button[data-toc-index] > span.rd-toc-icon img {
+  width: 26px !important;
+  height: 26px !important;
+}
+
+.wiki-toc-sidebar > aside[role='navigation'] > ul:last-of-type > li > button[data-toc-index] > span.rd-toc-icon > span {
+  font-size: 20px !important;
+}
+
+/* 모바일·태블릿 목차 패널(인라인 스타일 기준 24px)도 함께 키운다. */
+aside[role='navigation'] button[data-toc-index] > .rd-toc-icon:not([data-empty='true']) {
+  width: 30px !important;
+  height: 30px !important;
+}
+
+aside[role='navigation'] button[data-toc-index] > .rd-toc-icon > span {
+  font-size: 19px !important;
 }

@@ -15,6 +15,13 @@ import {
   useState,
 } from 'react';
 import Image from 'next/image';
+import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
+import {
+  faBars,
+  faFolderTree,
+  faMagnifyingGlass,
+  faXmark,
+} from '@fortawesome/free-solid-svg-icons';
 import Link from 'next/link';
 
 import HamburgerMenu from '@/components/common/HamburgerMenu';
@@ -64,6 +71,7 @@ export default function WikiHeader({
     isMenuOpen,
     setIsMenuOpen,
   ] = useState(false);
+  const [mobileSearchOpen, setMobileSearchOpen] = useState(false);
 
   /*
    * 기존 문서 화면이 사용하던 mode 파라미터 초기화는 유지한다.
@@ -174,6 +182,14 @@ export default function WikiHeader({
     }
   }
 
+  // 접혀 있던 검색창을 펼치면 바로 입력할 수 있게 포커스를 옮긴다.
+  useEffect(() => {
+    if (!mobileSearchOpen) return;
+    document
+      .querySelector<HTMLInputElement>('#wiki-header-search input')
+      ?.focus();
+  }, [mobileSearchOpen]);
+
   return (
     <>
       <header className={styles.header}>
@@ -193,7 +209,10 @@ export default function WikiHeader({
             />
           </Link>
 
-          <div className={styles.search}>
+          <div
+            id="wiki-header-search"
+            className={`${styles.search} ${mobileSearchOpen ? styles.searchOpen : ''}`}
+          >
             <SearchBox
               align="center"
               width="100%"
@@ -205,22 +224,21 @@ export default function WikiHeader({
           </div>
 
           <div className={styles.actions}>
+            {/* 좁은 화면에서는 검색창을 접어 두고 이 버튼으로 헤더 아래에 펼친다. */}
+            <button
+              type="button"
+              className={`${styles.iconButton} ${styles.mobileSearchButton}`}
+              onClick={() => setMobileSearchOpen((open) => !open)}
+              aria-label={mobileSearchOpen ? '검색 닫기' : '검색 열기'}
+              aria-expanded={mobileSearchOpen}
+              aria-controls="wiki-header-search"
+            >
+              <FontAwesomeIcon icon={mobileSearchOpen ? faXmark : faMagnifyingGlass} />
+            </button>
+
             <ThemeToggle />
 
-            {!hideAdminMenu && (
-              <button
-                type="button"
-                onClick={openAdminMenu}
-                className={`${styles.iconButton} ${styles.desktopAdminButton}`}
-                aria-label="관리 메뉴 열기"
-                aria-haspopup="dialog"
-                aria-expanded={isMenuOpen}
-              >
-                ☰
-              </button>
-            )}
-
-            {onToggleMobileCategory ? (
+            {onToggleMobileCategory && (
               <button
                 type="button"
                 className={`${styles.iconButton} ${styles.mobileMenuButton}`}
@@ -236,21 +254,22 @@ export default function WikiHeader({
                   mobileCategoryOpen
                 }
               >
-                ☰
+                <FontAwesomeIcon icon={faFolderTree} />
               </button>
-            ) : (
-              !hideAdminMenu && (
-                <button
-                  type="button"
-                  onClick={openAdminMenu}
-                  className={`${styles.iconButton} ${styles.mobileMenuButton}`}
-                  aria-label="관리 메뉴 열기"
-                  aria-haspopup="dialog"
-                  aria-expanded={isMenuOpen}
-                >
-                  ☰
-                </button>
-              )
+            )}
+
+            {/* 메뉴(로그인·마이페이지·관리)는 모든 화면 크기에서 접근할 수 있어야 한다. */}
+            {!hideAdminMenu && (
+              <button
+                type="button"
+                onClick={openAdminMenu}
+                className={styles.iconButton}
+                aria-label="메뉴 열기"
+                aria-haspopup="dialog"
+                aria-expanded={isMenuOpen}
+              >
+                <FontAwesomeIcon icon={faBars} />
+              </button>
             )}
           </div>
         </div>

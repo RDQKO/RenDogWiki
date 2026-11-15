@@ -1,10 +1,12 @@
+import { invalidateDocumentCache } from '@/wiki/lib/documentCache';
+import { deleteDocumentsUsing } from '@/wiki/lib/documentMutation';
 /**
  * 카테고리 단건 수정/삭제/기존 단건 정렬 API
  * - PUT: 카테고리 정보 수정
  * - DELETE: 관리자 + 삭제 비밀번호 확인 후 하위 카테고리/문서 재귀 삭제
  * - POST: 기존 단건 order 갱신 호환 API
  */
-import { sql } from '@/wiki/lib/db';
+import { sql, withTx } from '@/wiki/lib/db';
 import { NextRequest, NextResponse } from 'next/server';
 import { logActivity, resolveCategoryName } from '@wiki/lib/activity';
 import { getAuthUser } from '@/wiki/lib/auth';
@@ -14,7 +16,11 @@ import { requireRole } from '@/wiki/lib/requireRole';
 export const runtime = 'nodejs';
 
 const noStoreHeaders = { 'Cache-Control': 'no-store' };
-const DELETE_PASSWORD = process.env.MANAGE_DELETE_PASSWORD ?? '1290';
+class CategoryError extends Error {
+  constructor(public status: number, message: string) { super(message); }
+}
+
+const DELETE_PASSWORD = process.env.MANAGE_DELETE_PASSWORD;
 
 function toNullableInt(value: unknown): number | null {
   if (value === null || value === undefined || value === '') return null;
@@ -31,7 +37,9 @@ function hasValidDeletePassword(req: NextRequest): boolean {
   return req.headers.get('x-rd-delete-password') === DELETE_PASSWORD;
 }
 
-export async function PUT(req: NextRequest, { params }: { params: { id: string } }) {
+export async function PUT(req: NextRequest, { params: pendingParams }: { params: Promise<{ id: string }> }
+) {
+  const params = await pendingParams;
   const gate = await requireRole(['writer', 'admin']);
   if (!gate.ok) {
     return NextResponse.json(
@@ -89,30 +97,34 @@ export async function PUT(req: NextRequest, { params }: { params: { id: string }
       );
     }
 
-    await sql`
-      UPDATE categories SET
-        name = ${name},
-        parent_id = ${parentIdFixed},
-        "order" = ${orderFixed},
-        document_id = ${documentIdFixed},
-        icon = ${icon},
-        mode_tags = ${modeTags}::text[]
-      WHERE id = ${idNum}
-    `;
-
-    if (documentIdFixed == null) {
-      await sql`
-        UPDATE documents
-        SET is_featured = false, updated_at = NOW()
-        WHERE path = ${String(idNum)}
+    await withTx(async (tx) => {
+      await tx`SELECT pg_advisory_xact_lock(191919, 1)`;
+      const current = await tx`SELECT id FROM categories WHERE id = ${idNum} FOR UPDATE`;
+      if (!current.length) throw new CategoryError(404, '카테고리를 찾을 수 없습니다.');
+      if (parentIdFixed !== null) {
+        const parent = await tx`SELECT id FROM categories WHERE id = ${parentIdFixed}`;
+        if (!parent.length) throw new CategoryError(400, '상위 카테고리를 찾을 수 없습니다.');
+        const descendants = await tx`
+          WITH RECURSIVE descendants AS (
+            SELECT id FROM categories WHERE id = ${idNum}
+            UNION
+            SELECT child.id FROM categories child JOIN descendants ON child.parent_id = descendants.id
+          ) SELECT id FROM descendants WHERE id = ${parentIdFixed}
+        `;
+        if (descendants.length) throw new CategoryError(400, '하위 카테고리 안으로 이동할 수 없습니다.');
+      }
+      if (documentIdFixed !== null) {
+        const document = await tx`SELECT id FROM documents WHERE id = ${documentIdFixed}`;
+        if (!document.length) throw new CategoryError(400, '대표 문서를 찾을 수 없습니다.');
+      }
+      await tx`
+        UPDATE categories SET name = ${name}, parent_id = ${parentIdFixed}, "order" = ${orderFixed},
+          document_id = ${documentIdFixed}, icon = ${icon}, mode_tags = ${modeTags}::text[]
+        WHERE id = ${idNum}
       `;
-    } else {
-      await sql`
-        UPDATE documents
-        SET is_featured = (id = ${documentIdFixed}), updated_at = NOW()
-        WHERE path = ${String(idNum)}
-      `;
-    }
+      // Changing a category's representative document is not a content edit.
+      await tx`UPDATE documents SET is_featured = (id = ${documentIdFixed}::int) IS TRUE WHERE path = ${String(idNum)}`;
+    });
 
     const docTag = (id: number) => `doc:${id}`;
     const listTag = (path: string | number) => `doclist:${String(path)}`;
@@ -127,7 +139,7 @@ export async function PUT(req: NextRequest, { params }: { params: { id: string }
       ...(documentIdFixed ? [docTag(documentIdFixed)] : [])
     );
 
-    const user = getAuthUser();
+    const user = await getAuthUser();
     const username = user?.minecraft_name ?? req.headers.get('x-wiki-username') ?? null;
     const parentLabel = await resolveCategoryName(parentIdFixed);
     await logActivity({
@@ -148,6 +160,7 @@ export async function PUT(req: NextRequest, { params }: { params: { id: string }
 
     return NextResponse.json({ message: 'updated' }, { headers: noStoreHeaders });
   } catch (error) {
+    if (error instanceof CategoryError) return NextResponse.json({ error: error.message }, { status: error.status, headers: noStoreHeaders });
     console.error('[categories:id PUT] unexpected error:', error);
     return NextResponse.json(
       { error: '카테고리 업데이트 중 오류가 발생했습니다.' },
@@ -156,13 +169,19 @@ export async function PUT(req: NextRequest, { params }: { params: { id: string }
   }
 }
 
-export async function DELETE(req: NextRequest, { params }: { params: { id: string } }) {
+export async function DELETE(req: NextRequest, { params: pendingParams }: { params: Promise<{ id: string }> }
+) {
+  const params = await pendingParams;
   const gate = await requireRole(['admin']);
   if (!gate.ok) {
     return NextResponse.json(
       { error: gate.error },
       { status: gate.status, headers: noStoreHeaders }
     );
+  }
+
+  if (!DELETE_PASSWORD) {
+    return NextResponse.json({ error: '관리자 삭제 비밀번호 설정이 필요합니다.' }, { status: 503, headers: { 'Cache-Control': 'no-store' } });
   }
 
   if (!hasValidDeletePassword(req)) {
@@ -181,10 +200,12 @@ export async function DELETE(req: NextRequest, { params }: { params: { id: strin
       );
     }
 
-    const subCategoryRows = (await sql`
+    const { categoryIds, documentIds, rootName, parentId } = await withTx(async (tx) => {
+      await tx`SELECT pg_advisory_xact_lock(191919, 1)`;
+    const subCategoryRows = (await tx`
       WITH RECURSIVE subcategories AS (
         SELECT id FROM categories WHERE id = ${idNum}
-        UNION ALL
+        UNION
         SELECT c.id
         FROM categories c
         INNER JOIN subcategories sc ON c.parent_id = sc.id
@@ -193,14 +214,9 @@ export async function DELETE(req: NextRequest, { params }: { params: { id: strin
     `) as unknown as Array<{ id: number }>;
     const categoryIds = (subCategoryRows || []).map((row) => Number(row.id));
 
-    if (categoryIds.length === 0) {
-      return NextResponse.json(
-        { message: 'not found' },
-        { status: 404, headers: noStoreHeaders }
-      );
-    }
+    if (!categoryIds.length) throw new CategoryError(404, '카테고리를 찾을 수 없습니다.');
 
-    const rootRows = (await sql`
+    const rootRows = (await tx`
       SELECT id, name, parent_id
       FROM categories
       WHERE id = ${idNum}
@@ -211,33 +227,34 @@ export async function DELETE(req: NextRequest, { params }: { params: { id: strin
       parent_id: number | null;
     }>;
     const rootName = rootRows[0]?.name ?? null;
-    const parentLabel = await resolveCategoryName(rootRows[0]?.parent_id ?? null);
 
-    const documentRows = (await sql`
+    const documentRows = (await tx`
       SELECT id, path
       FROM documents
-      WHERE path = ANY(${categoryIds})
+      WHERE path = ANY(${categoryIds.map(String)})
     `) as unknown as Array<{ id: number; path: string | number | null }>;
     const documentIds = (documentRows || []).map((row) => Number(row.id));
 
-    if (documentIds.length > 0) {
-      await sql`DELETE FROM document_contents WHERE document_id = ANY(${documentIds})`;
-      await sql`DELETE FROM documents WHERE id = ANY(${documentIds})`;
-    }
-    await sql`DELETE FROM categories WHERE id = ANY(${categoryIds})`;
+    await deleteDocumentsUsing(tx, documentIds);
+    await tx`DELETE FROM categories WHERE id = ANY(${categoryIds})`;
+    return { categoryIds, documentIds, rootName, parentId: rootRows[0]?.parent_id ?? null };
+    });
+    const parentLabel = await resolveCategoryName(parentId);
+    documentIds.forEach(invalidateDocumentCache);
 
     const invalidationTags = [
       'category:list',
       'category:tree',
       'category:modes',
       'doc:list',
+      'search:index',
       ...categoryIds.map((id) => `category:${id}`),
       ...categoryIds.map((id) => `doclist:${id}`),
       ...documentIds.map((id) => `doc:${id}`),
     ];
     invalidate(...invalidationTags);
 
-    const user = getAuthUser();
+    const user = await getAuthUser();
     const username = user?.minecraft_name ?? req.headers.get('x-wiki-username') ?? null;
     await logActivity({
       action: 'category.delete',
@@ -254,6 +271,7 @@ export async function DELETE(req: NextRequest, { params }: { params: { id: strin
 
     return NextResponse.json({ message: 'deleted' }, { headers: noStoreHeaders });
   } catch (error) {
+    if (error instanceof CategoryError) return NextResponse.json({ error: error.message }, { status: error.status, headers: noStoreHeaders });
     console.error('[categories:id DELETE] unexpected error:', error);
     return NextResponse.json(
       { error: '카테고리 삭제 중 오류가 발생했습니다.' },
@@ -262,7 +280,9 @@ export async function DELETE(req: NextRequest, { params }: { params: { id: strin
   }
 }
 
-export async function POST(req: NextRequest, { params }: { params: { id: string } }) {
+export async function POST(req: NextRequest, { params: pendingParams }: { params: Promise<{ id: string }> }
+) {
+  const params = await pendingParams;
   const gate = await requireRole(['writer', 'admin']);
   if (!gate.ok) {
     return NextResponse.json(
@@ -294,7 +314,7 @@ export async function POST(req: NextRequest, { params }: { params: { id: string 
     const categoryName = categoryRows[0]?.name ?? null;
     const parentLabel = await resolveCategoryName(categoryRows[0]?.parent_id ?? null);
 
-    const user = getAuthUser();
+    const user = await getAuthUser();
     const username = user?.minecraft_name ?? req.headers.get('x-wiki-username') ?? null;
     await logActivity({
       action: 'category.reorder',

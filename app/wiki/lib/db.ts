@@ -98,7 +98,7 @@ function createSql(): SQL {
     DB.url,
     {
       prepare: false,
-      ssl: 'require',
+      ssl: process.env.DB_SSL === 'disable' && ['127.0.0.1', 'localhost', '[::1]'].includes(new URL(DB.url).hostname) ? false : 'require',
 
       /*
        * 기존 동시 연결 상한은 그대로 유지합니다.

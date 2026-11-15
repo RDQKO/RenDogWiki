@@ -5,7 +5,7 @@
  * Ably 토큰 요청 엔드포인트
  * - GET -> Ably REST SDK로 tokenRequest 생성 후 그대로 반환
  * - clientId -> 로그인 유저면 "user:<id>", 아니면 "anon"
- * - capability -> 특정 채널에 한해 publish/subscribe 허용
+ * - capability -> 채팅 채널 구독만 허용; 발행은 인증된 서버 API에서 처리
  * - 응답은 실시간 성격이라 캐시 금지
  */
 
@@ -28,7 +28,7 @@ export async function GET() {
     }
 
     // 2) 사용자 식별 -> 토큰 clientId
-    const me = getAuthUser();
+    const me = await getAuthUser();
     const clientId = me ? `user:${me.id}` : 'anon';
 
     // 3) Ably SDK를 요청 시점에만 로드(빌드 타임 실행 방지)
@@ -37,7 +37,7 @@ export async function GET() {
 
     // 4) capability: 필요한 채널만 권한 부여
     const capability = JSON.stringify({
-      'rdwiki-chat': ['publish', 'subscribe'],
+      'rdwiki-chat': ['subscribe'],
     });
 
     // 5) 토큰 요청 생성 (1시간 유효)

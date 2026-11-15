@@ -95,7 +95,7 @@ export async function PATCH(req: NextRequest) {
       const descRows = (await sql`
         WITH RECURSIVE subfolders AS (
           SELECT id FROM image_folders WHERE id = ${idNum}
-          UNION ALL
+          UNION
           SELECT f.id FROM image_folders f
           INNER JOIN subfolders sf ON f.parent_id = sf.id
         )
@@ -130,7 +130,7 @@ export async function PATCH(req: NextRequest) {
     const to_parent_name = await resolveFolderName(to_parent_id);
 
     // 활동 로그
-    const user = getAuthUser();
+    const user = await getAuthUser();
     const username = user?.minecraft_name ?? req.headers.get('x-wiki-username') ?? null;
     await logActivity({
       action: 'folder.move',

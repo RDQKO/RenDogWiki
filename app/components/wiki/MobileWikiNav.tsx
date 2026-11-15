@@ -41,7 +41,7 @@ export default function MobileWikiNav({
     return () => window.removeEventListener('resize', syncViewport);
   }, []);
 
-  const isMobile = viewportWidth > 0 && viewportWidth <= 1023;
+  const isMobile = viewportWidth > 0 && viewportWidth <= 1199;
 
   useEffect(() => {
     if (!isMobile) setIsOpen(false);
@@ -184,7 +184,7 @@ export default function MobileWikiNav({
         .mobile-wiki-nav {
             position: fixed;
             right: 12px;
-            bottom: calc(env(safe-area-inset-bottom, 0px) + 84px);
+            bottom: calc(env(safe-area-inset-bottom, 0px) + 24px);
             z-index: 52;
             display: flex;
             flex-direction: column;
@@ -192,8 +192,8 @@ export default function MobileWikiNav({
             }
 
         .mobile-wiki-nav-btn {
-          width: 52px;
-          height: 52px;
+          width: 46px;
+          height: 46px;
           border: 1px solid var(--border);
           border-radius: 14px;
           display: grid;
@@ -240,7 +240,7 @@ export default function MobileWikiNav({
           border-top: 1px solid var(--border);
         }
 
-        @media (min-width: 1024px) {
+        @media (min-width: 1200px) {
           .mobile-wiki-nav,
           .mobile-wiki-nav-backdrop {
             display: none;

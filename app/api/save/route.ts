@@ -1,422 +1,154 @@
-// app/api/save/route.ts
-// 전체 교체용 코드
-//
-// 문서 저장 직후 로컬 캐시와 Next.js 공유 Data Cache를 즉시 무효화합니다.
-
-import { NextRequest, NextResponse } from 'next/server';
-
-import { requireRole } from '@/app/wiki/lib/requireRole';
-import { getAuthUser } from '@/wiki/lib/auth';
-import { sql } from '@/wiki/lib/db';
-import {
-  invalidateDocumentCache,
-} from '@/wiki/lib/documentCache';
-import {
-  replaceDocumentSearchSections,
-} from '@/wiki/lib/documentSearchIndex';
-import {
-  logActivity,
-  resolveCategoryName,
-} from '@wiki/lib/activity';
-import { invalidate } from '@wiki/lib/cache';
+import { after, NextRequest, NextResponse } from 'next/server';
+import { requireRole } from '@/wiki/lib/requireRole';
+import { sql, withTx, isTransientDbError } from '@/wiki/lib/db';
+import { cached, invalidate } from '@/wiki/lib/cache';
+import { invalidateDocumentCache } from '@/wiki/lib/documentCache';
+import { buildDocumentSearchSections, replaceDocumentSearchSectionsUsing } from '@/wiki/lib/documentSearchIndex';
+import { logActivity, resolveCategoryName } from '@/wiki/lib/activity';
+import { isPositiveId } from '@/wiki/lib/apiInput';
+import { parseDocumentContent } from '@/wiki/lib/documentInput';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
 export const revalidate = 0;
+// 기본 함수 제한(10초) 안에 끝나지 못하면 Vercel이 504를 돌려주고 저장 결과를 알 수 없게 된다.
+// 큰 문서의 검색 인덱스 교체·콜드 스타트 여유를 둔다.
+export const maxDuration = 30;
+const headers = { 'Cache-Control': 'no-store' };
 
-const listTag = (path: string | number) => `doclist:${String(path)}`;
-const SEARCH_CACHE_TAG = 'search:index';
-
-function normalizeContent(value: unknown): unknown {
-  if (value == null) return [];
-
-  if (typeof value === 'string') {
-    try {
-      return JSON.parse(value) ?? [];
-    } catch {
-      return [];
-    }
-  }
-
-  return value;
+class SaveError extends Error {
+  constructor(public status: number, message: string) { super(message); }
 }
 
-function normalizeTags(value: unknown): string[] {
-  if (Array.isArray(value)) {
-    return Array.from(
-      new Set(
-        value
-          .map((tag) => (typeof tag === 'string' ? tag.trim() : ''))
-          .filter(Boolean),
-      ),
-    );
+// Retry only errors for which PostgreSQL has definitely rolled the transaction back.
+// Connection failures after COMMIT are ambiguous and must not create duplicate writes.
+async function retryRolledBackSave<T>(operation: () => Promise<T>): Promise<T> {
+  for (let attempt = 0; ; attempt++) {
+    try { return await operation(); }
+    catch (error) {
+      const code = (error as { code?: string } | null)?.code;
+      if (attempt >= 1 || !code || !['55P03', '40P01', '40001'].includes(code)) throw error;
+      await new Promise(resolve => setTimeout(resolve, 150));
+    }
   }
-
-  if (typeof value === 'string') {
-    return Array.from(
-      new Set(
-        value
-          .split(',')
-          .map((tag) => tag.trim())
-          .filter(Boolean),
-      ),
-    );
-  }
-
-  return [];
 }
 
 export async function POST(req: NextRequest) {
-  const gate = await requireRole(['writer', 'admin']);
-
-  if (!gate.ok) {
-    return NextResponse.json(
-      { error: gate.error },
-      {
-        status: gate.status,
-        headers: { 'Cache-Control': 'no-store' },
-      },
-    );
-  }
-
-  const getColInfo = async (table: string, column: string) => {
-    const rows = (await sql`
-      SELECT data_type, udt_name
-      FROM information_schema.columns
-      WHERE
-        table_schema = 'public'
-        AND table_name = ${table}
-        AND column_name = ${column}
-      LIMIT 1
-    `) as unknown as Array<{
-      data_type?: string;
-      udt_name?: string;
-    }>;
-
-    const row = rows[0] ?? {};
-
-    return {
-      isArray:
-        row.data_type === 'ARRAY' ||
-        (row.udt_name ?? '').startsWith('_'),
-      isJsonOrJsonb:
-        row.data_type === 'json' ||
-        row.data_type === 'jsonb' ||
-        row.udt_name === 'json' ||
-        row.udt_name === 'jsonb',
-      isJsonb:
-        row.data_type === 'jsonb' ||
-        row.udt_name === 'jsonb',
-    };
-  };
-
   try {
-    const body = await req.json().catch(() => ({} as Record<string, unknown>));
-    const idRaw = body?.id;
-    const idNum: number | null =
-      idRaw === null || idRaw === undefined ? null : Number(idRaw);
-
-    const titleRaw = typeof body?.title === 'string' ? body.title : '';
-    const title = titleRaw.trim();
-
-    const hasPath = Object.prototype.hasOwnProperty.call(body, 'path');
-    const pathVal = body?.path;
-
-    // path=0은 유효한 루트 경로입니다.
-    const pathMissing =
-      !hasPath ||
-      pathVal === null ||
-      pathVal === undefined ||
-      String(pathVal) === '';
-
-    if (pathMissing || !title) {
-      return NextResponse.json(
-        { error: 'path와 title은 필수입니다.' },
-        {
-          status: 400,
-          headers: { 'Cache-Control': 'no-store' },
-        },
-      );
+    const gate = await requireRole(['writer', 'admin']);
+    if (!gate.ok) return NextResponse.json({ error: gate.error }, { status: gate.status, headers });
+    const body = await req.json().catch(() => null);
+    if (!body || typeof body !== 'object' || Array.isArray(body)) {
+      throw new SaveError(400, '올바른 문서 데이터를 보내주세요.');
     }
-
-    const icon = typeof body?.icon === 'string' ? body.icon : '';
-    const contentNorm = normalizeContent(body?.content);
-    const contentJson = JSON.stringify(contentNorm);
-    const tagsArr = normalizeTags(body?.tags);
-    const tagsCsv = tagsArr.join(',');
-
-    const user = getAuthUser();
-    const uploader = (
-      user?.minecraft_name ??
-      req.headers.get('x-wiki-username') ??
-      'system'
-    ).toString();
-
-    const tagsCol = await getColInfo('documents', 'tags');
-    const contentCol = await getColInfo('document_contents', 'content');
-
-    let documentId: number;
-    let created = false;
-
-    // 신규 문서 생성
-    if (!Number.isFinite(idNum as number)) {
-      const duplicate = await sql`
-        SELECT id
-        FROM documents
-        WHERE path = ${pathVal}
-          AND title = ${title}
-        LIMIT 1
-      `;
-
-      if (Array.isArray(duplicate) && duplicate.length > 0) {
-        return NextResponse.json(
-          { error: '같은 카테고리(경로)에 동일한 제목의 문서가 존재합니다.' },
-          {
-            status: 409,
-            headers: { 'Cache-Control': 'no-store' },
-          },
-        );
-      }
-
-      const maxRow = await sql`
-        SELECT COALESCE(MAX("order"), -1) + 1 AS next
-        FROM documents
-        WHERE path = ${pathVal}
-      `;
-      const nextOrder = Number(maxRow[0]?.next ?? 0);
-
-      const inserted = tagsCol.isArray
-        ? await sql`
-            INSERT INTO documents (
-              title,
-              path,
-              icon,
-              tags,
-              "order",
-              uploader
-            )
-            VALUES (
-              ${title},
-              ${pathVal},
-              ${icon},
-              ${tagsArr as unknown as string[]}::text[],
-              ${nextOrder},
-              ${uploader}
-            )
-            RETURNING id
-          `
-        : await sql`
-            INSERT INTO documents (
-              title,
-              path,
-              icon,
-              tags,
-              "order",
-              uploader
-            )
-            VALUES (
-              ${title},
-              ${pathVal},
-              ${icon},
-              ${tagsCsv},
-              ${nextOrder},
-              ${uploader}
-            )
-            RETURNING id
-          `;
-
-      documentId = Number(inserted[0].id);
-
-      if (contentCol.isJsonOrJsonb) {
-        await sql`
-          INSERT INTO document_contents (document_id, content)
-          VALUES (
-            ${documentId},
-            ${contentJson}${contentCol.isJsonb ? sql`::jsonb` : sql`::json`}
-          )
-        `;
-      } else {
-        await sql`
-          INSERT INTO document_contents (document_id, content)
-          VALUES (${documentId}, ${contentJson})
-        `;
-      }
-
-      created = true;
-    } else {
-      // 기존 문서 수정
-      documentId = Number(idNum);
-
-      const previousRows = await sql`
-        SELECT path
-        FROM documents
-        WHERE id = ${documentId}
-        LIMIT 1
-      `;
-      const oldPath = previousRows[0]?.path;
-
-      const conflict = await sql`
-        SELECT 1
-        FROM documents
-        WHERE
-          path = ${pathVal}
-          AND title = ${title}
-          AND id <> ${documentId}
-        LIMIT 1
-      `;
-
-      if (Array.isArray(conflict) && conflict.length > 0) {
-        return NextResponse.json(
-          { error: '같은 카테고리(경로)에 동일한 제목의 문서가 존재합니다.' },
-          {
-            status: 409,
-            headers: { 'Cache-Control': 'no-store' },
-          },
-        );
-      }
-
-      if (tagsCol.isArray) {
-        await sql`
-          UPDATE documents
-          SET
-            title = ${title},
-            path = ${pathVal},
-            icon = ${icon},
-            tags = ${tagsArr as unknown as string[]}::text[],
-            updated_at = NOW()
-          WHERE id = ${documentId}
-        `;
-      } else {
-        await sql`
-          UPDATE documents
-          SET
-            title = ${title},
-            path = ${pathVal},
-            icon = ${icon},
-            tags = ${tagsCsv},
-            updated_at = NOW()
-          WHERE id = ${documentId}
-        `;
-      }
-
-      const contentExists = await sql`
-        SELECT 1
-        FROM document_contents
-        WHERE document_id = ${documentId}
-        LIMIT 1
-      `;
-
-      if (Array.isArray(contentExists) && contentExists.length > 0) {
-        if (contentCol.isJsonOrJsonb) {
-          await sql`
-            UPDATE document_contents
-            SET content = ${contentJson}${
-              contentCol.isJsonb ? sql`::jsonb` : sql`::json`
-            }
-            WHERE document_id = ${documentId}
-          `;
-        } else {
-          await sql`
-            UPDATE document_contents
-            SET content = ${contentJson}
-            WHERE document_id = ${documentId}
-          `;
-        }
-      } else if (contentCol.isJsonOrJsonb) {
-        await sql`
-          INSERT INTO document_contents (document_id, content)
-          VALUES (
-            ${documentId},
-            ${contentJson}${contentCol.isJsonb ? sql`::jsonb` : sql`::json`}
-          )
-        `;
-      } else {
-        await sql`
-          INSERT INTO document_contents (document_id, content)
-          VALUES (${documentId}, ${contentJson})
-        `;
-      }
-
-      // 경로가 바뀌었다면 이전 경로의 목록 캐시도 무효화합니다.
-      if (
-        oldPath !== undefined &&
-        oldPath !== null &&
-        String(oldPath) !== String(pathVal)
-      ) {
-        invalidate(listTag(oldPath));
-      }
+    const id = body.id == null ? null : Number(body.id);
+    if (id !== null && !isPositiveId(id)) throw new SaveError(400, '잘못된 문서 ID입니다.');
+    const title = typeof body.title === 'string' ? body.title.trim() : '';
+    const path = typeof body.path === 'string' || typeof body.path === 'number' ? String(body.path).trim() : '';
+    if (!title || title.length > 255 || !path || path.length > 255) {
+      throw new SaveError(400, 'path와 255자 이내의 title은 필수입니다.');
     }
+    const content = parseDocumentContent(body.content);
+    if (content === null) throw new SaveError(400, '문서 본문 형식이 올바르지 않습니다. 기존 문서는 변경되지 않았습니다.');
+    const contentJson = JSON.stringify(content);
+    const searchSections = buildDocumentSearchSections(content);
+    const tags = Array.from(new Set<string>((Array.isArray(body.tags) ? body.tags : typeof body.tags === 'string' ? body.tags.split(',') : [])
+      .filter((tag: unknown): tag is string => typeof tag === 'string').map((tag: string) => tag.trim()).filter(Boolean)));
+    const icon = typeof body.icon === 'string' ? body.icon : '';
+    const expected = body.expectedUpdatedAt == null ? null : new Date(body.expectedUpdatedAt).getTime();
+    if (expected !== null && !Number.isFinite(expected)) throw new SaveError(400, '잘못된 수정 시각입니다.');
+    const uploader = gate.dbUser.minecraft_name || gate.dbUser.username;
 
-    // 본문 저장 후 최근 수정 순서가 즉시 반영되게 갱신합니다.
-    await sql`
-      UPDATE documents
-      SET updated_at = NOW()
-      WHERE id = ${documentId}
-    `;
-
-    // 검색 인덱스는 파생 데이터이므로 저장 성공을 방해하지 않습니다.
-    // 실패한 문서는 /api/search/reindex로 다시 구축할 수 있습니다.
-    let searchIndexUpdated = true;
-    try {
-      await replaceDocumentSearchSections(
-        documentId,
-        contentNorm,
-      );
-    } catch (searchIndexError) {
-      searchIndexUpdated = false;
-      console.error(
-        '[문서 저장 API] 검색 인덱스 갱신 실패:',
-        searchIndexError,
-      );
-    }
-
-    // DB 변경이 완료된 즉시 캐시부터 비웁니다.
-    // 이후 활동 로그가 실패해도 오래된 본문이 계속 노출되지 않습니다.
-    invalidateDocumentCache(documentId);
-    invalidate(
-      SEARCH_CACHE_TAG,
-      'doc:list',
-      listTag(pathVal as string | number),
-    );
-
-    const categoryLabel = await resolveCategoryName(
-      Number.isFinite(Number(pathVal)) ? Number(pathVal) : null,
-    );
-
-    await logActivity({
-      action: created ? 'document.create' : 'document.update',
-      username: uploader,
-      targetType: 'document',
-      targetId: documentId,
-      targetName: title,
-      targetPath: categoryLabel,
-      meta: {
-        tags: tagsArr,
-        icon,
-        created,
-      },
+    // Keep compatibility with existing text/json/array deployments without two metadata reads per save.
+    const columns = await cached('save:column-types:v1', { ttlSec: 3600 }, async () => {
+      const rows = await sql`
+        SELECT table_name, column_name, data_type FROM information_schema.columns
+        WHERE table_schema = 'public' AND
+          ((table_name = 'documents' AND column_name = 'tags') OR
+           (table_name = 'document_contents' AND column_name = 'content'))
+      `;
+      return {
+        tagsArray: rows.some((r) => r.table_name === 'documents' && r.data_type === 'ARRAY'),
+        contentType: rows.find((r) => r.table_name === 'document_contents')?.data_type ?? 'text',
+      };
     });
 
-    return NextResponse.json(
-      {
-        success: true,
-        id: documentId,
-        searchIndexUpdated,
-      },
-      { headers: { 'Cache-Control': 'no-store' } },
-    );
-  } catch (error) {
-    console.error('[문서 저장 API] 서버 내부 에러:', error);
+    const saved = await retryRolledBackSave(() => withTx(async (tx) => {
+      // Saves may run in parallel across categories. Category mutations and document deletions retain
+      // the exclusive global gate, so they cannot race a save. A category lock still
+      // protects duplicate-title checks and new-document ordering in that category.
+      await tx`SET LOCAL lock_timeout = '3s'`;
+      await tx`SET LOCAL statement_timeout = '12s'`;
+      await tx`SET LOCAL idle_in_transaction_session_timeout = '20s'`;
+      await tx`SELECT pg_advisory_xact_lock_shared(191919, 1)`;
+      await tx`SELECT pg_advisory_xact_lock(191920, hashtext(${path}))`;
+      let previous: { path: string; updated_at: Date | string } | undefined;
+      if (id !== null) {
+        const rows = await tx`SELECT path, updated_at FROM documents WHERE id = ${id} FOR UPDATE`;
+        previous = rows[0] as typeof previous;
+        if (!previous) throw new SaveError(404, '문서를 찾을 수 없습니다.');
+        if (expected !== null && new Date(previous.updated_at).getTime() !== expected) {
+          throw new SaveError(409, '다른 사용자가 먼저 문서를 수정했습니다. 현재 내용을 임시 저장한 뒤 최신 문서를 다시 열어주세요.');
+        }
+      }
+      const duplicate = await tx`
+        SELECT id FROM documents WHERE path = ${path} AND title = ${title}
+        AND (${id}::int IS NULL OR id <> ${id}) LIMIT 1
+      `;
+      if (duplicate.length) throw new SaveError(409, '같은 카테고리에 동일한 제목의 문서가 존재합니다.');
+      const tagsValue = columns.tagsArray ? tx`${tags}::text[]` : tx`${tags.join(',')}`;
+      const rows = id === null
+        ? await tx`
+            INSERT INTO documents (title, path, icon, tags, "order", uploader, updated_at)
+            VALUES (${title}, ${path}, ${icon}, ${tagsValue},
+              (SELECT COALESCE(MAX("order"), -1) + 1 FROM documents WHERE path = ${path}), ${uploader}, NOW())
+            RETURNING id, updated_at
+          `
+        : await tx`
+            UPDATE documents SET title = ${title}, path = ${path}, icon = ${icon}, tags = ${tagsValue}, updated_at = NOW()
+            WHERE id = ${id} RETURNING id, updated_at
+          `;
+      const documentId = Number(rows[0].id);
+      const contentValue = columns.contentType === 'jsonb' ? tx`${contentJson}::jsonb`
+        : columns.contentType === 'json' ? tx`${contentJson}::json` : tx`${contentJson}`;
+      await tx`
+        INSERT INTO document_contents (document_id, content) VALUES (${documentId}, ${contentValue})
+        ON CONFLICT (document_id) DO UPDATE SET content = EXCLUDED.content
+      `;
+      // Content, metadata and the search index either all commit or all roll back.
+      await replaceDocumentSearchSectionsUsing(tx, documentId, content, searchSections);
+      return { id: documentId, updatedAt: rows[0].updated_at, oldPath: previous?.path, created: id === null };
+    }));
 
-    return NextResponse.json(
-      {
-        error: '서버 내부 에러',
-        details: String(error),
-      },
-      {
-        status: 500,
-        headers: { 'Cache-Control': 'no-store' },
-      },
-    );
+    try { invalidateDocumentCache(saved.id); }
+    catch (error) { console.error('[save] content cache invalidation failed after commit:', error); }
+    invalidate('search:index', 'doc:list', `doclist:${path}`, ...(saved.oldPath ? [`doclist:${saved.oldPath}`] : []));
+    // Send the committed result before auxiliary DB logging. A slow log must not
+    // consume the response deadline and make a completed save appear to fail.
+    after(async () => {
+      try {
+        const label = await resolveCategoryName(/^\d+$/.test(path) ? Number(path) : null);
+        await logActivity({ action: saved.created ? 'document.create' : 'document.update', username: uploader,
+          targetType: 'document', targetId: saved.id, targetName: title, targetPath: label,
+          meta: { tags, icon, created: saved.created } });
+      } catch (error) { console.error('[save] activity log failed:', error); }
+    });
+    return NextResponse.json({ success: true, id: saved.id, updatedAt: saved.updatedAt, searchIndexUpdated: true }, { headers });
+  } catch (error) {
+    if (error instanceof SaveError) return NextResponse.json({ error: error.message }, { status: error.status, headers });
+    // 55P03: lock_not_available (lock_timeout 초과). 저장은 반영되지 않았다.
+    if (['55P03', '40P01', '40001', '57014'].includes((error as { code?: string } | null)?.code ?? '')) {
+      return NextResponse.json(
+        { error: '저장 작업이 지연되어 완료하지 못했습니다. 문서는 변경되지 않았습니다. 잠시 후 다시 저장해 주세요.' },
+        { status: 503, headers: { ...headers, 'Retry-After': '5' } },
+      );
+    }
+    if (isTransientDbError(error)) {
+      console.error('[save] database connection unavailable:', error);
+      return NextResponse.json({ error: 'DB 연결이 일시적으로 불안정합니다. 편집 내용은 유지됩니다. 저장 결과를 확인한 뒤 다시 시도해주세요.' },
+        { status: 503, headers: { ...headers, 'Retry-After': '3' } });
+    }
+    console.error('[save] unexpected error:', error);
+    return NextResponse.json({ error: '문서 저장 중 오류가 발생했습니다.' }, { status: 500, headers });
   }
 }

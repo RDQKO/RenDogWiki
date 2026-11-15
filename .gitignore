@@ -43,3 +43,5 @@ yarn-error.log*
 next-env.d.ts
 
 !app/wiki/lib/isrgrootx1.pem
+# Safe environment template
+!/.env.example

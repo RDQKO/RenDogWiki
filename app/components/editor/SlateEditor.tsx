@@ -16,6 +16,7 @@ import isHotkey from 'is-hotkey';
 
 import { Toolbar } from './Toolbar';
 import Leaf from './Leaf';
+import { withCollapsible } from './helpers/collapsible';
 import ElementRenderer from './Element';
 import TableOfContents from './TableOfContents';
 import { extractHeadings } from './helpers/extractHeadings';
@@ -46,6 +47,7 @@ import type { FootnoteElement } from '@/types/slate';
 
 type DocState = {
   id?: number;
+  updated_at?: string;
   title: string;
   path: string;
   icon: string;
@@ -287,7 +289,7 @@ function SlateEditorContent({
   const editor = useMemo(() => {
     // ✅ 커스텀 플러그인 묶는 순서: React → History → inline/void → weapon-card 플러그인
     const e = withWeaponBlocks(
-      withCustomInline(withHistory(withReact(createEditor())))
+      withCollapsible(withCustomInline(withHistory(withReact(createEditor()))))
     );
 
     const { normalizeNode } = e;
@@ -355,6 +357,7 @@ function SlateEditorContent({
 
   const [doc, setDoc] = useState<DocState>(() => ({
     id: initialDoc?.id ?? undefined,
+    updated_at: initialDoc?.updated_at,
     title: initialDoc?.title ?? '',
     path: initialDoc?.path ?? '',
     icon: initialDoc?.icon ?? '',
@@ -599,6 +602,7 @@ function SlateEditorContent({
   useEffect(() => {
     const nextDoc = {
       id: initialDoc?.id ?? undefined,
+    updated_at: initialDoc?.updated_at,
       title: initialDoc?.title ?? '',
       path: initialDoc?.path ?? '',
       icon: initialDoc?.icon ?? '',
@@ -740,89 +744,55 @@ function SlateEditorContent({
     [editor, handleFootnoteEditOpen]
   );
 
+  const saveInFlightRef = useRef(false);
+  const [saving, setSaving] = useState(false);
   const handleSave = async () => {
-    const pathStr = String(doc.path ?? '0');
+    if (saveInFlightRef.current) return;
     const titleTrim = String(doc.title ?? '').trim();
-
-    let samePathDocs: any[] = [];
-    try {
-      const resList = await fetch(`/api/documents?list=1&path=${encodeURIComponent(pathStr)}`, { cache: 'no-store' });
-      if (resList.ok) {
-        const data = await resList.json();
-        samePathDocs = Array.isArray(data?.items) ? data.items : Array.isArray(data) ? data : [];
-      } else {
-        const resAll = await fetch(`/api/documents?all=1`, { cache: 'no-store' });
-        const data = resAll.ok ? await resAll.json() : [];
-        samePathDocs = Array.isArray(data?.items) ? data.items : Array.isArray(data) ? data : [];
-      }
-    } catch { samePathDocs = []; }
-
-    const isDuplicate = samePathDocs.some(d =>
-      String(d.path) === pathStr &&
-      String(d.title ?? '').trim() === titleTrim &&
-      (doc.id == null || d.id !== doc.id)
-    );
-
-    if (isDuplicate) {
-      let label = pathStr === '0' ? '루트 카테고리' : '해당 카테고리';
-      try {
-        const catsRes = await fetch('/api/categories', { cache: 'no-store' });
-        if (catsRes.ok) {
-          const cats = await catsRes.json();
-          const cat = Array.isArray(cats)
-            ? cats.find((c: any) => String(c.id) === pathStr || String(c.name) === pathStr)
-            : null;
-          if (cat?.name) label = cat.name;
-        }
-      } catch {}
-      alert(`${label}에 동일한 제목의 문서가 이미 있어요.`);
-      return;
-    }
-
+    if (!titleTrim) { alert('문서 제목을 입력해주세요.'); return; }
+    const snapshot = { ...doc, title: titleTrim, content: editor.children as Descendant[],
+      tags: Array.from(new Set(tagInput.split(',').map(tag => tag.trim()).filter(Boolean))) };
+    const savedContentJson = serializeContentForDraft(snapshot.content);
+    saveInFlightRef.current = true;
+    setSaving(true);
     try {
       const res = await fetch('/api/save', {
         method: 'POST', headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ ...doc, title: titleTrim }),
+        body: JSON.stringify({ ...snapshot, expectedUpdatedAt: doc.updated_at }),
+        credentials: 'include',
       });
-      if (!res.ok) { alert('저장 실패'); return; }
-
-      let saved: any = null;
-      try { saved = await res.json(); } catch {}
+      const saved = await res.json().catch(() => null);
+      if (!res.ok) {
+        console.error('[editor] save failed:', { status: res.status, requestId: res.headers.get('x-vercel-id') });
+        alert(saved?.error || (res.status === 413 ? '문서 용량이 서버 한도를 초과했습니다. 편집 내용은 유지됩니다.' : '문서를 저장하지 못했습니다. 편집 내용은 유지됩니다. 잠시 후 다시 시도해주세요.'));
+        return;
+      }
+      if (!saved?.success || !Number.isInteger(saved.id) || !saved.updatedAt) {
+        throw new Error('invalid-save-response');
+      }
       const documentId = saved?.id ?? doc.id;
+      setDoc((previous) => ({ ...previous, id: documentId, updated_at: saved?.updatedAt ?? previous.updated_at }));
 
       if (isMain && doc.path != null) {
-        try {
+        const pathStr = String(doc.path);
+        if (pathStr !== '0') {
           const catsRes = await fetch('/api/categories', { cache: 'no-store' });
-          if (catsRes.ok) {
-            const cats = await catsRes.json();
-            const category = Array.isArray(cats)
-              ? cats.find((c: any) => String(c.id) === pathStr || String(c.name) === pathStr)
-              : null;
-
-            if (category) {
-              await fetch(`/api/categories/${category.id}`, {
-                method: 'PUT',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({
-                  document_id: documentId,
-                  name: category.name,
-                  parent_id: category.parent_id ?? null,
-                  order: category.order ?? 0,
-                  icon: category.icon ?? null,
-                }),
-              });
-            } else if (pathStr !== '0') {
-              alert('카테고리 정보를 찾을 수 없습니다.');
-            }
-          }
-        } catch {}
+          if (!catsRes.ok) { alert('본문은 저장됐지만 대표 문서 설정을 불러오지 못했습니다.'); return; }
+          const cats = await catsRes.json();
+          const category = Array.isArray(cats) ? cats.find((c: any) => String(c.id) === pathStr) : null;
+          if (!category) { alert('본문은 저장됐지만 카테고리를 찾지 못했습니다.'); return; }
+          const linked = await fetch(`/api/categories/${category.id}`, {
+            method: 'PUT', headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ ...category, document_id: documentId }),
+          });
+          if (!linked.ok) { alert('본문은 저장됐지만 대표 문서 설정에 실패했습니다. 다시 저장해주세요.'); return; }
+        }
       }
-
-      serverContentJsonRef.current = serializeContentForDraft(doc.content);
+      serverContentJsonRef.current = savedContentJson;
       draftBaselineReadyRef.current = true;
-
       alert('저장 완료!');
-    } catch { alert('문서 저장 실패'); }
+    } catch { alert('문서 저장 결과를 확인하지 못했습니다. 임시 저장 후 다시 확인해주세요.'); }
+    finally { saveInFlightRef.current = false; setSaving(false); }
   };
 
   const isSelectionInsideTable = useCallback(() => {
@@ -1276,7 +1246,7 @@ function SlateEditorContent({
             </div>
 
             {/* 저장 */}
-            <button className="meta-save" onClick={handleSave}>저장</button>
+            <button className="meta-save" onClick={handleSave} disabled={saving} aria-busy={saving}>{saving ? '저장 중...' : '저장'}</button>
 
             <div className="meta-drafts">
               <div className="meta-drafts-title">
