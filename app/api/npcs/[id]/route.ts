@@ -1,3 +1,4 @@
+import { invalidate } from '@/wiki/lib/cache';
 // =============================================
 // File: app/api/npc/[id]/route.ts
 // =============================================
@@ -5,7 +6,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { sql } from '@/wiki/lib/db';
 import { getAuthUser } from '@/wiki/lib/auth';
 import { logActivity } from '@wiki/lib/activity';
-import { requireRole } from '@/wiki/lib/requireRole';
+import { requireRole, canDeleteUploaded } from '@/wiki/lib/requireRole';
 
 export const runtime = 'nodejs';
 
@@ -40,6 +41,7 @@ type NpcRow = {
   pictures: unknown;
   rewards: unknown;
   tag: string | null;
+  uploader: string | null;
 };
 
 function parseArray(v: unknown): any[] {
@@ -68,7 +70,9 @@ function toNpcTypeOr(v: unknown, fallback: string): string {
 }
 
 /** PATCH: 단건 수정 */
-export async function PATCH(req: NextRequest, { params }: { params: { id: string } }) {
+export async function PATCH(req: NextRequest, { params: pendingParams }: { params: Promise<{ id: string }> }
+) {
+  const params = await pendingParams;
   const gate = await requireRole(['writer', 'admin']);
 
   if (!gate.ok) {
@@ -135,8 +139,9 @@ export async function PATCH(req: NextRequest, { params }: { params: { id: string
     (updated as any).pictures = parseArray(updated.pictures);
     (updated as any).rewards  = parseArray(updated.rewards);
 
-    const me = getAuthUser();
+    const me = await getAuthUser();
     const username = me?.minecraft_name ?? req.headers.get('x-wiki-username') ?? null;
+    invalidate('npc:list', 'village:list', 'search:index');
     await logActivity({
       action: 'npc.update',
       username,
@@ -155,7 +160,9 @@ export async function PATCH(req: NextRequest, { params }: { params: { id: string
 }
 
 /** DELETE: 그대로 */
-export async function DELETE(req: NextRequest, { params }: { params: { id: string } }) {
+export async function DELETE(req: NextRequest, { params: pendingParams }: { params: Promise<{ id: string }> }
+) {
+  const params = await pendingParams;
   const gate = await requireRole(['writer', 'admin']);
 
   if (!gate.ok) {
@@ -173,16 +180,20 @@ export async function DELETE(req: NextRequest, { params }: { params: { id: strin
     if (!Number.isFinite(id) || id <= 0) {
       return NextResponse.json({ error: 'Invalid id' }, { status: 400, headers: { 'Cache-Control': 'no-store' } });
     }
-    const me = getAuthUser();
+    const me = await getAuthUser();
     const username = me?.minecraft_name ?? req.headers.get('x-wiki-username') ?? null;
 
     const rows = (await sql/*sql*/`
-      SELECT id, name, village_id FROM npc WHERE id = ${id} LIMIT 1
-    `) as unknown as Array<Pick<NpcRow,'id'|'name'|'village_id'>>;
+      SELECT id, name, village_id, uploader FROM npc WHERE id = ${id} LIMIT 1
+    `) as unknown as Array<Pick<NpcRow,'id'|'name'|'village_id'|'uploader'>>;
     if (!rows.length) return NextResponse.json({ error: 'Not found' }, { status: 404, headers: { 'Cache-Control': 'no-store' } });
 
     const row = rows[0];
+    if (!canDeleteUploaded(gate.dbUser, row.uploader)) {
+      return NextResponse.json({ error: 'FORBIDDEN' }, { status: 403, headers: { 'Cache-Control': 'no-store' } });
+    }
     await sql/*sql*/`DELETE FROM npc WHERE id = ${id}`;
+    invalidate('npc:list', 'village:list', 'search:index');
     await logActivity({ action: 'npc.delete', username, targetType:'npc', targetId:id, targetName:row.name, targetPath:String(row.village_id), meta:null });
 
     return NextResponse.json({ success: true }, { headers: { 'Cache-Control': 'no-store' } });
@@ -193,7 +204,9 @@ export async function DELETE(req: NextRequest, { params }: { params: { id: strin
 }
 
 /** ✅ GET: 단건 조회 (public) */
-export async function GET(_req: NextRequest, { params }: { params: { id: string } }) {
+export async function GET(_req: NextRequest, { params: pendingParams }: { params: Promise<{ id: string }> }
+) {
+  const params = await pendingParams;
   try {
     const id = Number(params.id);
     if (!Number.isFinite(id) || id <= 0) {

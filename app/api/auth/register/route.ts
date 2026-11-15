@@ -39,6 +39,10 @@ export async function POST(req: NextRequest) {
       );
     }
 
+    if (password.length < 8 || Buffer.byteLength(password, 'utf8') > 72 || username.length > 64 || emailRaw.length > 254 || !/^[A-Za-z0-9_]{3,16}$/.test(minecraftName)) {
+      return NextResponse.json({ error: '비밀번호는 8자 이상, UTF-8 기준 72바이트 이내여야 하며 닉네임은 영문·숫자·밑줄 3~16자여야 합니다.' }, { status: 400, headers: { 'Cache-Control': 'no-store' } });
+    }
+
     // 2) 중복 검사 -> 이메일은 대소문자 무시, 나머지는 정확 일치
     const existing = (await sql`
       SELECT email, username, minecraft_name

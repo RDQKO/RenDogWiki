@@ -1,3 +1,5 @@
+import { requireRole } from '@/wiki/lib/requireRole';
+import { boundedInteger } from '@/wiki/lib/apiInput';
 // =============================================
 // File: app/api/activity/logs/route.ts
 // =============================================
@@ -88,16 +90,15 @@ async function getVillageNameMap(ids: number[]): Promise<Record<number, string>>
 }
 
 export async function GET(req: Request) {
+  const gate = await requireRole(['writer', 'admin']);
+  if (!gate.ok) return NextResponse.json({ error: gate.error }, { status: gate.status, headers: { 'Cache-Control': 'no-store' } });
   // 파라미터 파싱 -> 안전한 기본값 적용
   const { searchParams } = new URL(req.url);
 
   const DEFAULT_LIMIT = 30;
   const MAX_LIMIT = 100;
 
-  const rawLimit = Number(searchParams.get('limit'));
-  const limit = Number.isFinite(rawLimit)
-    ? Math.min(Math.max(Math.trunc(rawLimit), 1), MAX_LIMIT)
-    : DEFAULT_LIMIT;
+  const limit = boundedInteger(searchParams.get('limit'), DEFAULT_LIMIT, 1, MAX_LIMIT);
 
   const cursorStr = searchParams.get('cursor');
   const parsedCursor = cursorStr != null ? Number(cursorStr) : NaN;

@@ -1,51 +1,51 @@
-// =============================================
-// File: app/wiki/lib/requireRole.ts (전체 코드)
-// =============================================
 import { getAuthUser } from '@/app/wiki/lib/auth';
 import { sql } from '@/app/wiki/lib/db';
 
 export type Role = 'guest' | 'writer' | 'admin';
+type CurrentUser = {
+  id: number;
+  username: string;
+  email: string;
+  minecraft_name: string;
+  role: Role;
+  verified: boolean;
+};
 
+/** Recheck the account as well as the JWT: deleted/unverified accounts cannot write. */
 export async function requireAuth() {
-  const user = getAuthUser();
-  if (!user) {
+  const tokenUser = await getAuthUser();
+  if (!tokenUser) {
     return { ok: false as const, status: 401, error: 'UNAUTHORIZED' as const };
   }
-  return { ok: true as const, user };
+  const rows = await sql<CurrentUser[]>`
+    SELECT id, username, email, minecraft_name, role, verified
+    FROM users WHERE id = ${tokenUser.id} LIMIT 1
+  `;
+  const row = rows[0];
+  if (!row || !row.verified) {
+    return { ok: false as const, status: 401, error: 'UNAUTHORIZED' as const };
+  }
+  const role: Role = row.role === 'admin' || row.role === 'writer' ? row.role : 'guest';
+  return { ok: true as const, user: row, dbUser: { ...row, role } };
 }
 
 export async function requireRole(allow: Role[]) {
   const auth = await requireAuth();
   if (!auth.ok) return auth;
-
-  // ✅ DB에서 role을 다시 조회해서 신뢰성 확보
-  const rows = await sql<{
-    id: number;
-    role: Role | null;
-    minecraft_name: string | null;
-    username: string | null;
-  }[]>`
-    select id, role, minecraft_name, username
-    from users
-    where id = ${auth.user.id}
-    limit 1
-  `;
-
-  const row = rows?.[0];
-  const role: Role = (row?.role ?? 'guest') as Role;
-
-  if (!allow.includes(role)) {
+  if (!allow.includes(auth.dbUser.role)) {
     return { ok: false as const, status: 403, error: 'FORBIDDEN' as const };
   }
+  return auth;
+}
 
-  return {
-    ok: true as const,
-    user: auth.user,
-    dbUser: {
-      id: row.id,
-      role,
-      minecraft_name: row.minecraft_name ?? '',
-      username: row.username ?? '',
-    },
-  };
+/** Matches the manager UI's uploader rule; empty names never own rows. */
+export function canDeleteUploaded(
+  user: { role: Role; minecraft_name?: string | null },
+  ...uploaders: unknown[]
+): boolean {
+  if (user.role === 'admin') return true;
+  const name = String(user.minecraft_name ?? '').trim().toLowerCase();
+  return user.role === 'writer' && !!name && uploaders.some(
+    (uploader) => typeof uploader === 'string' && uploader.trim().toLowerCase() === name,
+  );
 }

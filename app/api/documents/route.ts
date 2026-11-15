@@ -1,3 +1,5 @@
+import { withTx } from '@/wiki/lib/db';
+import { deleteDocumentsUsing } from '@/wiki/lib/documentMutation';
 // app/api/documents/route.ts
 // 전체 교체용 코드
 //
@@ -36,7 +38,7 @@ export const runtime = 'nodejs';
  * 문서 본문/목록 공유 캐시를 위해 의도적으로 사용하지 않습니다.
  */
 
-const DELETE_PASSWORD = process.env.MANAGE_DELETE_PASSWORD ?? '1290';
+const DELETE_PASSWORD = process.env.MANAGE_DELETE_PASSWORD;
 
 const listTag = (path: string | number) => `doclist:${String(path)}`;
 
@@ -441,6 +443,10 @@ export async function DELETE(req: NextRequest) {
     );
   }
 
+  if (!DELETE_PASSWORD) {
+    return NextResponse.json({ error: '관리자 삭제 비밀번호 설정이 필요합니다.' }, { status: 503, headers: { 'Cache-Control': 'no-store' } });
+  }
+
   if (req.headers.get('x-rd-delete-password') !== DELETE_PASSWORD) {
     return NextResponse.json(
       { error: '삭제 비밀번호가 올바르지 않습니다.' },
@@ -483,15 +489,10 @@ export async function DELETE(req: NextRequest) {
       );
     }
 
-    await sql`
-      DELETE FROM document_contents
-      WHERE document_id = ${id}
-    `;
-
-    await sql`
-      DELETE FROM documents
-      WHERE id = ${id}
-    `;
+    await withTx(async (tx) => {
+      await tx`SELECT pg_advisory_xact_lock(191919, 1)`;
+      await deleteDocumentsUsing(tx, [id]);
+    });
 
     // 삭제가 끝난 직후 문서 본문, 목록, 검색 결과 캐시를 모두 무효화합니다.
     invalidateDocumentCache(id);
@@ -499,6 +500,8 @@ export async function DELETE(req: NextRequest) {
       'doc:list',
       listTag(document.path ?? '0'),
       'search:index',
+      'category:list',
+      'category:tree',
     );
 
     const username =

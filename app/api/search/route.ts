@@ -1,3 +1,4 @@
+import { boundedInteger, escapeLike } from '@/wiki/lib/apiInput';
 import { unstable_cache } from 'next/cache';
 import { NextRequest, NextResponse } from 'next/server';
 import {
@@ -28,7 +29,7 @@ export const runtime = 'nodejs';
 
 const SEARCH_CACHE_SECONDS = 60;
 const SEARCH_CACHE_TAG = 'search:index';
-const SEARCH_CACHE_VERSION = 'search:hybrid-document-cache-v2';
+const SEARCH_CACHE_VERSION = 'search:hybrid-document-cache-v3';
 
 type MatchType = 'title' | 'tags' | 'content';
 type SectionMatchSource = 'heading' | 'body';
@@ -481,14 +482,14 @@ async function searchDocuments(
 ): Promise<SearchRow[]> {
   const normalizedRaw = normalizeSearchText(raw);
   const compactRaw = compactSearchText(raw);
-  const pattern = `%${raw}%`;
-  const compactPattern = `%${compactRaw}%`;
+  const pattern = `%${escapeLike(raw)}%`;
+  const compactPattern = `%${escapeLike(compactRaw)}%`;
   const useTrgm = shouldUseTrgm(raw);
   const useLooseRegex = shouldUseLooseRegex(raw);
   const looseRegex = makeLooseRegex(raw);
 
   const dbRows = await runDbRead(
-    'search:original-ux',
+    'search:indexed-ux',
     async () => {
       const titlePromise = sql`
         SELECT
@@ -718,14 +719,49 @@ async function searchDocuments(
         LIMIT ${limit}
       `;
 
-      /**
-       * 검색 대상과 점수 계산은 기존과 동일하게 원본 JSON 전체를 DB 안에서
-       * 검사합니다. 단, dc.content 자체는 SELECT 결과로 반환하지 않습니다.
-       *
-       * 아래에서 후보 문서 ID를 공통 24시간 문서 캐시와 결합한 뒤,
-       * 기존 목차 판정·본문 영역 판정·미리보기·정렬 코드를 그대로 실행합니다.
-       */
+      // Short searches cannot use a trigram index efficiently. Keep a single
+      // legacy scan for those; indexed searches fence the fallback rows first.
+      const contentCandidates = compactRaw.length < 3 ? sql`
+        SELECT dc.document_id, CASE
+          WHEN lower(COALESCE(dc.content::text, '')) LIKE lower(${pattern}) THEN 30
+          ELSE 28 END AS score
+        FROM document_contents dc
+        WHERE lower(COALESCE(dc.content::text, '')) LIKE lower(${pattern})
+          OR regexp_replace(lower(COALESCE(dc.content::text, '')), '\\s+', '', 'g') LIKE ${compactPattern}
+      ` : sql`
+        WITH legacy_content AS MATERIALIZED (
+          SELECT dc.document_id, dc.content
+          FROM document_contents dc
+          JOIN documents source ON source.id = dc.document_id
+          WHERE NOT EXISTS (
+            SELECT 1 FROM document_search_sections current_section
+            WHERE current_section.document_id = source.id
+              AND current_section.updated_at >= source.updated_at
+          )
+        )
+        SELECT section.document_id, MAX(CASE
+          WHEN lower(section.heading_text) LIKE lower(${pattern})
+            OR lower(section.plain_text) LIKE lower(${pattern}) THEN 30
+          ELSE 28 END) AS score
+        FROM document_search_sections section
+        JOIN documents source ON source.id = section.document_id
+        WHERE section.updated_at >= source.updated_at AND (
+          lower(section.heading_text) LIKE lower(${pattern})
+          OR lower(section.plain_text) LIKE lower(${pattern})
+          OR section.heading_compact LIKE ${compactPattern}
+          OR section.compact_text LIKE ${compactPattern}
+        )
+        GROUP BY section.document_id
+        UNION ALL
+        SELECT dc.document_id, CASE
+          WHEN lower(COALESCE(dc.content::text, '')) LIKE lower(${pattern}) THEN 30
+          ELSE 28 END AS score
+        FROM legacy_content dc
+        WHERE lower(COALESCE(dc.content::text, '')) LIKE lower(${pattern})
+          OR regexp_replace(lower(COALESCE(dc.content::text, '')), '\\s+', '', 'g') LIKE ${compactPattern}
+      `;
       const contentPromise = sql`
+        WITH content_candidates AS (${contentCandidates})
         SELECT
           d.id,
           d.title,
@@ -765,37 +801,9 @@ async function searchDocuments(
             JOIN categories c
               ON c.id = ids.cid
           ) AS category_breadcrumb,
-          CASE
-            WHEN LOWER(
-              COALESCE(dc.content::text, '')
-            ) LIKE LOWER(${pattern})
-              THEN 30
-            WHEN regexp_replace(
-              LOWER(
-                COALESCE(dc.content::text, '')
-              ),
-              '\\s+',
-              '',
-              'g'
-            ) LIKE ${compactPattern}
-              THEN 28
-            ELSE 0
-          END AS score
-        FROM documents d
-        JOIN document_contents dc
-          ON d.id = dc.document_id
-        WHERE
-          LOWER(
-            COALESCE(dc.content::text, '')
-          ) LIKE LOWER(${pattern})
-          OR regexp_replace(
-            LOWER(
-              COALESCE(dc.content::text, '')
-            ),
-            '\\s+',
-            '',
-            'g'
-          ) LIKE ${compactPattern}
+          candidate.score
+        FROM content_candidates candidate
+        JOIN documents d ON d.id = candidate.document_id
         ORDER BY
           score DESC,
           d.updated_at DESC NULLS LAST,
@@ -1062,7 +1070,7 @@ async function searchCached(
   raw: string,
   limit: number,
 ) {
-  const normalizedKey = compactSearchText(raw);
+  const normalizedKey = normalizeSearchText(raw);
 
   return unstable_cache(
     async () => searchDocuments(raw, limit),
@@ -1082,15 +1090,7 @@ export async function GET(req: NextRequest) {
   try {
     const searchParams = req.nextUrl.searchParams;
     const raw = (searchParams.get('query') ?? '').trim();
-    const requestedLimit = Number(
-      searchParams.get('limit'),
-    );
-    const limit = Number.isFinite(requestedLimit)
-      ? Math.min(
-          50,
-          Math.max(1, Math.trunc(requestedLimit)),
-        )
-      : 50;
+    const limit = boundedInteger(searchParams.get('limit'), 50, 1, 50);
 
     if (!raw) {
       return NextResponse.json([], {
@@ -1100,6 +1100,9 @@ export async function GET(req: NextRequest) {
       });
     }
 
+    if (raw.length > 128) {
+      return NextResponse.json({ error: '검색어는 128자 이내로 입력해주세요.' }, { status: 400, headers: { 'Cache-Control': 'no-store' } });
+    }
     const results = await searchCached(raw, limit);
 
     return NextResponse.json(results, {

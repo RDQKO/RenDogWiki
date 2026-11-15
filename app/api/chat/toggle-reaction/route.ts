@@ -8,19 +8,20 @@
 
 import { NextRequest, NextResponse } from 'next/server';
 import { sql } from '@/app/wiki/lib/db';
-import { getAuthUser } from '@/app/wiki/lib/auth';
+import { requireAuth } from '@/wiki/lib/requireRole';
 
 export const runtime = 'nodejs';
 
 export async function POST(req: NextRequest) {
   try {
-    const me = getAuthUser();
-    if (!me) {
+    const gate = await requireAuth();
+    if (!gate.ok) {
       return NextResponse.json(
         { error: 'unauthorized' },
         { status: 401, headers: { 'Cache-Control': 'no-store', 'X-App-Cache': 'OFF' } }
       );
     }
+    const me = gate.user;
 
     // 입력 파싱 -> message_id는 정수/양수, type은 like|dislike
     const body = await req.json().catch(() => null);
@@ -28,7 +29,7 @@ export async function POST(req: NextRequest) {
     const rawType = typeof body?.type === 'string' ? body.type.trim().toLowerCase() : '';
     const kind = rawType === 'dislike' ? 'dislike' : rawType === 'like' ? 'like' : '';
 
-    if (!Number.isFinite(messageId) || messageId <= 0) {
+    if (!Number.isSafeInteger(messageId) || messageId <= 0) {
       return NextResponse.json(
         { error: 'bad-id' },
         { status: 400, headers: { 'Cache-Control': 'no-store', 'X-App-Cache': 'OFF' } }

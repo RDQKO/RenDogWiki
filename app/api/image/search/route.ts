@@ -1,3 +1,4 @@
+import { boundedInteger } from '@/wiki/lib/apiInput';
 // =============================================
 // File: app/api/image/search/route.ts
 // =============================================
@@ -23,10 +24,7 @@ export async function GET(req: NextRequest) {
 
     // 검색어/limit 파싱
     const q = (searchParams.get('q') ?? '').trim();
-    const rawLimit = Number(searchParams.get('limit'));
-    const limit = Number.isFinite(rawLimit)
-      ? Math.min(500, Math.max(1, Math.trunc(rawLimit)))
-      : 200;
+    const limit = boundedInteger(searchParams.get('limit'), 200, 1, 500);
 
     // 검색어가 비어 있으면 바로 종료
     if (!q) {

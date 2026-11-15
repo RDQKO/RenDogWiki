@@ -13,7 +13,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { sql } from '@/wiki/lib/db';
 import { getAuthUser } from '@/wiki/lib/auth';
 import { logActivity } from '@wiki/lib/activity';
-import { cached } from '@/wiki/lib/cache'; // ✅ 캐시 유틸
+import { cached, invalidate } from '@/wiki/lib/cache'; // ✅ 캐시 유틸
 import { requireRole } from '@/wiki/lib/requireRole';
 
 export const runtime = 'nodejs';
@@ -37,7 +37,7 @@ export async function GET(req: NextRequest) {
 
     if (!name) {
       // ✅ 전체 목록 120초 캐시
-      const data = await cached('villages:all', { ttlSec: 120 }, async () => {
+      const data = await cached('villages:all', { ttlSec: 120, tags: ['village:list'] }, async () => {
         const rows = await sql/*sql*/`
           SELECT id, name, icon, "order", head_icon
           FROM village
@@ -49,7 +49,7 @@ export async function GET(req: NextRequest) {
     }
 
     // ✅ 단일 조회도 쿼리별 캐시
-    const data = await cached(`village:by-name:${name}`, { ttlSec: 120 }, async () => {
+    const data = await cached(`village:by-name:${name}`, { ttlSec: 120, tags: ['village:list'] }, async () => {
       const rows = await sql/*sql*/`
         SELECT id, name, icon, "order", head_icon
         FROM village
@@ -112,7 +112,7 @@ export async function POST(req: NextRequest) {
     }
 
     // uploader/username
-    const me = getAuthUser();
+    const me = await getAuthUser();
     const uploader = me?.minecraft_name ?? req.headers.get('x-wiki-username') ?? 'admin';
     const username = uploader;
 
@@ -122,6 +122,7 @@ export async function POST(req: NextRequest) {
       RETURNING id, name, icon, "order", head_icon
     `;
 
+    invalidate('npc:list', 'village:list', 'search:index');
     await logActivity({
       action: 'village.create',
       username,
@@ -133,7 +134,6 @@ export async function POST(req: NextRequest) {
     });
 
     // ⚠️ 별도 무효화 API가 없다면 TTL 만료(120s)로 일관성 확보
-    const { invalidate } = await import('@/wiki/lib/cache');
     invalidate('villages:all', `village:by-name:${name}`, 'bootstrap:v1');
     return NextResponse.json(rows[0], { headers: { 'Cache-Control': 'no-store' } });
   } catch (err) {

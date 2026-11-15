@@ -19,6 +19,7 @@ const EMPTY_DOC: Descendant[] = [{ type: 'paragraph', children: [{ text: '' }] }
 
 type DocType = {
   id?: number;
+  updated_at?: string;
   title: string;
   path: string;
   icon: string;
@@ -35,49 +36,41 @@ function WritePageInner() {
 
   const [doc, setDoc] = useState<DocType | null>(null);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState('');
 
   useEffect(() => {
-    if (!path) {
+    const controller = new AbortController();
+    setLoading(true);
+    setError('');
+    setDoc(null);
+    if (!path) { setLoading(false); return () => controller.abort(); }
+    if (id) {
+      fetch(`/api/documents?id=${id}`, { cache: 'no-store', signal: controller.signal })
+        .then(async (res) => {
+          if (!res.ok || res.status === 204) throw new Error('문서를 불러오지 못했습니다. 다시 열어주세요.');
+          const data = await res.json();
+          if (!data || Number(data.id) !== id || !Array.isArray(data.content)) throw new Error('문서 데이터가 올바르지 않습니다.');
+          if (controller.signal.aborted) return;
+          setDoc({ id: data.id, updated_at: data.updated_at, title: data.title, path: String(data.path ?? path),
+            icon: data.icon ?? '', tags: Array.isArray(data.tags) ? data.tags : [],
+            content: data.content.length ? data.content : EMPTY_DOC });
+        })
+        .catch((err) => { if (!controller.signal.aborted) setError(err.message); })
+        .finally(() => { if (!controller.signal.aborted) setLoading(false); });
+    } else {
+      setDoc({ title: title || '', path, icon: '', tags: [], content: EMPTY_DOC });
       setLoading(false);
-      return;
     }
-
-    // 수정 모드: path, title, id가 모두 있는 경우
-    if (path && title && id) {
-      fetch(`/api/documents?path=${encodeURIComponent(path)}&title=${encodeURIComponent(title)}`)
-        .then(res => res.status === 204 ? null : res.json())
-        .then(data => {
-          setDoc({
-            id: data?.id ?? id,
-            title: data?.title ?? title,
-            path: data?.path ?? path,
-            icon: data?.icon ?? '',
-            tags: Array.isArray(data?.tags) ? data.tags : [],
-            content: Array.isArray(data?.content) && data.content.length > 0 ? data.content : EMPTY_DOC,
-          });
-          setLoading(false);
-        });
-      return;
-    }
-
-    // 신규/대표문서 모드: title이 없는 경우
-    setDoc({
-      id,
-      title: '',
-      path,
-      icon: '',
-      tags: [],
-      content: EMPTY_DOC,
-    });
-    setLoading(false);
+    return () => controller.abort();
   }, [path, title, id]);
 
   if (loading) return <div>불러오는 중...</div>;
+  if (error) return <div role="alert">{error}</div>;
   if (!path) return <div>잘못된 접근입니다.</div>;
 
   return (
     <main className="wiki-editor-page">
-      <SlateEditor initialDoc={doc} isMain={main} />
+      <SlateEditor key={`${id ?? 'new'}:${path}`} initialDoc={doc} isMain={main} />
     </main>
   );
 }

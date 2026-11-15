@@ -1,3 +1,5 @@
+import { invalidate } from '@/wiki/lib/cache';
+import { requireRole, canDeleteUploaded } from '@/wiki/lib/requireRole';
 // =============================================
 // File: app/api/villages/[id]/route.ts
 // =============================================
@@ -34,8 +36,14 @@ function strOr<T extends string | null>(v: unknown, fallback: T): T {
  */
 export async function PATCH(
   req: NextRequest,
-  { params }: { params: { id: string } }
+  { params: pendingParams }: { params: Promise<{ id: string }> }
 ) {
+  const params = await pendingParams;
+  const gate = await requireRole(['writer', 'admin']);
+  if (!gate.ok) {
+    return NextResponse.json({ error: gate.error }, { status: gate.status, headers: { 'Cache-Control': 'no-store' } });
+  }
+
   try {
     const id = Number(params.id);
     if (!Number.isFinite(id) || id <= 0) {
@@ -48,8 +56,6 @@ export async function PATCH(
     const body = await req.json().catch(() => ({} as any));
     const name = strOr(body?.name, '');
     const icon = strOr(body?.icon, '');
-    const order = toIntOr(body?.order, 0);
-    const head_icon = body?.head_icon === undefined ? null : strOr(body?.head_icon, null);
 
     if (!name || !icon) {
       return NextResponse.json(
@@ -73,6 +79,8 @@ export async function PATCH(
       );
     }
     const before = beforeRows[0];
+    const order = body?.order === undefined ? before.order : toIntOr(body.order, before.order);
+    const head_icon = body?.head_icon === undefined ? before.head_icon : strOr(body.head_icon, null);
 
     // 업데이트
     await sql/*sql*/`
@@ -86,9 +94,10 @@ export async function PATCH(
     `;
 
     // 활동 로그
-    const user = getAuthUser();
+    const user = await getAuthUser();
     const username = user?.minecraft_name ?? req.headers.get('x-wiki-username') ?? null;
 
+    invalidate('npc:list', 'village:list', 'search:index');
     await logActivity({
       action: 'village.update',
       username,
@@ -118,8 +127,14 @@ export async function PATCH(
  */
 export async function DELETE(
   req: NextRequest,
-  { params }: { params: { id: string } }
+  { params: pendingParams }: { params: Promise<{ id: string }> }
 ) {
+  const params = await pendingParams;
+  const gate = await requireRole(['writer', 'admin']);
+  if (!gate.ok) {
+    return NextResponse.json({ error: gate.error }, { status: gate.status, headers: { 'Cache-Control': 'no-store' } });
+  }
+
   try {
     const id = Number(params.id);
     if (!Number.isFinite(id) || id <= 0) {
@@ -131,11 +146,11 @@ export async function DELETE(
 
     // 삭제 전 정보(없으면 404)
     const rows = (await sql/*sql*/`
-      SELECT id, name
+      SELECT id, name, uploader
       FROM village
       WHERE id = ${id}
       LIMIT 1
-    `) as unknown as Array<{ id: number; name: string | null }>;
+    `) as unknown as Array<{ id: number; name: string | null; uploader: string | null }>;
 
     if (!rows.length) {
       return NextResponse.json(
@@ -146,11 +161,16 @@ export async function DELETE(
 
     const gone = rows[0];
 
+    if (!canDeleteUploaded(gate.dbUser, gone.uploader)) {
+      return NextResponse.json({ error: 'FORBIDDEN' }, { status: 403, headers: { 'Cache-Control': 'no-store' } });
+    }
+
     await sql/*sql*/`DELETE FROM village WHERE id = ${id}`;
 
-    const user = getAuthUser();
+    const user = await getAuthUser();
     const username = user?.minecraft_name ?? req.headers.get('x-wiki-username') ?? null;
 
+    invalidate('npc:list', 'village:list', 'search:index');
     await logActivity({
       action: 'village.delete',
       username,

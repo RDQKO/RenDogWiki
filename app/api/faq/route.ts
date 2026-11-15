@@ -1,3 +1,4 @@
+import { boundedInteger } from '@/wiki/lib/apiInput';
 // =============================================
 // File: app/api/faq/route.ts
 // 전체 교체용 코드
@@ -825,28 +826,8 @@ export async function GET(
         ).trim(),
       );
 
-    const limit =
-      Math.max(
-        1,
-        Math.min(
-          100,
-          Number(
-            searchParams.get(
-              'limit',
-            ) ?? 20,
-          ),
-        ),
-      );
-
-    const offset =
-      Math.max(
-        0,
-        Number(
-          searchParams.get(
-            'offset',
-          ) ?? 0,
-        ),
-      );
+    const limit = boundedInteger(searchParams.get('limit'), 20, 1, 100);
+    const offset = boundedInteger(searchParams.get('offset'), 0, 0, 100_000);
 
     const data =
       await cached(

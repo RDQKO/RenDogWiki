@@ -18,7 +18,7 @@ export const revalidate = 0;
 
 export async function GET() {
   try {
-    const user = getAuthUser();
+    const user = await getAuthUser();
     if (!user) {
       return NextResponse.json(
         { error: 'Unauthorized' },
@@ -34,9 +34,8 @@ export async function GET() {
 
     const tokenRequest = await ablyRest.auth.createTokenRequest({
       clientId: String(user.id),
-      // 필요 시 아래 옵션 사용 가능
-      // ttl: 1000 * 60 * 60, // 1시간
-      // capability: JSON.stringify({ 'rdwiki-chat': ['publish', 'subscribe'] }),
+      ttl: 1000 * 60 * 60,
+      capability: JSON.stringify({ 'rdwiki-chat': ['subscribe'] }),
     });
 
     return NextResponse.json(tokenRequest, {

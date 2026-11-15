@@ -16,6 +16,7 @@ import {
 
 import {
   sql,
+  withTx,
 } from '@/wiki/lib/db';
 
 import {
@@ -338,8 +339,15 @@ export async function POST(
       );
     }
 
+    const uploader = gate.dbUser.minecraft_name || gate.dbUser.username;
+    const insertRows = await withTx(async (tx) => {
+      await tx`SELECT pg_advisory_xact_lock(191919, 1)`;
+      if (parentId !== null) {
+        const parent = await tx`SELECT id FROM categories WHERE id = ${parentId}`;
+        if (!parent.length) throw new Error('PARENT_NOT_FOUND');
+      }
     const orderRows =
-      await sql`
+      await tx`
         SELECT
           MAX("order")
             AS max_order
@@ -348,8 +356,8 @@ export async function POST(
           parent_id
           ${
             parentId === null
-              ? sql`IS NULL`
-              : sql`= ${parentId}`
+              ? tx`IS NULL`
+              : tx`= ${parentId}`
           }
       ` as unknown as Array<{
         max_order:
@@ -374,13 +382,7 @@ export async function POST(
         ? parsedMaxOrder + 1
         : 0;
 
-    const uploader =
-      gate.dbUser
-        .minecraft_name ??
-      gate.dbUser.username;
-
-    const insertRows =
-      await sql`
+    return await tx`
         INSERT INTO categories (
           name,
           parent_id,
@@ -399,12 +401,15 @@ export async function POST(
           ${modeTags},
           ${uploader}
         )
-        RETURNING id
+        RETURNING id, "order"
       ` as unknown as Array<{
         id:
           | number
           | string;
+        order: number;
       }>;
+
+    });
 
     const newId =
       Number(
@@ -447,7 +452,7 @@ export async function POST(
           parent_id:
             parentId,
           order:
-            nextOrder,
+            insertRows[0]?.order ?? 0,
           document_id:
             documentId ??
             null,
@@ -474,6 +479,9 @@ export async function POST(
       },
     );
   } catch (error) {
+    if (error instanceof Error && error.message === 'PARENT_NOT_FOUND') {
+      return NextResponse.json({ error: '상위 카테고리를 찾을 수 없습니다.' }, { status: 400, headers: NO_STORE_HEADERS });
+    }
     console.error(
       '[categories POST] unexpected error:',
       error,

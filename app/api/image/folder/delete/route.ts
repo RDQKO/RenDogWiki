@@ -9,11 +9,11 @@
  */
 
 import { NextRequest, NextResponse } from 'next/server';
-import { sql } from '@/wiki/lib/db';
+import { sql, withTx } from '@/wiki/lib/db';
 import { S3Client, DeleteObjectsCommand } from '@aws-sdk/client-s3';
 import { getAuthUser } from '@/wiki/lib/auth';
 import { logActivity, resolveFolderName } from '@/wiki/lib/activity';
-import { requireRole } from '@/wiki/lib/requireRole';
+import { requireRole, canDeleteUploaded } from '@/wiki/lib/requireRole';
 
 export const runtime = 'nodejs';
 
@@ -25,7 +25,7 @@ async function getAllFolderIds(rootId: number): Promise<number[]> {
       FROM image_folders
       WHERE id = ${rootId}
 
-      UNION ALL
+      UNION
 
       SELECT f.id
       FROM image_folders f
@@ -53,7 +53,7 @@ export async function DELETE(req: NextRequest) {
 
   try {
     // 1) 인증 + 입력 파싱
-    const user = getAuthUser();
+    const user = await getAuthUser();
 
     if (!user) {
       return NextResponse.json(
@@ -97,6 +97,11 @@ export async function DELETE(req: NextRequest) {
 
     // 3) 모든 하위 폴더 id 수집
     const folderIds = await getAllFolderIds(id);
+    const folderOwners = await sql`SELECT uploader FROM image_folders WHERE id = ANY(${folderIds})`;
+    const imageOwners = await sql`SELECT uploader FROM images WHERE folder_id = ANY(${folderIds})`;
+    if ([...folderOwners, ...imageOwners].some((row) => !canDeleteUploaded(gate.dbUser, row.uploader))) {
+      return NextResponse.json({ error: '다른 사용자의 폴더나 이미지가 포함되어 있습니다.' }, { status: 403, headers: { 'Cache-Control': 'no-store' } });
+    }
 
     // 4) 해당 폴더들의 이미지 S3 key 수집
     const imgRows = (await sql`
@@ -127,27 +132,22 @@ export async function DELETE(req: NextRequest) {
       for (let i = 0; i < keys.length; i += 1000) {
         const slice = keys.slice(i, i + 1000);
 
-        await s3.send(
+        const deleted = await s3.send(
           new DeleteObjectsCommand({
             Bucket: bucket,
             Delete: { Objects: slice },
           })
         );
 
-        // 참고: 부분 실패는 AWS 응답의 Errors에 담길 수 있음 -> 현재는 별도 처리 없이 진행(정책 유지)
+        if (deleted.Errors?.length) throw new Error('S3 deletion was incomplete; database references were preserved.');
       }
     }
 
     // 6) DB에서 images -> image_folders 순으로 삭제(참조 무결성 고려)
-    await sql`
-      DELETE FROM images
-      WHERE folder_id = ANY(${folderIds})
-    `;
-
-    await sql`
-      DELETE FROM image_folders
-      WHERE id = ANY(${folderIds})
-    `;
+    await withTx(async (tx) => {
+      await tx`DELETE FROM images WHERE folder_id = ANY(${folderIds})`;
+      await tx`DELETE FROM image_folders WHERE id = ANY(${folderIds})`;
+    });
 
     // 7) 활동 로그
     await logActivity({

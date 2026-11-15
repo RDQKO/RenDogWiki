@@ -13,7 +13,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { sql } from '@/wiki/lib/db';
 import { getAuthUser } from '@/wiki/lib/auth';
 import { logActivity, resolveVillageName } from '@wiki/lib/activity';
-import { cached } from '@/wiki/lib/cache'; // ✅ 추가: 앱 메모리 캐시
+import { cached, invalidate } from '@/wiki/lib/cache'; // ✅ 추가: 앱 메모리 캐시
 import { requireRole } from '@/app/wiki/lib/requireRole';
 
 export const runtime = 'nodejs';
@@ -89,7 +89,7 @@ export async function GET(req: NextRequest) {
     // ✅ 관리 화면(=nocache=1)은 캐시 우회
     const normalized = noCache
       ? await fetchRows()
-      : await cached(`npc:list:v=${village_id}:t=${npcTypeParam}`, { ttlSec: 60 }, fetchRows);
+      : await cached(`npc:list:v=${village_id}:t=${npcTypeParam}`, { ttlSec: 60, tags: ['npc:list'] }, fetchRows);
 
     return NextResponse.json(normalized, { headers: { 'Cache-Control': 'no-store' } });
   } catch (err) {
@@ -152,6 +152,7 @@ export async function POST(req: Request) {
     row.tag      = row.tag ?? null;
 
     const villageLabel = await resolveVillageName(row.village_id);
+    invalidate('npc:list', 'village:list', 'search:index');
     await logActivity({
       action: 'npc.create',
       username: uploader,

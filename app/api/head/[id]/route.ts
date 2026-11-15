@@ -1,3 +1,5 @@
+import { invalidate } from '@/wiki/lib/cache';
+import { requireRole, canDeleteUploaded } from '@/wiki/lib/requireRole';
 // =============================================
 // File: app/api/head/[id]/route.ts
 // =============================================
@@ -49,8 +51,14 @@ function toNumOr<T extends number | null>(v: unknown, fallback: T): number | T {
 
 export async function PATCH(
   req: NextRequest,
-  { params }: { params: { id: string } }
+  { params: pendingParams }: { params: Promise<{ id: string }> }
 ) {
+  const params = await pendingParams;
+  const gate = await requireRole(['writer', 'admin']);
+  if (!gate.ok) {
+    return NextResponse.json({ error: gate.error }, { status: gate.status, headers: { 'Cache-Control': 'no-store' } });
+  }
+
   try {
     const id = Number(params.id);
     if (!Number.isFinite(id) || id <= 0) {
@@ -62,7 +70,7 @@ export async function PATCH(
 
     const body = await req.json().catch(() => ({} as any));
 
-    const me = getAuthUser();
+    const me = await getAuthUser();
     const username =
       me?.minecraft_name ?? req.headers.get('x-wiki-username') ?? null;
 
@@ -135,6 +143,7 @@ export async function PATCH(
     (updated as any).pictures = parsePictures(updated.pictures);
 
     // 활동 로그
+    invalidate('npc:list', 'village:list', 'search:index');
     await logActivity({
       action: 'head.update',
       username,
@@ -159,8 +168,14 @@ export async function PATCH(
 
 export async function DELETE(
   req: NextRequest,
-  { params }: { params: { id: string } }
+  { params: pendingParams }: { params: Promise<{ id: string }> }
 ) {
+  const params = await pendingParams;
+  const gate = await requireRole(['writer', 'admin']);
+  if (!gate.ok) {
+    return NextResponse.json({ error: gate.error }, { status: gate.status, headers: { 'Cache-Control': 'no-store' } });
+  }
+
   try {
     const id = Number(params.id);
     if (!Number.isFinite(id) || id <= 0) {
@@ -170,7 +185,7 @@ export async function DELETE(
       );
     }
 
-    const me = getAuthUser();
+    const me = await getAuthUser();
     const username =
       me?.minecraft_name ?? req.headers.get('x-wiki-username') ?? null;
 
@@ -180,7 +195,7 @@ export async function DELETE(
       FROM head_finder
       WHERE id = ${id}
       LIMIT 1
-    `) as unknown as Array<Pick<HeadRow, 'id' | 'village_id' | 'order'>>;
+    `) as unknown as Array<Pick<HeadRow, 'id' | 'village_id' | 'order' | 'uploader'>>;
 
     if (!rows.length) {
       return NextResponse.json(
@@ -191,10 +206,16 @@ export async function DELETE(
 
     const row = rows[0];
 
+    const village = await sql`SELECT uploader FROM village WHERE id = ${row.village_id} LIMIT 1`;
+    if (!canDeleteUploaded(gate.dbUser, row.uploader, village[0]?.uploader)) {
+      return NextResponse.json({ error: 'FORBIDDEN' }, { status: 403, headers: { 'Cache-Control': 'no-store' } });
+    }
+
     // 삭제
     await sql`DELETE FROM head_finder WHERE id = ${id}`;
 
     // 활동 로그
+    invalidate('npc:list', 'village:list', 'search:index');
     await logActivity({
       action: 'head.delete',
       username,

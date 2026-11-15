@@ -117,7 +117,7 @@ export async function POST(req: NextRequest) {
         const descendantRows = (await sql`
           WITH RECURSIVE descendants AS (
             SELECT id FROM categories WHERE parent_id = ${moved.id}
-            UNION ALL
+            UNION
             SELECT c.id
             FROM categories c
             INNER JOIN descendants d ON c.parent_id = d.id
@@ -138,6 +138,17 @@ export async function POST(req: NextRequest) {
     }
 
     await withTx(async (tx) => {
+      await tx`SELECT pg_advisory_xact_lock(191919, 1)`;
+      if (moved?.parent_id != null) {
+        const cycle = await tx`
+          WITH RECURSIVE descendants AS (
+            SELECT id FROM categories WHERE id = ${moved.id}
+            UNION
+            SELECT c.id FROM categories c JOIN descendants ON c.parent_id = descendants.id
+          ) SELECT id FROM descendants WHERE id = ${moved.parent_id}
+        `;
+        if (cycle.length) throw new Error('CATEGORY_CYCLE');
+      }
       if (moved) {
         await tx`
           UPDATE categories
@@ -191,6 +202,7 @@ export async function POST(req: NextRequest) {
       { headers: noStoreHeaders }
     );
   } catch (error) {
+    if (error instanceof Error && error.message === 'CATEGORY_CYCLE') return NextResponse.json({ error: '하위 카테고리 안으로 이동할 수 없습니다.' }, { status: 400, headers: noStoreHeaders });
     console.error('[categories reorder POST] unexpected error:', error);
     return NextResponse.json(
       { error: '카테고리 순서 변경 중 오류가 발생했습니다.' },

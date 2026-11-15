@@ -1,3 +1,4 @@
+import { invalidate } from '@/wiki/lib/cache';
 // =============================================
 // File: app/api/npcs/order/route.ts
 // =============================================
@@ -100,10 +101,11 @@ export async function PATCH(req: NextRequest) {
     }
 
     // 활동 로그(요약 1건) -> 경로에는 village 라벨(있으면)
-    const me = getAuthUser();
+    const me = await getAuthUser();
     const username = me?.minecraft_name ?? req.headers.get('x-wiki-username') ?? null;
     const villageLabel = village_id === undefined ? null : await resolveVillageName(village_id);
 
+    invalidate('npc:list', 'village:list', 'search:index');
     await logActivity({
       action: 'npc.update',
       username,

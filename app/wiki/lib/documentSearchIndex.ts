@@ -367,7 +367,7 @@ export function buildDocumentSearchSections(
   return sections;
 }
 
-async function replaceUsing(
+export async function replaceDocumentSearchSectionsUsing(
   db: SQL,
   documentId: number,
   content: unknown,
@@ -395,32 +395,18 @@ async function replaceUsing(
     WHERE document_id = ${documentId}
   `;
 
-  for (const section of sections) {
-    await db`
-      INSERT INTO document_search_sections (
-        document_id,
-        section_order,
-        heading_text,
-        heading_compact,
-        dom_id,
-        level,
-        plain_text,
-        compact_text,
-        updated_at
-      )
-      VALUES (
-        ${documentId},
-        ${section.sectionOrder},
-        ${section.headingText},
-        ${section.headingCompact},
-        ${section.domId},
-        ${section.level},
-        ${section.plainText},
-        ${section.compactText},
-        NOW()
-      )
-    `;
-  }
+  const rows = sections.map((section) => ({
+    document_id: documentId,
+    section_order: section.sectionOrder,
+    heading_text: section.headingText,
+    heading_compact: section.headingCompact,
+    dom_id: section.domId,
+    level: section.level,
+    plain_text: section.plainText,
+    compact_text: section.compactText,
+  }));
+  // One INSERT per document instead of one network round trip for every heading.
+  await db`INSERT INTO document_search_sections ${db(rows)}`;
 }
 
 /** 문서 한 건의 검색 인덱스를 원자적으로 교체합니다. */
@@ -429,7 +415,7 @@ export async function replaceDocumentSearchSections(
   content: unknown,
 ) {
   await withTx(async (tx) => {
-    await replaceUsing(
+    await replaceDocumentSearchSectionsUsing(
       tx,
       documentId,
       content,
@@ -447,7 +433,7 @@ export async function replaceDocumentSearchSectionsBatch(
 
   await withTx(async (tx) => {
     for (const source of sources) {
-      await replaceUsing(
+      await replaceDocumentSearchSectionsUsing(
         tx,
         source.documentId,
         source.content,

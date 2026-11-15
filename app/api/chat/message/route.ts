@@ -11,7 +11,7 @@
 
 import { NextResponse } from 'next/server';
 import { sql } from '@/wiki/lib/db';
-import { getAuthUser } from '@/wiki/lib/auth';
+import { requireAuth } from '@/wiki/lib/requireRole';
 
 // 빌드/프리렌더 단계에서 정적 처리 시도를 막고 Node 런타임 고정
 export const runtime = 'nodejs';
@@ -19,10 +19,11 @@ export const dynamic = 'force-dynamic';
 
 export async function POST(req: Request) {
   try {
-    const me = getAuthUser();
-    if (!me) {
+    const gate = await requireAuth();
+    if (!gate.ok) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401, headers: { 'Cache-Control': 'no-store', 'X-App-Cache': 'OFF' } });
     }
+    const me = gate.user;
 
     // 입력 파싱 -> text는 2000자까지, 공백만 있으면 거부
     const body = await req.json().catch(() => null);
@@ -66,16 +67,10 @@ export async function POST(req: Request) {
       created_at: row.created_at,
     };
 
-    // ⚠️ 중요한 변경점: ably 모듈을 요청 시점에 동적 import (빌드 타임 실행 방지)
-    const { ablyRest, GLOBAL_CHANNEL } = await import('@/wiki/lib/ably');
-
-    // 환경변수/초기화 누락 시 명확한 에러
-    if (!ablyRest) {
-      throw new Error('Ably 클라이언트가 초기화되지 않았습니다. 환경변수를 확인하세요.');
-    }
-
-    // 브로드캐스트(실패 시 예외 -> catch에서 500 처리)
-    await ablyRest.channels.get(GLOBAL_CHANNEL).publish('message.created', msg);
+    try {
+      const { ablyRest, GLOBAL_CHANNEL } = await import('@/wiki/lib/ably');
+      await ablyRest.channels.get(GLOBAL_CHANNEL).publish('message.created', msg);
+    } catch (error) { console.error('[chat/message] publish failed after save:', error); }
 
     return NextResponse.json(msg, {
       headers: { 'Cache-Control': 'no-store', 'X-App-Cache': 'OFF' },

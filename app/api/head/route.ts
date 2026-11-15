@@ -1,3 +1,4 @@
+import { invalidate } from '@/wiki/lib/cache';
 // =============================================
 // File: app/api/head/route.ts
 // =============================================
@@ -168,6 +169,7 @@ export async function POST(req: Request) {
     // 활동 로그 -> 경로에는 village 이름 사용
     const villageLabel = await resolveVillageName(normalized.village_id);
 
+    invalidate('npc:list', 'village:list', 'search:index');
     await logActivity({
       action: 'head.create',
       username,

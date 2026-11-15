@@ -41,7 +41,7 @@ function isConnectTimeoutError(err: unknown) {
 
 export async function GET(req: NextRequest) {
   try {
-    const auth = getAuthUser();
+    const auth = await getAuthUser();
 
     if (!auth) {
       return NextResponse.json(
@@ -56,26 +56,7 @@ export async function GET(req: NextRequest) {
       );
     }
 
-    // 1) role 쿠키가 있으면 DB 안 보고 즉시 응답
-    const cachedRole = normalizeRole(req.cookies.get(ROLE_COOKIE)?.value);
-    if (cachedRole !== 'guest') {
-      return NextResponse.json(
-        {
-          loggedIn: true,
-          user: {
-            ...auth,
-            role: cachedRole,
-          },
-          role: cachedRole,
-          roles: [cachedRole],
-          permissions: [cachedRole],
-          roleSource: 'cookie',
-        },
-        { status: 200, headers: noStoreHeaders() }
-      );
-    }
-
-    // 2) fresh=1 이거나 role 쿠키가 없으면 DB 1회 조회
+    // The role cookie is a UI hint only. Always load the current account/role.
     try {
       const rows = await sql<{
         id: number;
@@ -83,15 +64,22 @@ export async function GET(req: NextRequest) {
         email: string;
         minecraft_name: string;
         role?: string | null;
+        verified: boolean;
       }[]>`
-        SELECT id, username, email, minecraft_name, role
+        SELECT id, username, email, minecraft_name, role, verified
         FROM users
         WHERE id = ${auth.id}
         LIMIT 1
       `;
 
       const row = rows?.[0];
-      const role = normalizeRole(row?.role);
+      if (!row || !row.verified) {
+        const response = NextResponse.json({ loggedIn: false, user: null, role: 'guest', roles: [], permissions: [] }, { headers: noStoreHeaders() });
+        response.cookies.delete('token');
+        response.cookies.delete(ROLE_COOKIE);
+        return response;
+      }
+      const role = normalizeRole(row.role);
 
       const res = NextResponse.json(
         {
@@ -160,7 +148,7 @@ export async function GET(req: NextRequest) {
 
 export async function DELETE(req: NextRequest) {
   try {
-    const auth = getAuthUser();
+    const auth = await getAuthUser();
     if (!auth) {
       return NextResponse.json(
         { error: '인증 필요' },

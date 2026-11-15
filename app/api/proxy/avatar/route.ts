@@ -15,6 +15,7 @@ const ALLOWED_HOSTS = new Set([
 ]);
 
 function isAllowed(url: URL) {
+  if (url.protocol !== 'https:' || url.username || url.password || (url.port && url.port !== '443')) return false;
   const host = url.hostname.toLowerCase();
   if (ALLOWED_HOSTS.has(host)) return true;
   if (host.startsWith('www.') && ALLOWED_HOSTS.has(host.slice(4))) return true;
@@ -39,7 +40,7 @@ export async function GET(req: NextRequest) {
       return NextResponse.json({ error: 'forbidden-host' }, { status: 403 });
     }
 
-    const upstream = await fetch(target.toString());
+    const upstream = await fetch(target.toString(), { redirect: 'error', signal: AbortSignal.timeout(7000) });
 
     if (!upstream.ok || !upstream.body) {
       return NextResponse.json(
@@ -48,18 +49,23 @@ export async function GET(req: NextRequest) {
       );
     }
 
-    const contentType = upstream.headers.get('content-type') ?? 'image/png';
+    const contentType = upstream.headers.get('content-type') ?? '';
+    if (!/^image\/(png|jpeg|webp|gif|avif)(;|$)/i.test(contentType)) {
+      await upstream.body.cancel();
+      return NextResponse.json({ error: 'invalid-image-type' }, { status: 502 });
+    }
 
     return new NextResponse(upstream.body, {
       status: 200,
       headers: {
         'Content-Type': contentType,
+        'X-Content-Type-Options': 'nosniff',
         'Cache-Control': 'public, s-maxage=600, max-age=60',
       },
     });
   } catch (err: any) {
     return NextResponse.json(
-      { error: 'proxy-error', detail: String(err?.message || err) },
+      { error: 'proxy-error' },
       { status: 500 }
     );
   }

@@ -8,20 +8,21 @@
 
 import { NextRequest, NextResponse } from 'next/server';
 import { sql } from '@/wiki/lib/db';
-import { getAuthUser } from '@/wiki/lib/auth';
+import { requireAuth } from '@/wiki/lib/requireRole';
 import Ably from 'ably';
 
 export const runtime = 'nodejs';
 
 export async function POST(req: NextRequest) {
   try {
-    const me = getAuthUser();
-    if (!me) {
+    const gate = await requireAuth();
+    if (!gate.ok) {
       return NextResponse.json(
         { error: 'unauthorized' },
         { status: 401, headers: { 'Cache-Control': 'no-store', 'X-App-Cache': 'OFF' } }
       );
     }
+    const me = gate.user;
 
     // 입력 파싱 -> text는 문자열만 허용, 최대 2000자, 공백만이면 거부
     const body = await req.json().catch(() => null);

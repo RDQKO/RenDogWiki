@@ -19,8 +19,9 @@ export const revalidate = 0;
 
 export async function GET(
   _req: NextRequest,
-  { params }: { params: { token: string } }
+  { params: pendingParams }: { params: Promise<{ token: string }> }
 ) {
+  const params = await pendingParams;
   try {
     const raw = params?.token ?? '';
     const token = String(raw).trim();
@@ -63,7 +64,7 @@ export async function GET(
       targetId: u.id,
       targetName: u.username ?? null,
       targetPath: null,
-      meta: { email: u.email },
+      meta: null,
     });
 
     return NextResponse.json(

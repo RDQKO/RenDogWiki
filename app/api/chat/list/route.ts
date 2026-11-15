@@ -1,3 +1,4 @@
+import { boundedInteger } from '@/wiki/lib/apiInput';
 // =============================================
 // File: app/api/chat/list/route.ts
 // =============================================
@@ -33,14 +34,11 @@ type Row = {
 
 export async function GET(req: NextRequest) {
   try {
-    const me = getAuthUser();
+    const me = await getAuthUser();
     const { searchParams } = new URL(req.url);
 
     // limit -> 숫자 아니면 기본 100, 1~200로 클램프
-    const rawLimit = Number(searchParams.get('limit'));
-    const limit = Number.isFinite(rawLimit)
-      ? Math.min(200, Math.max(1, Math.trunc(rawLimit)))
-      : 100;
+    const limit = boundedInteger(searchParams.get('limit'), 100, 1, 200);
 
     // 커서 파라미터
     const beforeIdStr = searchParams.get('before_id');

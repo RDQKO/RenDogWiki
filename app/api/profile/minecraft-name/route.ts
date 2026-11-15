@@ -18,7 +18,11 @@ export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
 export const revalidate = 0;
 
-const JWT_SECRET = process.env.JWT_SECRET || 'default_secret';
+const JWT_SECRET: string = (() => {
+  const value = process.env.JWT_SECRET;
+  if (!value) throw new Error('JWT_SECRET is not set');
+  return value;
+})();
 // 자바 에디션 닉네임 규칙: 영문/숫자/언더스코어, 3~16자
 const NAME_RE = /^[A-Za-z0-9_]{3,16}$/;
 
@@ -49,7 +53,7 @@ async function verifyMojangName(name: string): Promise<boolean> {
 export async function PATCH(req: NextRequest) {
   try {
     // 1) 인증
-    const auth = getAuthUser();
+    const auth = await getAuthUser();
     if (!auth) {
       return NextResponse.json(
         { error: '인증 필요' },
@@ -134,6 +138,7 @@ export async function PATCH(req: NextRequest) {
     res.cookies.set('token', token, {
       httpOnly: true,
       secure: process.env.NODE_ENV === 'production',
+      sameSite: 'lax',
       path: '/',
       maxAge: 60 * 60 * 24 * 7, // 7일
     });

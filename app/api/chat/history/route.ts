@@ -1,3 +1,4 @@
+import { boundedInteger } from '@/wiki/lib/apiInput';
 // =============================================
 // File: app/api/chat/history/route.ts
 // =============================================
@@ -21,17 +22,14 @@ export async function GET(req: Request) {
     const { searchParams } = new URL(req.url);
 
     // limit -> 숫자 아니면 기본값 50, 1~100로 클램프
-    const rawLimit = Number(searchParams.get('limit'));
-    const limit = Number.isFinite(rawLimit)
-      ? Math.min(Math.max(Math.trunc(rawLimit), 1), 100)
-      : 50;
+    const limit = boundedInteger(searchParams.get('limit'), 50, 1, 100);
 
     // cursor -> ISO 날짜 문자열만 허용(유효성 검사 실패 시 무시)
     const cursorRaw = searchParams.get('cursor');
     const cursor =
       cursorRaw && !Number.isNaN(Date.parse(cursorRaw)) ? cursorRaw : null;
 
-    const me = getAuthUser();
+    const me = await getAuthUser();
     const uid = me?.id ?? null;
 
     // 최신 메시지부터 가져오고, cursor가 있으면 그보다 과거만
