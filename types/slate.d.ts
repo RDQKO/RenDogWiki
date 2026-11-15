@@ -263,7 +263,8 @@ export type WeaponStatKey =
   | 'hitCount'   // 타수
   | 'range'      // 범위
   | 'duration'   // 지속시간
-  | 'heal';      // 회복량
+  | 'heal'       // 회복량
+  | `custom-${1 | 2 | 3 | 4 | 5 | 6 | 7 | 8 | 9}`;
 
 export interface WeaponStatDetail {
   levelLabel: string;   // "1강", "2강", ... "MAX", "기본"
@@ -314,8 +315,17 @@ export type WikiRefElement = {
   children: CustomText[];
 };
 
+// A block container; its complete subtree is saved with the document.
+export type CollapsibleElement = {
+  type: 'collapsible';
+  title: string;
+  defaultOpen: boolean;
+  children: CustomElement[];
+};
+
 // ===== 모든 Element 통합 =====
 export type CustomElement =
+  | CollapsibleElement
   | ParagraphElement
   | DividerElement
   | LinkElement

@@ -29,11 +29,14 @@ try{
  cookie=login.r.headers.getSetCookie().map(c=>c.split(';')[0]).join('; ');
  assert.equal((await call('GET','/api/auth/me')).data.role,'writer');
  const previous=(await call('GET','/api/documents?id=74')).data;
- const payload={...previous,content:[{type:'heading-one',children:[{text:'검증 목차'}]},{type:'paragraph',children:[{text:'HTTPSMOKE 고유검색문구'}]}],expectedUpdatedAt:previous.updated_at};
+ const statKeys=['damage','cooldown','hitCount','range','duration','heal',...Array.from({length:9},(_,i)=>`custom-${i+1}`)];
+ const region={type:'collapsible',title:'접힌 영역',defaultOpen:false,children:[{type:'heading-two',children:[{text:'접힌 검색 목차'}]},{type:'paragraph',children:[{text:'HTTPSMOKE 고유검색문구'}]},{type:'weapon-card',weaponType:'hidden',name:'검증 무기',stats:statKeys.map((key,i)=>({key,label:`정보 ${i+1}`,summary:String(i+1),unit:'%',enabled:true,levels:[{levelLabel:'기본',value:String(i+1)}]})),children:[{text:''}]}]};
+ const payload={...previous,content:[{type:'heading-one',children:[{text:'검증 목차'}]},region],expectedUpdatedAt:previous.updated_at};
  const saved=(await call('POST','/api/save',payload)).data;assert.equal(saved.id,74);
- const fresh=(await call('GET','/api/documents/74')).data;assert.match(JSON.stringify(fresh.content),/HTTPSMOKE/);
+ const fresh=(await call('GET','/api/documents/74')).data;assert.match(JSON.stringify(fresh.content),/HTTPSMOKE/);assert.deepEqual(fresh.content[1],region);
  await call('POST','/api/save',payload,409);
  const search=(await call('GET','/api/search?query=HTTPSMOKE')).data;assert.ok(search.some(d=>d.id===74));
+ const headingSearch=(await call('GET','/api/search?query='+encodeURIComponent('접힌 검색 목차'))).data;assert.ok(headingSearch.some(d=>d.id===74 && d.section_dom_id==='heading-접힌-검색-목차--0'));
  const view=await call('POST','/api/view',{documentId:74,source:'search'});assert.equal(view.data.counted,true);
  cookie+='; '+view.r.headers.getSetCookie().map(c=>c.split(';')[0]).join('; ');
  assert.equal((await call('POST','/api/view',{documentId:74,source:'search'})).data.counted,false);

@@ -1,3 +1,4 @@
+import { flattenCollapsibleBlocks } from '@/wiki/lib/collapsible';
 import { boundedInteger, escapeLike } from '@/wiki/lib/apiInput';
 import { unstable_cache } from 'next/cache';
 import { NextRequest, NextResponse } from 'next/server';
@@ -246,7 +247,7 @@ function extractSearchSections(
     });
   };
 
-  for (const node of value) {
+  for (const node of flattenCollapsibleBlocks(value)) {
     if (!SlateElement.isElement(node)) continue;
 
     const isHeading =

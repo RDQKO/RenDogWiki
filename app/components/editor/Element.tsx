@@ -25,6 +25,7 @@ import {
   InlineLinkRenderer,
 } from '@/components/wiki-render';
 
+import CollapsibleEditorAdapter from './render/blocks/CollapsibleEditorAdapter';
 import ParagraphEditorAdapter from './render/blocks/ParagraphEditorAdapter';
 import HeadingEditorAdapter from './render/blocks/HeadingEditorAdapter';
 import {
@@ -73,6 +74,8 @@ const Element: React.FC<ElementRenderProps> = ({
   const slateEditor = useSlate();
 
   switch (element.type) {
+    case 'collapsible':
+      return <CollapsibleEditorAdapter attributes={attributes} element={element} editor={slateEditor}>{children}</CollapsibleEditorAdapter>;
     case 'link': {
       return (
         <InlineLinkRenderer

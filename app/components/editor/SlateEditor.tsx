@@ -16,6 +16,7 @@ import isHotkey from 'is-hotkey';
 
 import { Toolbar } from './Toolbar';
 import Leaf from './Leaf';
+import { withCollapsible } from './helpers/collapsible';
 import ElementRenderer from './Element';
 import TableOfContents from './TableOfContents';
 import { extractHeadings } from './helpers/extractHeadings';
@@ -288,7 +289,7 @@ function SlateEditorContent({
   const editor = useMemo(() => {
     // ✅ 커스텀 플러그인 묶는 순서: React → History → inline/void → weapon-card 플러그인
     const e = withWeaponBlocks(
-      withCustomInline(withHistory(withReact(createEditor())))
+      withCollapsible(withCustomInline(withHistory(withReact(createEditor()))))
     );
 
     const { normalizeNode } = e;

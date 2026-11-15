@@ -1,4 +1,5 @@
 import React from 'react';
+import CollapsibleBlock from '@/components/wiki-render/collapsible/CollapsibleBlock';
 import { Text } from 'slate';
 
 import {
@@ -79,6 +80,8 @@ export function renderReadNode(
   );
 
   switch (node.type) {
+    case 'collapsible':
+      return <CollapsibleBlock title={node.title} defaultOpen={node.defaultOpen !== false}>{children}</CollapsibleBlock>;
     case 'paragraph': {
       return (
         <ParagraphReadAdapter

@@ -1,3 +1,4 @@
+import { flattenCollapsibleBlocks } from './collapsible';
 import {
   Element as SlateElement,
   Node,
@@ -333,7 +334,7 @@ export function buildDocumentSearchSections(
     bodyParts = [];
   };
 
-  for (const node of descendants) {
+  for (const node of flattenCollapsibleBlocks(descendants)) {
     if (!SlateElement.isElement(node)) {
       continue;
     }

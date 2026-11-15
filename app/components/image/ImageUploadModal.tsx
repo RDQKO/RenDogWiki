@@ -80,7 +80,7 @@ export default function ImageUploadModal({
    * 실제로 전달된 File 객체는 상태에서 조용히 버리지 않는다.
    */
   const addFiles = (incoming: File[]) => {
-    if (incoming.length === 0) return;
+    if (loading || incoming.length === 0) return;
 
     setFiles((previousFiles) => {
       const existingKeys = new Set(
@@ -454,6 +454,31 @@ export default function ImageUploadModal({
       onClose={handleClose}
       title="이미지·영상 업로드"
       width={520}
+      actions={
+        <>
+          <button
+            type="button"
+            className="rd-btn secondary"
+            onClick={handleClose}
+            disabled={loading}
+          >
+            취소
+          </button>
+
+          <button
+            type="button"
+            className="rd-btn primary"
+            onClick={() => void handleUpload()}
+            disabled={
+              loading ||
+              !files.length ||
+              folderId == null
+            }
+          >
+            {loading ? "업로드 중..." : "업로드"}
+          </button>
+        </>
+      }
     >
       <label
         htmlFor={inputId}
@@ -506,6 +531,7 @@ export default function ImageUploadModal({
           ref={inputRef}
           type="file"
           multiple
+          disabled={loading}
           accept="image/*,video/*"
           onChange={handleSelect}
         />
@@ -553,6 +579,8 @@ export default function ImageUploadModal({
 
       {!!progressText && (
         <div
+          role="status"
+          aria-live="polite"
           style={{
             marginTop: 10,
             fontSize: 13,
@@ -562,33 +590,6 @@ export default function ImageUploadModal({
           {progressText}
         </div>
       )}
-
-      <div
-        className="rd-card-button-wrapper"
-        style={{ justifyContent: "flex-end" }}
-      >
-        <button
-          type="button"
-          className="rd-btn secondary"
-          onClick={handleClose}
-          disabled={loading}
-        >
-          취소
-        </button>
-
-        <button
-          type="button"
-          className="rd-btn primary"
-          onClick={() => void handleUpload()}
-          disabled={
-            loading ||
-            !files.length ||
-            folderId == null
-          }
-        >
-          {loading ? "업로드 중..." : "업로드"}
-        </button>
-      </div>
     </ModalCard>
   );
 }

@@ -1,3 +1,4 @@
+import { flattenCollapsibleBlocks } from './collapsible';
 import type { Descendant } from "slate";
 import { Element as SlateElement, Node } from "slate";
 import { extractHeadings } from "@/wiki/lib/extractHeadings";
@@ -147,7 +148,7 @@ export function extractSearchSections(value: Descendant[]): SearchSection[] {
     });
   };
 
-  for (const node of value) {
+  for (const node of flattenCollapsibleBlocks(value)) {
     if (!SlateElement.isElement(node)) continue;
 
     const isHeading =
