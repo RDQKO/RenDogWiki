@@ -1623,3 +1623,104 @@ h3 {
     animation: none !important;
   }
 }
+
+/* =============================================
+ * 2026-11 디자인 검수 보완
+ *
+ * - 긴 질문 제목은 말줄임 대신 줄바꿈한다.
+ * - 작성 권한자에게 행 오른쪽 관리(⋯) 버튼을 제공한다.
+ *   모바일·터치에서도 우클릭 메뉴와 같은 메뉴에 접근할 수 있다.
+ * - 관리 메뉴 항목을 버튼이 아닌 메뉴 항목 모양으로 정리한다.
+ * ============================================= */
+
+.wiki-content-body .faq-list-card .faq-title {
+  flex: 1 1 auto;
+  min-width: 0;
+}
+
+.wiki-content-body .faq-list-card .faq-title-text {
+  overflow: visible !important;
+  white-space: normal !important;
+  text-overflow: clip !important;
+  word-break: keep-all;
+  overflow-wrap: anywhere;
+  text-align: left;
+}
+
+.wiki-content-body .faq-list-card .faq-row-menu-btn {
+  position: relative;
+  z-index: 3;
+  display: inline-grid;
+  flex: 0 0 36px;
+  width: 36px;
+  height: 36px;
+  padding: 0;
+  place-items: center;
+  border: 1px solid transparent;
+  border-radius: 10px;
+  background: transparent;
+  color: var(--rd-ink-3);
+  cursor: pointer;
+  transition:
+    color 0.15s ease,
+    background-color 0.15s ease,
+    border-color 0.15s ease;
+}
+
+.wiki-content-body .faq-list-card .faq-row-menu-btn:hover,
+.wiki-content-body .faq-list-card .faq-row-menu-btn[aria-expanded='true'] {
+  border-color: var(--rd-brand-border);
+  background: var(--rd-brand-soft);
+  color: var(--rd-brand-strong);
+}
+
+.faq-menu-pop.faq-popover {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: 5px !important;
+}
+
+.faq-menu-pop.faq-popover .faq-menu-item {
+  display: flex;
+  width: 100%;
+  min-height: 38px;
+  align-items: center;
+  padding: 0 11px;
+  border: 0;
+  border-radius: 8px;
+  background: transparent;
+  color: var(--rd-ink);
+  font: inherit;
+  font-size: 14px;
+  font-weight: 700;
+  text-align: left;
+  cursor: pointer;
+}
+
+.faq-menu-pop.faq-popover .faq-menu-item:hover,
+.faq-menu-pop.faq-popover .faq-menu-item:focus-visible {
+  outline: none;
+  background: var(--rd-brand-soft);
+}
+
+.faq-menu-pop.faq-popover .faq-menu-item--danger {
+  color: var(--rd-danger);
+}
+
+.faq-menu-pop.faq-popover .faq-menu-item--danger:hover,
+.faq-menu-pop.faq-popover .faq-menu-item--danger:focus-visible {
+  background: var(--rd-danger-soft);
+}
+
+@media (max-width: 768px) {
+  .wiki-content-body .faq-list-card .faq-row-menu-btn {
+    flex-basis: 40px;
+    width: 40px;
+    height: 40px;
+  }
+
+  .faq-menu-pop.faq-popover .faq-menu-item {
+    min-height: 44px;
+  }
+}

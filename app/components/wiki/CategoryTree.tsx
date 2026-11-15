@@ -573,7 +573,7 @@ const CategoryTree: React.FC<Props> = ({
             aria-controls={panelId}
             aria-disabled={!interactionReady}
             disabled={!interactionReady}
-            title={!interactionReady ? "로딩 중입니다…" : undefined}
+            title={!interactionReady ? "로딩 중입니다…" : node.name}
           >
             <span className="wiki-category-main">
               <span className="wiki-cat-icon-token">
@@ -659,8 +659,16 @@ const CategoryTree: React.FC<Props> = ({
                           ignoreCurrentLocationHash: true,
                         });
                       }}
+                      role="button"
+                      tabIndex={interactionReady ? 0 : -1}
+                      aria-current={isDocActive ? 'page' : undefined}
+                      onKeyDown={(e) => {
+                        if (e.key !== 'Enter' && e.key !== ' ') return;
+                        e.preventDefault();
+                        e.currentTarget.click();
+                      }}
                       aria-disabled={!interactionReady}
-                      title={!interactionReady ? "로딩 중입니다…" : undefined}
+                      title={!interactionReady ? "로딩 중입니다…" : doc.title}
                       style={{
                         pointerEvents: interactionReady ? "auto" : "none",
                         opacity: interactionReady ? 1 : 0.6,
@@ -730,7 +738,8 @@ const CategoryTree: React.FC<Props> = ({
                 }}
                 aria-disabled={!interactionReady}
                 disabled={!interactionReady}
-                title={!interactionReady ? "로딩 중입니다…" : undefined}
+                aria-current={isDocActive ? 'page' : undefined}
+                title={!interactionReady ? "로딩 중입니다…" : doc.title}
               >
                 <span className="wiki-category-main">
                   <span className="wiki-cat-icon-token">

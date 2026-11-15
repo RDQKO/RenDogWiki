@@ -50,6 +50,55 @@ function toPxNumber(v: string | number | undefined): number | undefined {
   return m ? parseFloat(m[1]) : undefined;
 }
 
+/**
+ * 배경색(#rgb, #rrggbb, rgb()/rgba())의 상대 휘도를 계산해
+ * 그 위에서 읽을 수 있는 글자색을 돌려준다.
+ * 해석할 수 없는 값이거나 반투명한 배경이면 undefined를 반환해 기존 글자색을 유지한다.
+ */
+function readableTextColorFor(background: string): string | undefined {
+  const value = background.trim().toLowerCase();
+  let rgb: [number, number, number] | undefined;
+
+  const hex = /^#([0-9a-f]{3}|[0-9a-f]{6})$/.exec(value);
+  if (hex) {
+    const h =
+      hex[1].length === 3
+        ? hex[1].split('').map((c) => c + c).join('')
+        : hex[1];
+    rgb = [
+      parseInt(h.slice(0, 2), 16),
+      parseInt(h.slice(2, 4), 16),
+      parseInt(h.slice(4, 6), 16),
+    ];
+  } else {
+    const fn =
+      /^rgba?\(\s*(\d+(?:\.\d+)?)[\s,]+(\d+(?:\.\d+)?)[\s,]+(\d+(?:\.\d+)?)(?:[\s,/]+(\d*\.?\d+%?))?\s*\)$/.exec(
+        value,
+      );
+    if (fn) {
+      const alphaRaw = fn[4];
+      const alpha =
+        alphaRaw == null
+          ? 1
+          : alphaRaw.endsWith('%')
+            ? parseFloat(alphaRaw) / 100
+            : parseFloat(alphaRaw);
+      if (alpha < 0.6) return undefined;
+      rgb = [Number(fn[1]), Number(fn[2]), Number(fn[3])];
+    }
+  }
+
+  if (!rgb) return undefined;
+
+  const [r, g, b] = rgb.map((channel) => {
+    const c = Math.min(255, Math.max(0, channel)) / 255;
+    return c <= 0.03928 ? c / 12.92 : Math.pow((c + 0.055) / 1.055, 2.4);
+  });
+  const luminance = 0.2126 * r + 0.7152 * g + 0.0722 * b;
+
+  return luminance > 0.36 ? '#1b1f1c' : '#ffffff';
+}
+
 const HANDWRITING_SCALE: Record<string, number> = {
   BareunHippy: 1.18,
   NanumHandwritingMiddleSchool: 1.14,
@@ -92,6 +141,14 @@ export default function LeafRenderer({
 
   if (!shouldIgnoreBgInDarkTable && leaf?.backgroundColor) {
     style.backgroundColor = String(leaf.backgroundColor);
+
+    // 글자색을 따로 지정하지 않은 형광펜은 테마 기본 글자색을 그대로 쓰면
+    // 다크 모드에서 밝은 배경 위 흰 글자가 되어 읽을 수 없다.
+    // 배경 밝기에 맞는 글자색을 함께 지정한다.
+    if (!leaf?.color) {
+      const readable = readableTextColorFor(style.backgroundColor);
+      if (readable) style.color = readable;
+    }
   }
 
   const rawFamily = leaf?.fontFamily;

@@ -214,7 +214,7 @@ export default function TableOfContents({
   const resolvedDocIcon = docIcon ?? docTitleAnchor?.icon ?? undefined;
 
   useEffect(() => {
-    const media = window.matchMedia('(max-width: 1023px)');
+    const media = window.matchMedia('(max-width: 1199px)');
 
     const sync = () => {
       setIsMobileViewport(media.matches);
@@ -881,7 +881,12 @@ export default function TableOfContents({
               color: 'var(--foreground)',
             }}
           >
-            <span style={docTitleIconBox} aria-hidden>
+            <span
+              style={docTitleIconBox}
+              className="rd-toc-doc-icon"
+              data-empty={resolvedDocIcon ? undefined : 'true'}
+              aria-hidden
+            >
               {resolvedDocIcon?.startsWith('http') ? (
                 <img
                   src={toProxyUrl(resolvedDocIcon)}
@@ -961,7 +966,12 @@ export default function TableOfContents({
                 marginBottom: 4,
               }}
             >
-              <span style={docTitleIconBox} aria-hidden>
+              <span
+              style={docTitleIconBox}
+              className="rd-toc-doc-icon"
+              data-empty={resolvedDocIcon ? undefined : 'true'}
+              aria-hidden
+            >
                 {resolvedDocIcon?.startsWith('http') ? (
                   <img
                     src={toProxyUrl(resolvedDocIcon)}
@@ -1041,6 +1051,7 @@ export default function TableOfContents({
                   onNavigate?.();
                 }}
                 title={h.text}
+                data-toc-level={h.level}
                 aria-current={active ? 'true' : undefined}
                 style={{
                   display: 'flex',
@@ -1059,7 +1070,12 @@ export default function TableOfContents({
                   transition: 'color .12s',
                 }}
               >
-                <span style={iconBox} aria-hidden>
+                <span
+                  style={iconBox}
+                  className="rd-toc-icon"
+                  data-empty={h.icon ? undefined : 'true'}
+                  aria-hidden
+                >
                   {h.icon?.startsWith('http') ? (
                     <img
                       src={toProxyUrl(h.icon)}
@@ -1088,7 +1104,7 @@ export default function TableOfContents({
                     </span>
                   ) : null}
                 </span>
-                <span style={textStyle}>{h.text}</span>
+                <span style={textStyle} className="rd-toc-text">{h.text}</span>
               </button>
             </li>
           );

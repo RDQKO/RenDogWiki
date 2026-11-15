@@ -41,6 +41,8 @@ import {
   markNextDocViewSource,
 } from '@/wiki/lib/viewSource';
 import '@/wiki/css/wiki-final-polish.css';
+import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
+import { faCheck, faLink, faStar } from '@fortawesome/free-solid-svg-icons';
 import {
   DEFAULT_WIKI_DOCUMENT_ID,
   DEFAULT_WIKI_DOCUMENT_PATH_ID,
@@ -2952,15 +2954,8 @@ export default function WikiPageInner({ user: initialUser }: Props) {
                   />
                 </div>
 
-                <div
-                  style={{
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'space-between',
-                    gap: 12,
-                  }}
-                >
-                  <div className="wiki-doc-title-wrap" style={{ flex: 1, minWidth: 0 }}>
+                <div className="wiki-doc-header">
+                  <div className="wiki-doc-title-wrap">
                     <h2 className="wiki-content-title-row wiki-content-title">
                       {currentDoc?.icon ? (
                         currentDoc.icon.startsWith('http') ? (
@@ -3008,7 +3003,7 @@ export default function WikiPageInner({ user: initialUser }: Props) {
                         title="문서 링크 복사"
                         aria-label="문서 링크 복사"
                       >
-                        {copiedDocLink ? '✔' : '🔗'}
+                        <FontAwesomeIcon icon={copiedDocLink ? faCheck : faLink} />
                       </button>
 
                       <button
@@ -3020,8 +3015,9 @@ export default function WikiPageInner({ user: initialUser }: Props) {
                         onClick={handleToggleCurrentDocFavorite}
                         title={currentDocFavorited ? '즐겨찾기 해제' : '즐겨찾기 추가'}
                         aria-label={currentDocFavorited ? '즐겨찾기 해제' : '즐겨찾기 추가'}
+                        aria-pressed={currentDocFavorited}
                       >
-                        {currentDocFavorited ? '★' : '☆'}
+                        <FontAwesomeIcon icon={faStar} />
                       </button>
                     </h2>
                   </div>
@@ -3292,139 +3288,6 @@ export default function WikiPageInner({ user: initialUser }: Props) {
 
         .wiki-content.is-hold {
           opacity: 1;
-        }
-
-        .wiki-doc-title-wrap {
-          display: flex;
-          align-items: center;
-          justify-content: flex-start;
-          gap: 6px;
-          padding-bottom: 10px;
-        }
-
-        .wiki-content-title-row {
-          display: inline-flex;
-          align-items: center;
-          gap: 8px;
-          margin: 0;
-          line-height: 1.1;
-          padding: 2px 0;
-        }
-
-        .wiki-doc-title-tooltip-anchor {
-          position: relative;
-          display: inline-flex;
-          align-items: center;
-          min-width: 0;
-          cursor: help;
-        }
-
-        .wiki-doc-title-tooltip-anchor:focus {
-          outline: none;
-        }
-
-        .wiki-doc-updated-tooltip {
-          position: absolute;
-          left: 50%;
-          bottom: calc(100% + 10px);
-          transform: translate(-50%, 6px);
-          padding: 8px 11px;
-          border-radius: 12px;
-          background: rgba(17, 24, 39, 0.96);
-          color: #fff;
-          font-size: 12px;
-          font-weight: 700;
-          line-height: 1.25;
-          white-space: nowrap;
-          box-shadow: 0 10px 24px rgba(0, 0, 0, 0.18);
-          border: 1px solid rgba(255, 255, 255, 0.08);
-          opacity: 0;
-          visibility: hidden;
-          pointer-events: none;
-          z-index: 30;
-          transition:
-            opacity 0.16s ease,
-            transform 0.16s ease,
-            visibility 0.16s ease;
-        }
-
-        .wiki-doc-updated-tooltip::after {
-          content: '';
-          position: absolute;
-          top: 100%;
-          left: 50%;
-          transform: translateX(-50%);
-          border-width: 6px 6px 0 6px;
-          border-style: solid;
-          border-color: rgba(17, 24, 39, 0.96) transparent transparent transparent;
-        }
-
-        .wiki-doc-title-tooltip-anchor:hover .wiki-doc-updated-tooltip,
-        .wiki-doc-title-tooltip-anchor:focus-visible .wiki-doc-updated-tooltip {
-          opacity: 1;
-          visibility: visible;
-          transform: translate(-50%, 0);
-        }
-
-        .wiki-doc-icon-img {
-          width: 24px;
-          height: 24px;
-          image-rendering: pixelated;
-        }
-
-        .wiki-doc-title-action-btn {
-          width: 22px;
-          height: 22px;
-          margin-left: 6px;
-          display: grid;
-          place-items: center;
-          border: none;
-          border-radius: 50%;
-          background: transparent;
-          color: #9ca3af;
-          font-size: 13px;
-          opacity: 0;
-          pointer-events: none;
-          cursor: pointer;
-          transition: all 0.15s ease;
-        }
-
-        .wiki-doc-title-wrap:hover .wiki-doc-title-action-btn,
-        .wiki-doc-title-wrap:focus-within .wiki-doc-title-action-btn {
-          opacity: 1;
-          pointer-events: auto;
-        }
-
-        .wiki-doc-link-btn:hover {
-          background: #eef2ff;
-          color: #4f46e5;
-        }
-
-        .wiki-doc-link-btn--copied {
-          background: #dcfce7;
-          color: #16a34a;
-          opacity: 1;
-          pointer-events: auto;
-        }
-
-        .wiki-doc-favorite-btn {
-          font-size: 14px;
-        }
-
-        .wiki-doc-favorite-btn:hover {
-          background: #fff7ed;
-          color: #f59e0b;
-        }
-
-        .wiki-doc-favorite-btn--active {
-          background: #fff7ed;
-          color: #f59e0b;
-        }
-
-        @import url('https://fonts.googleapis.com/css2?family=Jua&display=swap');
-        :root {
-          --wiki-round-font: 'Jua', 'Pretendard', 'Malgun Gothic',
-            system-ui, sans-serif;
         }
 
         .wiki-paged-section {
@@ -3865,12 +3728,10 @@ function FaqAddButton({ onClick }: { onClick: () => void }) {
           flex: 0 0 auto;
           align-items: stretch;
           overflow: hidden;
-          background: linear-gradient(180deg, #66b968 0%, #51a75a 100%);
-          border: 1px solid rgba(46, 128, 57, 0.44);
-          border-radius: 13px;
-          box-shadow:
-            0 9px 20px rgba(68, 153, 78, 0.2),
-            inset 0 1px 0 rgba(255, 255, 255, 0.24);
+          background: var(--rd-btn-primary-bg);
+          border: 1px solid var(--rd-btn-primary-bg);
+          border-radius: 11px;
+          box-shadow: 0 6px 14px rgba(47, 135, 72, 0.2);
         }
 
         .faq-add-seg {
@@ -3879,7 +3740,7 @@ function FaqAddButton({ onClick }: { onClick: () => void }) {
           align-items: center;
           gap: 8px;
           padding: 0 15px;
-          color: #fff;
+          color: var(--rd-btn-primary-fg);
           font-size: 13px;
           font-weight: 800;
           line-height: 1;
@@ -3901,8 +3762,8 @@ function FaqAddButton({ onClick }: { onClick: () => void }) {
         }
 
         .faq-add-seg:focus-visible {
-          outline: none;
-          box-shadow: inset 0 0 0 2px rgba(56, 179, 93, 0.18);
+          outline: 2px solid #fff;
+          outline-offset: -5px;
         }
 
         .faq-add-ic {

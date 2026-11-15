@@ -882,6 +882,32 @@ export default function FaqList({
                   </span>
                 </button>
 
+                {/* 터치·키보드 사용자를 위한 관리 메뉴 진입점. 우클릭 메뉴와 같은 권한 규칙·같은 메뉴를 쓴다. */}
+                {canWrite && (
+                  <button
+                    type="button"
+                    className="faq-row-menu-btn"
+                    aria-label={`${item.title} 관리 메뉴`}
+                    aria-haspopup="menu"
+                    title="질문 관리"
+                    onClick={event => {
+                      event.stopPropagation();
+                      const rect = event.currentTarget.getBoundingClientRect();
+                      setMenu({
+                        open: true,
+                        id: item.id,
+                        x: Math.max(8, Math.min(rect.right - 160, window.innerWidth - 168)),
+                        y: Math.max(8, Math.min(rect.bottom + 4, window.innerHeight - 100)),
+                      });
+                    }}
+                  >
+                    <svg viewBox="0 0 20 20" width="18" height="18" fill="currentColor" aria-hidden="true">
+                      <circle cx="4" cy="10" r="1.7" />
+                      <circle cx="10" cy="10" r="1.7" />
+                      <circle cx="16" cy="10" r="1.7" />
+                    </svg>
+                  </button>
+                )}
 
               </div>
             ),
@@ -1022,15 +1048,13 @@ export default function FaqList({
         <div className="faq-menu-pop faq-popover" role="menu" aria-label="질문 관리"
           onContextMenu={event => event.preventDefault()}
           style={{ position: 'fixed', left: menu.x, top: menu.y, zIndex: 100000, width: 160, padding: 4 }}>
-          <button type="button" role="menuitem" className="rd-btn secondary"
-            style={{ width: '100%', minHeight: 34 }} autoFocus
+          <button type="button" role="menuitem" className="faq-menu-item" autoFocus
             onClick={() => {
               const item = items.find(item => item.id === menu.id);
               setMenu(CLOSED_MENU);
               if (item) void openEdit(item);
             }}>질문 수정</button>
-          {isAdmin && <button type="button" role="menuitem" className="rd-btn secondary"
-            style={{ width: '100%', minHeight: 34, color: '#d24646' }}
+          {isAdmin && <button type="button" role="menuitem" className="faq-menu-item faq-menu-item--danger"
             onClick={() => {
               const id = menu.id;
               setMenu(CLOSED_MENU);

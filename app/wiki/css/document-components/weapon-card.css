@@ -2015,3 +2015,11 @@
     animation: none !important;
   }
 }
+
+/* 아주 좁은 화면(편집기): 카드 옆 단계 선택·정보 설정 버튼이 화면 밖으로
+   밀리지 않도록 카드 아래 줄로 내린다. */
+@media (max-width: 420px) {
+  .weapon-card-wrap--edit {
+    flex-wrap: wrap;
+  }
+}

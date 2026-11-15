@@ -1,11 +1,200 @@
-.region { margin: 14px 0; border: 1px solid var(--border, #cbd7ce); border-radius: 8px; color: inherit; overflow-wrap: anywhere; }
-.summary { padding: 10px 12px; cursor: pointer; font-weight: 700; background: var(--surface-muted, rgba(128,150,128,.09)); user-select: none; }
-.body { padding: 4px 12px 12px; }
-.editorHeader { display: flex; gap: 10px; align-items: center; padding: 9px 12px; background: var(--surface-muted, rgba(128,150,128,.09)); }
-.editorHeader button { color: inherit; background: transparent; border: 0; cursor: pointer; padding: 3px; }
-.label { flex: 1; min-width: 0; font-weight: 700; }
-.hint { font-size: 12px; opacity: .75; }
-.menu { position: fixed; z-index: 100000; display: flex; flex-direction: column; min-width: 230px; max-height: calc(100dvh - 16px); overflow-y: auto; padding: 5px; border: 1px solid var(--border, #ccd7ce); border-radius: 8px; color: var(--foreground, #243229); background: var(--surface, #fff); box-shadow: 0 6px 24px #0003; }
-.menu button { border: 0; border-radius: 4px; padding: 9px 10px; text-align: left; font: inherit; color: inherit; background: transparent; cursor: pointer; }
-.menu button:hover, .menu button:focus-visible { background: rgba(128,150,128,.18); }
-.menu .danger { color: #cf4242; }
+/* 펼침·접힘 영역: 열람(details/summary)과 편집기(헤더 + 본문)가 같은 모양을 공유한다.
+   색상은 globals.css의 --rd-* 토큰을 사용해 라이트/다크 모두 대응한다. */
+
+.region {
+  margin: 16px 0;
+  border: 1px solid var(--rd-line-strong, #cbd8c7);
+  border-radius: var(--rd-radius-md, 12px);
+  background: var(--rd-panel, #fff);
+  color: inherit;
+  overflow: hidden;
+  overflow-wrap: anywhere;
+}
+
+/* 중첩 영역은 바깥보다 한 단계 옅은 면으로 구분한다. */
+.region .region {
+  margin: 12px 0 4px;
+  background: var(--rd-panel-soft, #f7fbf5);
+}
+
+/* ===== 열람: 제목 줄 ===== */
+
+.summary {
+  position: relative;
+  display: flex;
+  min-height: 46px;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 14px 10px 12px;
+  background: var(--rd-brand-softer, #f4faf1);
+  color: var(--rd-ink, inherit);
+  font-weight: 750;
+  line-height: 1.45;
+  list-style: none;
+  cursor: pointer;
+  user-select: none;
+  transition: background-color 0.15s ease;
+}
+
+.summary::-webkit-details-marker {
+  display: none;
+}
+
+/* 열림/닫힘을 알려 주는 화살표: 닫힘 ▸, 열림 ▾ */
+.summary::before {
+  content: '';
+  flex: 0 0 26px;
+  width: 26px;
+  height: 26px;
+  border: 1px solid var(--rd-brand-border, rgba(77, 155, 92, 0.28));
+  border-radius: 8px;
+  background-color: var(--rd-panel, #fff);
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16' fill='none' stroke='%233f9a55' stroke-width='2.2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpolyline points='6,4 10,8 6,12'/%3E%3C/svg%3E");
+  background-position: center;
+  background-repeat: no-repeat;
+  background-size: 14px 14px;
+  transition: transform 0.18s ease;
+}
+
+.region[open] > .summary::before {
+  transform: rotate(90deg);
+}
+
+.summary:hover {
+  background: var(--rd-brand-soft, #e8f5e4);
+}
+
+.summary:focus-visible {
+  outline: 2px solid var(--rd-brand, #3f9a55);
+  outline-offset: -2px;
+}
+
+.region[open] > .summary {
+  border-bottom: 1px solid var(--rd-line, #e1e9de);
+}
+
+.body {
+  padding: 10px 16px 14px;
+}
+
+/* ===== 편집기: 제목 줄 ===== */
+
+.editorHeader {
+  display: flex;
+  min-height: 44px;
+  align-items: center;
+  gap: 10px;
+  padding: 7px 8px 7px 10px;
+  border-bottom: 1px solid var(--rd-line, #e1e9de);
+  background: var(--rd-brand-softer, #f4faf1);
+}
+
+.editorHeader button {
+  display: inline-grid;
+  flex: 0 0 30px;
+  width: 30px;
+  height: 30px;
+  padding: 0;
+  place-items: center;
+  border: 1px solid var(--rd-brand-border, rgba(77, 155, 92, 0.28));
+  border-radius: 8px;
+  background: var(--rd-panel, #fff);
+  color: var(--rd-brand-strong, #2c7a40);
+  font-size: 15px;
+  line-height: 1;
+  cursor: pointer;
+  transition:
+    background-color 0.15s ease,
+    border-color 0.15s ease;
+}
+
+.editorHeader button:hover {
+  border-color: var(--rd-brand, #3f9a55);
+  background: var(--rd-brand-soft, #e8f5e4);
+}
+
+.label {
+  flex: 1;
+  min-width: 0;
+  color: var(--rd-ink, inherit);
+  font-weight: 750;
+  line-height: 1.4;
+}
+
+.hint {
+  flex: 0 0 auto;
+  padding: 3px 8px;
+  border: 1px solid var(--rd-line-strong, #cbd8c7);
+  border-radius: 999px;
+  background: var(--rd-panel, #fff);
+  color: var(--rd-ink-3, #66756a);
+  font-size: 12px;
+  font-weight: 700;
+  white-space: nowrap;
+}
+
+/* ===== 편집기: 영역 관리 메뉴 ===== */
+
+.menu {
+  position: fixed;
+  z-index: 100000;
+  display: flex;
+  flex-direction: column;
+  min-width: 236px;
+  max-height: calc(100dvh - 16px);
+  overflow-y: auto;
+  padding: 6px;
+  border: 1px solid var(--rd-line-strong, #ccd7ce);
+  border-radius: var(--rd-radius-md, 12px);
+  background: var(--rd-panel, #fff);
+  color: var(--rd-ink, #243229);
+  box-shadow: var(--shadow-lg, 0 10px 32px rgba(15, 23, 42, 0.14));
+}
+
+.menu button {
+  min-height: 38px;
+  padding: 8px 11px;
+  border: 0;
+  border-radius: 8px;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  font-size: 14px;
+  font-weight: 650;
+  text-align: left;
+  cursor: pointer;
+}
+
+.menu button:hover,
+.menu button:focus-visible {
+  outline: none;
+  background: var(--rd-brand-soft, rgba(128, 150, 128, 0.18));
+}
+
+.menu .danger {
+  color: var(--rd-danger, #cf4242);
+}
+
+.menu .danger:hover,
+.menu .danger:focus-visible {
+  background: var(--rd-danger-soft, #fdecec);
+}
+
+@media (max-width: 768px) {
+  .summary {
+    min-height: 48px;
+    padding: 10px 12px 10px 10px;
+  }
+
+  .body {
+    padding: 8px 12px 12px;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .summary,
+  .summary::before,
+  .editorHeader button {
+    transition: none;
+  }
+}

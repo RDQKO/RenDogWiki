@@ -11,8 +11,15 @@
 
 /* ===== 공통 변수 ===== */
 :root {
-  --wiki-max-width: 1580px;
+  /* 문서 화면은 화면 전체 폭을 쓰고, 본문 줄 길이는 --wiki-content-max로 제한한다. */
+  /* 헤더(header.css)도 같은 값을 사용한다: 화면 전체 폭 + 좌우 24px 여백. */
+  --wiki-max-width: 100%;
   --wiki-gutter: 24px;
+  --wiki-header-height: 64px;
+  --wiki-rail-width: 64px;
+  --wiki-sidebar-width: 340px;
+  --wiki-toc-width: 280px;
+  --wiki-content-max: 920px;
 }
 
 /* ===== GLOBAL: 이미지 기본 처리 ===== */
@@ -32,15 +39,10 @@
 /* ===== 앱 공통 폭 ===== */
 .wiki-app {
   width: 100%;
-  max-width: var(--wiki-max-width);
   min-height: 100vh;
-  margin: 0 auto;
-  padding: 0 var(--wiki-gutter);
+  margin: 0;
+  padding: 0;
   background: var(--background);
-
-  /* max-width 바깥 좌우 거터도 같은 배경색으로 채움 */
-  box-shadow: 0 0 0 100vmax var(--background);
-  clip-path: inset(0 -100vmax);
 }
 
 /* ===== [1] 전체 컨테이너 / 레이아웃 ===== */
@@ -81,10 +83,12 @@
 }
 
 .wiki-content {
-  flex: 1;
-  overflow-y: auto;
+  flex: 1 1 0;
   min-width: 0;
-  padding: 1rem 3rem 2rem 3rem;
+  /* 넓은 화면에서도 한 줄이 지나치게 길어지지 않도록 본문 폭을 제한한다. */
+  max-width: calc(var(--wiki-content-max) + 96px);
+  margin: 0 auto;
+  padding: 28px 48px 96px;
   background-color: var(--background);
 }
 
@@ -92,28 +96,36 @@
   font-size: 1rem;
   line-height: 1.75;
   color: var(--foreground);
+  /* 한글은 어절 단위로 줄바꿈하고, 긴 URL·영문 토큰만 강제로 끊어 넘침을 막는다. */
+  word-break: keep-all;
+  overflow-wrap: anywhere;
 }
 
 /* ===== [2] 사이드바 ===== */
 .wiki-sidebar {
-  width: 320px;
+  /* 스크롤 루트 안에서 고정되어 본문과 따로 스크롤된다. */
+  position: sticky;
+  top: 0;
+  align-self: flex-start;
+  flex: 0 0 var(--wiki-sidebar-width);
+  width: var(--wiki-sidebar-width);
+  height: calc(100vh - var(--wiki-header-height));
+  box-sizing: border-box;
   background: var(--surface);
   font-size: 14px;
   font-weight: 600;
   margin-top: 0;
-  padding: 12px 10px 10px 10px;
+  /* 왼쪽 여백은 플로팅 바로가기 버튼이 놓이는 레일이다. 분류 패널과 겹치지 않는다. */
+  padding: 16px 12px 16px calc(var(--wiki-rail-width) + 14px);
   border: none !important;
   overflow-y: auto;
-  scrollbar-gutter: stable;
 }
 
 .wiki-sidebar-inner {
   position: relative;
-  display: inline-block;
-  min-width: 100%;
-  padding-left: 12px;
-  padding-top: 0;
-  border-left: 1px solid var(--border);
+  display: block;
+  min-width: 0;
+  padding: 0;
 }
 
 .wiki-sidebar-title {
@@ -286,74 +298,33 @@
 }
 
 /* ===== [5] 본문 ===== */
-.wiki-breadcrumb {
-  margin: 8px 0 18px 10px;
-  font-size: 16px;
-  color: var(--muted);
-}
 
-.wiki-breadcrumb-flex {
-  display: flex;
-  align-items: center;
-  gap: 0;
-  flex-wrap: wrap;
-}
 
-.wiki-breadcrumb-sep {
-  color: var(--muted-2);
-  margin: 0 8px;
-  font-size: 20px;
-  user-select: none;
-}
 
-.wiki-breadcrumb-item {
-  display: inline-flex;
-  align-items: center;
-  font-weight: 700;
-  color: var(--accent);
-  font-size: 22px;
-  letter-spacing: 0.2px;
-}
 
-.wiki-content-title {
-  font-size: 2rem;
-  font-weight: 700;
-  margin-bottom: 1rem;
-}
+
+
+
+
+
 
 .wiki-title-color {
   color: var(--foreground);
 }
 
-.wiki-content-title-row {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  padding-bottom: 40px;
-}
 
-.wiki-doc-icon-img {
-  width: 32px;
-  height: 32px;
-  vertical-align: middle;
-  margin-right: 8px;
-  object-fit: contain;
-  display: inline-block;
-}
 
-.wiki-doc-icon-emoji {
-  font-size: 28px;
-  margin-right: 8px;
-}
+
+
+
 
 /* ===== [6] TOC ===== */
-.wiki-toc,
-.wiki-toc-sidebar {
-  width: 260px;
+.wiki-toc, .wiki-toc-sidebar {
+  width: var(--wiki-toc-width);
   padding: 1rem;
   flex-shrink: 0;
-  border-left: 1px solid var(--border);
-  background: var(--surface-soft);
+  border-left: 0;
+  background: transparent;
   overflow-y: auto;
   position: sticky;
   top: 64px;
@@ -613,7 +584,8 @@
   z-index: 1200;
   transform: translateX(-100%);
   transition: transform 0.22s ease;
-  box-shadow: 10px 0 30px rgba(0, 0, 0, 0.12);
+  /* 닫힌 상태에서는 그림자가 화면 왼쪽 가장자리로 새어 나오지 않게 한다. */
+  box-shadow: none;
   display: flex;
   flex-direction: column;
   overflow: hidden;
@@ -621,6 +593,7 @@
 
 .wiki-mobile-drawer.open {
   transform: translateX(0);
+  box-shadow: 10px 0 30px rgba(0, 0, 0, 0.12);
 }
 
 .wiki-mobile-drawer-header {
@@ -849,19 +822,11 @@
   }
 
   /* ----- 모바일 본문 타이포그래피 ----- */
-  .wiki-content-title {
-    font-size: 25px !important;
-    line-height: 1.3 !important;
-  }
+  
 
-  .wiki-breadcrumb-item {
-    font-size: 18px !important;
-    line-height: 1.35 !important;
-  }
+  
 
-  .wiki-breadcrumb-sep {
-    font-size: 16px !important;
-  }
+  
 
   .wiki-read-mobile-scope [data-wiki-text="h1"] {
     font-size: 22px !important;

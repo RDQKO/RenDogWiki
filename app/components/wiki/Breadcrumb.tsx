@@ -119,7 +119,7 @@ export default function Breadcrumb({
 
       <style jsx>{`
         .wiki-breadcrumb {
-          margin-bottom: 8px;
+          margin: 0 0 10px;
         }
 
         .wiki-breadcrumb-list {
@@ -130,9 +130,10 @@ export default function Breadcrumb({
         }
 
         .wiki-breadcrumb-sep {
-          color: #9ca3af;
+          color: var(--rd-ink-3);
           font-size: 13px;
           line-height: 1;
+          opacity: 0.7;
           user-select: none;
         }
 
@@ -142,21 +143,26 @@ export default function Breadcrumb({
           gap: 5px;
           border: none;
           background: transparent;
-          padding: 0;
-          color: #6b7280;
-          font-size: 14px;
+          padding: 2px 4px;
+          margin: 0 -4px;
+          border-radius: 6px;
+          color: var(--rd-ink-3);
+          font-size: 13.5px;
+          font-weight: 700;
           line-height: 1.4;
           cursor: pointer;
           transition: color 0.15s ease;
         }
 
         .wiki-breadcrumb-item:hover {
-          color: #2563eb;
+          color: var(--rd-brand-strong);
+          text-decoration: underline;
+          text-underline-offset: 3px;
         }
 
         .wiki-breadcrumb-item.is-disabled,
         .wiki-breadcrumb-item:disabled {
-          color: #9ca3af;
+          color: var(--rd-ink-3);
           cursor: default;
           pointer-events: none;
         }

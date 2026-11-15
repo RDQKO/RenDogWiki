@@ -305,10 +305,8 @@
   scrollbar-color:
     rgba(78, 148, 87, 0.3)
     transparent;
-  backdrop-filter:
-    blur(17px);
-  -webkit-backdrop-filter:
-    blur(17px);
+  /* 배경이 사실상 불투명(0.99)이므로 흐림 효과는 쓰지 않는다.
+     흐림 처리된 헤더 안에 중첩되면 뒤 내용이 비쳐 보이는 렌더링 문제가 있었다. */
 }
 
 .wiki-search-dropdown::-webkit-scrollbar,
@@ -1450,4 +1448,10 @@ body.dark
     transition:
       none !important;
   }
+}
+
+/* 검색 결과 창은 뒤 내용이 비치지 않도록 불투명한 바탕색을 깐다.
+   (그라디언트만으로는 좁은 화면의 접이식 검색에서 본문이 비쳐 보였다.) */
+.wiki-search-dropdown {
+  background-color: var(--surface-elevated, #fff) !important;
 }
