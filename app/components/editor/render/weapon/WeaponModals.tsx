@@ -51,6 +51,8 @@ const useModalHotkeys = (params: {
 
     const onKeyDown = (event: KeyboardEvent) => {
       if (disabled) return;
+      // A nested picker/dialog owns its keyboard events.
+      if ((event.target as HTMLElement | null)?.closest('[data-rdwiki-modal]')) return;
 
       const composingEvent = event as KeyboardEvent & {
         isComposing?: boolean;
@@ -180,6 +182,8 @@ export const WeaponTypeSelectModal: React.FC<
           style={{
             width: 360,
             maxWidth: '90%',
+            maxHeight: 'calc(100dvh - 40px)',
+            overflowY: 'auto',
             borderRadius: 14,
             background: '#020617',
             padding: '16px 18px 14px',
@@ -330,6 +334,8 @@ export const WeaponNameEditModal: React.FC<
           style={{
             width: 420,
             maxWidth: '90%',
+            maxHeight: 'calc(100dvh - 40px)',
+            overflowY: 'auto',
             borderRadius: 14,
             background: '#020617',
             padding: '18px 20px 16px',
@@ -946,6 +952,8 @@ export const WeaponStatSelectModal: React.FC<
           style={{
             width: 380,
             maxWidth: '90%',
+            maxHeight: 'calc(100dvh - 40px)',
+            overflowY: 'auto',
             borderRadius: 14,
             background: '#020617',
             padding: '16px 18px 14px',

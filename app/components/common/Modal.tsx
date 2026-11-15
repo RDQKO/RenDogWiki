@@ -1,63 +1,94 @@
-// components/common/Modal.tsx
 'use client';
 
-import React, { useEffect, useId, useRef } from 'react';
+import React, { useEffect, useId, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
+import styles from './Modal.module.css';
 import '@/wiki/css/image.css';
 
-type BaseProps = {
-  open: boolean;
-  onClose: () => void;
-  children: React.ReactNode;
-};
+const modalStack: string[] = [];
+let savedOverflow = '';
 
-function Overlay({
-  onClose,
-  children,
-}: {
-  onClose: () => void;
-  children: React.ReactNode;
+type BaseProps = { open: boolean; onClose: () => void; children: React.ReactNode };
+
+function ModalSurface({ open, onClose, children, title, actions, width, card = false }: BaseProps & {
+  title?: string;
+  actions?: React.ReactNode;
+  width?: number;
+  card?: boolean;
 }) {
-  return (
-    <div
-      className="rd-overlay"
-      onMouseDown={(e) => {
-        if (e.target === e.currentTarget) onClose();
-      }}
-      onWheel={(e) => { e.preventDefault(); }}      // ✅ 배경 스크롤 차단
-      onTouchMove={(e) => { e.preventDefault(); }}  // ✅ 모바일 배경 스크롤 차단
-      style={{
-        display: 'grid',
-        placeItems: 'center',
-        position: 'fixed',
-        inset: 0,
-        zIndex: 100000,
-        touchAction: 'none',                        // ✅ 터치 제스처 차단
-      }}
-    >
-      {children}
-    </div>
-  );
-}
+  const id = useId();
+  const panelRef = useRef<HTMLDivElement>(null);
+  const onCloseRef = useRef(onClose);
+  onCloseRef.current = onClose;
+  const [mounted, setMounted] = useState(false);
+  useEffect(() => setMounted(true), []);
 
-export default function Modal({ open, onClose, children }: BaseProps) {
-  if (!open) return null;
+  useEffect(() => {
+    if (!open || !mounted) return;
+    const panel = panelRef.current;
+    if (!panel) return;
+    const previous = document.activeElement as HTMLElement | null;
+    if (modalStack.length === 0) {
+      savedOverflow = document.body.style.overflow;
+      document.body.style.overflow = 'hidden';
+    }
+    modalStack.push(id);
+    const isTop = () => modalStack[modalStack.length - 1] === id;
+    const focusables = () => Array.from(panel.querySelectorAll<HTMLElement>(
+      'a[href], button:not([disabled]), textarea:not([disabled]), input:not([disabled]):not([type="hidden"]), select:not([disabled]), [tabindex]:not([tabindex="-1"])',
+    )).filter(el => !el.closest('[hidden]') && getComputedStyle(el).display !== 'none');
+    (focusables()[0] ?? panel).focus({ preventScroll: true });
+    const keydown = (event: KeyboardEvent) => {
+      if (!isTop()) return;
+      if (event.key === 'Escape') {
+        event.preventDefault();
+        event.stopPropagation();
+        onCloseRef.current();
+      } else if (event.key === 'Tab') {
+        const items = focusables();
+        const first = items[0] ?? panel;
+        const last = items[items.length - 1] ?? panel;
+        if (!panel.contains(document.activeElement) || (event.shiftKey ? document.activeElement === first : document.activeElement === last) || !items.length) {
+          event.preventDefault();
+          (event.shiftKey ? last : first).focus({ preventScroll: true });
+        }
+      }
+    };
+    document.addEventListener('keydown', keydown);
+    return () => {
+      document.removeEventListener('keydown', keydown);
+      const wasTop = isTop();
+      const index = modalStack.indexOf(id);
+      if (index >= 0) modalStack.splice(index, 1);
+      if (!modalStack.length) document.body.style.overflow = savedOverflow;
+      if (wasTop && previous?.isConnected) previous.focus({ preventScroll: true });
+    };
+  }, [open, mounted, id]);
+
+  if (!open || !mounted) return null;
   return createPortal(
-    <Overlay onClose={onClose}>
-      <div onMouseDown={(e) => e.stopPropagation()}>{children}</div>
-    </Overlay>,
-    document.body
+    <div className={styles.overlay} data-rdwiki-modal onMouseDown={event => {
+      if (event.target === event.currentTarget && modalStack[modalStack.length - 1] === id) onCloseRef.current();
+    }}>
+      <div ref={panelRef} className={card ? styles.card : styles.bare} role="dialog" aria-modal="true"
+        aria-labelledby={title ? `${id}-title` : undefined} tabIndex={-1}
+        style={width ? { width } : undefined}>
+        {card && <div className={styles.header}>
+          <h2 id={`${id}-title`} className={styles.title}>{title}</h2>
+          <button className={styles.close} type="button" aria-label="닫기" onClick={() => onCloseRef.current()}>×</button>
+        </div>}
+        <div className={card ? styles.content : undefined}>{children}</div>
+        {actions && <div className={styles.actions}>{actions}</div>}
+      </div>
+    </div>, document.body,
   );
 }
 
-export function ModalCard({
-  open,
-  onClose,
-  title,
-  children,
-  actions,
-  width = 420,
-}: {
+export default function Modal(props: BaseProps) {
+  return <ModalSurface {...props} />;
+}
+
+export function ModalCard(props: {
   open: boolean;
   onClose: () => void;
   title: string;
@@ -65,95 +96,5 @@ export function ModalCard({
   actions?: React.ReactNode;
   width?: number;
 }) {
-  const titleId = useId();
-  const panelRef = useRef<HTMLDivElement>(null);
-  const lastActiveRef = useRef<HTMLElement | null>(null);
-
-  const onCloseRef = useRef(onClose);
-  useEffect(() => { onCloseRef.current = onClose; }, [onClose]);
-
-  useEffect(() => {
-    if (!open) return;
-
-    // ✅ body.style.overflow 만지지 않음
-    lastActiveRef.current = document.activeElement as HTMLElement | null;
-
-    const panel = panelRef.current!;
-    const getFocusables = () =>
-      panel.querySelectorAll<HTMLElement>(
-        'a[href], button:not([disabled]), textarea, input, select, [tabindex]:not([tabindex="-1"])'
-      );
-
-    const firstSet = getFocusables();
-    (firstSet[0] ?? panel).focus();
-
-    const onKeyDown = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') {
-        e.preventDefault();
-        onCloseRef.current();
-        return;
-      }
-      if (e.key === 'Tab') {
-        const f = getFocusables();
-        if (!f.length) return;
-        const first = f[0];
-        const last = f[f.length - 1];
-        const active = document.activeElement as HTMLElement | null;
-
-        if (e.shiftKey) {
-          if (active === first || !panel.contains(active)) {
-            e.preventDefault();
-            last.focus();
-          }
-        } else {
-          if (active === last || !panel.contains(active)) {
-            e.preventDefault();
-            first.focus();
-          }
-        }
-      }
-    };
-
-    document.addEventListener('keydown', onKeyDown);
-    return () => {
-      document.removeEventListener('keydown', onKeyDown);
-      lastActiveRef.current?.focus?.();
-    };
-  }, [open]);
-
-  if (!open) return null;
-
-  return createPortal(
-    <Overlay onClose={() => onCloseRef.current()}>
-      <div
-        ref={panelRef}
-        className="rd-card"
-        role="dialog"
-        aria-modal="true"
-        aria-labelledby={titleId}
-        tabIndex={-1}
-        onMouseDown={(e) => e.stopPropagation()}
-        style={{ width, maxWidth: 'calc(100vw - 40px)', borderRadius: 20 }}
-      >
-        <button
-          className="rd-exit-btn"
-          onClick={() => onCloseRef.current()}
-          aria-label="닫기"
-          type="button"
-        >
-          <svg height="20" viewBox="0 0 384 512">
-            <path d="M342.6 150.6c12.5-12.5 12.5-32.8 0-45.3s-32.8-12.5-45.3 0L192 210.7 86.6 105.4c-12.5-12.5-32.8-12.5-45.3 0s-12.5 32.8 0 45.3L146.7 256 41.4 361.4c-12.5 12.5-12.5 32.8 0 45.3s32.8 12.5 0 45.3L192 301.3 297.4 406.6c12.5 12.5 32.8 12.5 45.3 0s12.5-32.8 0-45.3L237.3 256 342.6 150.6z"/>
-          </svg>
-        </button>
-
-        <div className="rd-card-content">
-          <p className="rd-card-heading" id={titleId}>{title}</p>
-          {children}
-        </div>
-
-        {actions && <div className="rd-card-button-wrapper">{actions}</div>}
-      </div>
-    </Overlay>,
-    document.body
-  );
+  return <ModalSurface {...props} width={props.width ?? 420} card>{props.children}</ModalSurface>;
 }

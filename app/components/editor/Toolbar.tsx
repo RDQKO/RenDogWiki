@@ -8,6 +8,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import { useSlate, ReactEditor } from 'slate-react';
 import { Editor, Range, Transforms, Element as SlateElement } from 'slate';
 
+import CollapsibleInsertControl from './CollapsibleInsertControl';
 import MarkButton from './MarkButton';
 import DropdownButton from './DropdownButton';
 import InfoBoxDropdown from './InfoBoxDropdown';
@@ -805,6 +806,8 @@ export const Toolbar: React.FC<ToolbarProps> = ({
       >
         <FontAwesomeIcon icon={faFont} />
       </button>
+
+      <CollapsibleInsertControl editor={editor} selectionRef={selectionRef} />
 
       <TablePicker
         anchor={tableBtnRef.current}

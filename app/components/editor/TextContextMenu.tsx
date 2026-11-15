@@ -21,6 +21,7 @@ import {
   Transforms,
   type BaseRange,
 } from 'slate';
+import { wrapInCollapsible } from './helpers/collapsible';
 import { ReactEditor } from 'slate-react';
 import {
   buildTableRangeClipboardPayload,
@@ -61,7 +62,7 @@ const TEXT_MARKS = [
 ];
 
 const MENU_WIDTH = 276;
-const MENU_HEIGHT = 194;
+const MENU_HEIGHT = 238;
 const VIEWPORT_GAP = 8;
 
 function cloneRange(range: BaseRange): BaseRange {
@@ -663,6 +664,12 @@ export default function TextContextMenu({ editor }: Props) {
       <TextMenuItem onClick={() => void copyWithFormatting()}>
         속성과 함께 글자 복사
       </TextMenuItem>
+
+      <TextMenuItem onClick={() => {
+        wrapInCollapsible(editor, menu.selection);
+        setMenu(null);
+        ReactEditor.focus(editor);
+      }}>선택 영역을 펼침·접힘으로 묶기</TextMenuItem>
 
       <TextMenuItem onClick={clearFormatting} danger>
         텍스트 속성 제거

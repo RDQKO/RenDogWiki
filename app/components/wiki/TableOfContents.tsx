@@ -1,6 +1,6 @@
 // =============================================
 // File: app/components/wiki/TableOfContents.tsx
-// - 해시 포함 링크로 진입했을 때 스크롤 재시도 로직 유지
+// - 문서/목차 스크롤 요청은 WikiPageInner 한 곳에서 처리 (이전 해시 자동 재생 금지)
 // - 사이드바(목차 영역)에서는 링크 복사 버튼 제거
 // - 문서 제목/아이콘(docTitle/docIcon) 목차 맨 위에 표시
 // - 활성 목차 슬라이딩 하이라이트 + TOC 자동 스크롤
@@ -702,25 +702,6 @@ export default function TableOfContents({
     };
   }, [indexed, headerOffset, scrollRootSelector, activeDomId, activeIndex]);
 
-  useEffect(() => {
-    if (!indexed.length) return;
-
-    const rawHash = window.location.hash || '';
-    if (!rawHash) return;
-
-    const hash = decodeURIComponent(rawHash).replace(/^#/, '');
-    if (!hash) return;
-
-    scrollToDomIdWithRetry(hash, 'auto', {
-      stable: true,
-      updateHash: false,
-      lockProgrammatic: false,
-    });
-
-    return () => {
-      clearRetryTimeouts();
-    };
-  }, [indexed, rootKey]);
 
   useEffect(() => {
     if (!indexed.length) return;
@@ -882,9 +863,7 @@ export default function TableOfContents({
           <button
             type="button"
             onClick={() => {
-              const root = rootRef.current;
-              if (!root) window.scrollTo({ top: 0, behavior: 'smooth' });
-              else root.scrollTo({ top: 0, behavior: 'smooth' });
+              window.dispatchEvent(new Event('rdwiki:document-top-nav'));
               onNavigate?.();
             }}
             title={docTitle}
@@ -961,12 +940,7 @@ export default function TableOfContents({
             <button
               type="button"
               onClick={() => {
-                const root = rootRef.current;
-                if (!root) {
-                  window.scrollTo({ top: 0, behavior: 'smooth' });
-                } else {
-                  root.scrollTo({ top: 0, behavior: 'smooth' });
-                }
+                window.dispatchEvent(new Event('rdwiki:document-top-nav'));
                 onNavigate?.();
               }}
               title={docTitle}
@@ -1063,7 +1037,7 @@ export default function TableOfContents({
                 type="button"
                 data-toc-index={i}
                 onClick={() => {
-                  scrollToDomIdWithRetry(h.domId!);
+                  window.dispatchEvent(new CustomEvent('rdwiki:search-hash-nav', { detail: { domId: h.domId } }));
                   onNavigate?.();
                 }}
                 title={h.text}

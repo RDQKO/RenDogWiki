@@ -8,7 +8,9 @@ function makeLoader(overrides = {}, globals = {}) {
   const modules = new Map();
   function load(filename) {
     if (!path.isAbsolute(filename)) filename = path.resolve(root, filename);
-    if (!path.extname(filename)) filename += '.ts';
+    if (!path.extname(filename)) {
+      filename += fs.existsSync(filename + '.ts') ? '.ts' : '.tsx';
+    }
     if (modules.has(filename)) return modules.get(filename).exports;
     const module = { exports: {} };
     modules.set(filename, module);
@@ -21,6 +23,9 @@ function makeLoader(overrides = {}, globals = {}) {
       require(id) {
         if (Object.hasOwn(overrides, id)) return overrides[id];
         if (id === 'server-only') return {};
+        if (id.endsWith('.css')) return { __esModule: true, default: new Proxy({}, { get: (_, key) => key }) };
+        if (id.startsWith('@/components/')) return load(path.join(root, 'app/components', id.slice(13)));
+        if (id.startsWith('@lib/')) return load(path.join(root, 'app/wiki/lib', id.slice(5)));
         if (id.startsWith('@/wiki/')) return load(path.join(root, 'app/wiki', id.slice(7)));
         if (id.startsWith('@wiki/')) return load(path.join(root, 'app/wiki', id.slice(6)));
         if (id.startsWith('@/app/')) return load(path.join(root, id.slice(2)));

@@ -32,6 +32,15 @@ export const ALL_WEAPON_STAT_KEYS: WeaponStatKey[] = [
   'range',
   'duration',
   'heal',
+  'custom-1',
+  'custom-2',
+  'custom-3',
+  'custom-4',
+  'custom-5',
+  'custom-6',
+  'custom-7',
+  'custom-8',
+  'custom-9',
 ];
 
 export const WEAPON_STAT_PRESET: Record<
@@ -62,6 +71,16 @@ export const WEAPON_STAT_PRESET: Record<
   heal: {
     label: '회복량',
   },
+  'custom-1': { label: '정보 7' },
+  'custom-2': { label: '정보 8' },
+  'custom-3': { label: '정보 9' },
+  'custom-4': { label: '정보 10' },
+  'custom-5': { label: '정보 11' },
+  'custom-6': { label: '정보 12' },
+  'custom-7': { label: '정보 13' },
+  'custom-8': { label: '정보 14' },
+  'custom-9': { label: '정보 15' },
+
 };
 
 export function getWeaponLevelLabels(
