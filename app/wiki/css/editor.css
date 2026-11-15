@@ -1004,24 +1004,13 @@
   box-shadow: 0 0 0 4px var(--editor-focus-ring);
 }
 
-.rd-btn.primary {
-  color: #fff;
-  background: var(--editor-accent);
-}
 
-.rd-btn.primary:hover {
-  background: var(--editor-accent-strong);
-}
 
-.rd-btn.secondary {
-  color: var(--editor-text);
-  background: var(--editor-panel-soft);
-  border: 1px solid var(--editor-border);
-}
 
-.rd-btn.secondary:hover {
-  background: var(--editor-accent-softer);
-}
+
+
+
+
 
 /* ===== 반응형 ===== */
 
@@ -1101,5 +1090,20 @@
   .editor-slate-content,
   .wiki-editor-floating-action {
     transition: none;
+  }
+}
+
+/* 좁은 화면: 편집 중인 표가 페이지 전체를 가로로 밀어내지 않도록 최소 폭을 해제한다.
+   (선택 영역 표시가 표 컨테이너 좌표를 기준으로 하므로 컨테이너 내부 스크롤 대신 폭을 맞춘다.) */
+@media (max-width: 768px) {
+  .slate-table {
+    min-width: 0;
+  }
+
+  .slate-table-cell,
+  .slate-table__cell {
+    min-width: 0;
+    padding: 7px 6px;
+    overflow-wrap: anywhere;
   }
 }

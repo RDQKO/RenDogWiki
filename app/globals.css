@@ -18,9 +18,47 @@
   --muted: #5b6472;
   --muted-2: #8a93a3;
 
-  --accent: #6f4cff;
-  --accent-hover: #5c3df0;
-  --accent-soft: rgba(111, 76, 255, 0.10);
+  /* 강조색은 로고·홈과 같은 초록 계열로 통일한다. 흰 배경 본문 링크 대비 4.5:1 이상. */
+  --accent: #2c8244;
+  --accent-hover: #226a37;
+  --accent-soft: rgba(63, 154, 85, 0.12);
+
+  /* ===== 렌독위키 공통 디자인 토큰 ===== */
+  --rd-brand: #3f9a55;
+  --rd-brand-strong: #2c7a40;
+  --rd-brand-soft: #e8f5e4;
+  --rd-brand-softer: #f4faf1;
+  --rd-brand-border: rgba(77, 155, 92, 0.28);
+  --rd-on-brand: #ffffff;
+
+  --rd-ink: #18231b;
+  --rd-ink-2: #3b4a3f;
+  --rd-ink-3: #66756a;
+
+  --rd-line: #e1e9de;
+  --rd-line-strong: #cbd8c7;
+  --rd-panel: #ffffff;
+  --rd-panel-soft: #f7fbf5;
+
+  --rd-danger: #d6434c;
+  --rd-danger-soft: #fdecec;
+
+  --rd-radius-sm: 8px;
+  --rd-radius-md: 12px;
+  --rd-radius-lg: 16px;
+
+  --rd-shadow-card: 0 1px 2px rgba(24, 48, 28, 0.05), 0 8px 24px rgba(24, 48, 28, 0.06);
+
+  /* 버튼: 흰 글자 대비 4.5:1 이상을 확보한 채움색 */
+  --rd-btn-primary-bg: #2f8748;
+  --rd-btn-primary-bg-hover: #26733c;
+  --rd-btn-primary-fg: #ffffff;
+  --rd-btn-danger-bg: #c93a44;
+  --rd-btn-danger-bg-hover: #b02f39;
+  --rd-btn-secondary-bg: #f3f7f1;
+  --rd-btn-secondary-bg-hover: #e7f0e3;
+  --rd-btn-secondary-fg: #33423a;
+  --rd-focus-ring: 0 0 0 3px rgba(63, 154, 85, 0.32);
 
   --header-bg: #ffffff;
   --header-fg: #1f2937;
@@ -29,7 +67,7 @@
   --input-bg: #ffffff;
   --input-fg: #171717;
   --input-border: #cfd6df;
-  --input-focus-ring: rgba(111, 76, 255, 0.18);
+  --input-focus-ring: rgba(63, 154, 85, 0.22);
 
   --tag-bg: #ecfdf3;
   --tag-border: #d1fadf;
@@ -69,9 +107,40 @@
   --muted: #b4c0d1;
   --muted-2: #8ea0b8;
 
-  --accent: #9f86ff;
-  --accent-hover: #8c71ff;
-  --accent-soft: rgba(159, 134, 255, 0.18);
+  --accent: #86d79a;
+  --accent-hover: #a5e6b5;
+  --accent-soft: rgba(110, 200, 130, 0.16);
+
+  --rd-brand: #6cc583;
+  --rd-brand-strong: #a3e3b3;
+  --rd-brand-soft: rgba(84, 160, 100, 0.22);
+  --rd-brand-softer: rgba(84, 160, 100, 0.10);
+  --rd-brand-border: rgba(128, 202, 143, 0.26);
+  --rd-on-brand: #0b1a10;
+
+  --rd-ink: #edf5ef;
+  --rd-ink-2: #c8d6cc;
+  --rd-ink-3: #98aa9f;
+
+  --rd-line: rgba(148, 190, 158, 0.16);
+  --rd-line-strong: rgba(148, 190, 158, 0.28);
+  --rd-panel: #101c2c;
+  --rd-panel-soft: #0e1826;
+
+  --rd-danger: #f0767d;
+  --rd-danger-soft: rgba(220, 70, 80, 0.16);
+
+  --rd-shadow-card: 0 1px 2px rgba(0, 0, 0, 0.3), 0 10px 28px rgba(0, 0, 0, 0.28);
+
+  --rd-btn-primary-bg: #5dbb76;
+  --rd-btn-primary-bg-hover: #74cc8b;
+  --rd-btn-primary-fg: #08170d;
+  --rd-btn-danger-bg: #d9525b;
+  --rd-btn-danger-bg-hover: #e4666e;
+  --rd-btn-secondary-bg: rgba(148, 190, 158, 0.12);
+  --rd-btn-secondary-bg-hover: rgba(148, 190, 158, 0.2);
+  --rd-btn-secondary-fg: #dbe8de;
+  --rd-focus-ring: 0 0 0 3px rgba(128, 210, 148, 0.4);
 
   --header-bg: #0f172a;
   --header-fg: #e5edf7;
@@ -80,7 +149,7 @@
   --input-bg: #0f172a;
   --input-fg: #e5edf7;
   --input-border: #334155;
-  --input-focus-ring: rgba(159, 134, 255, 0.22);
+  --input-focus-ring: rgba(128, 210, 148, 0.26);
 
   --tag-bg: rgba(25, 133, 68, 0.16);
   --tag-border: rgba(74, 222, 128, 0.24);
@@ -131,4 +200,123 @@ body {
   h2 { @apply text-2xl font-semibold; }
   h3 { @apply text-xl font-semibold; }
   /* 필요에 따라 추가 */
+}
+
+/* ===== 키보드 포커스 표시 (마우스 클릭에는 나타나지 않음) ===== */
+:where(a, button, [role='button'], [role='menuitem'], [role='tab'], summary, input, select, textarea, [tabindex]):focus-visible {
+  outline: 2px solid var(--rd-brand);
+  outline-offset: 2px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    scroll-behavior: auto !important;
+  }
+}
+
+/* ===== 공용 버튼 (.rd-btn) =====
+ * 모달·관리 화면·편집기에서 함께 쓰는 단일 정의.
+ * 변형: .primary / .secondary / .danger, 크기: .sm
+ * 화면별 CSS는 배치(폭·간격)만 조정하고 색은 여기 토큰을 따른다. */
+.rd-btn {
+  display: inline-flex;
+  min-width: 92px;
+  min-height: 40px;
+  align-items: center;
+  justify-content: center;
+  gap: 7px;
+  box-sizing: border-box;
+  padding: 0 16px;
+  border: 1px solid transparent;
+  border-radius: 11px;
+  font: inherit;
+  font-size: 14px;
+  font-weight: 800;
+  line-height: 1.2;
+  white-space: nowrap;
+  cursor: pointer;
+  user-select: none;
+  transition:
+    transform 130ms ease,
+    border-color 130ms ease,
+    background-color 130ms ease,
+    box-shadow 130ms ease;
+}
+
+.rd-btn.sm {
+  min-width: 0;
+  min-height: 34px;
+  padding: 0 12px;
+  border-radius: 9px;
+  font-size: 13px;
+}
+
+.rd-btn:hover:not(:disabled) {
+  transform: translateY(-1px);
+}
+
+.rd-btn:active:not(:disabled) {
+  transform: translateY(0);
+}
+
+.rd-btn:focus-visible {
+  outline: none;
+  box-shadow: var(--rd-focus-ring);
+}
+
+.rd-btn.primary {
+  border-color: var(--rd-btn-primary-bg);
+  background: var(--rd-btn-primary-bg);
+  color: var(--rd-btn-primary-fg);
+  box-shadow: 0 6px 14px rgba(47, 135, 72, 0.2);
+}
+
+.rd-btn.primary:hover:not(:disabled) {
+  border-color: var(--rd-btn-primary-bg-hover);
+  background: var(--rd-btn-primary-bg-hover);
+}
+
+.rd-btn.secondary {
+  border-color: var(--rd-line-strong);
+  background: var(--rd-btn-secondary-bg);
+  color: var(--rd-btn-secondary-fg);
+}
+
+.rd-btn.secondary:hover:not(:disabled) {
+  background: var(--rd-btn-secondary-bg-hover);
+}
+
+.rd-btn.danger {
+  border-color: var(--rd-btn-danger-bg);
+  background: var(--rd-btn-danger-bg);
+  color: #fff;
+  box-shadow: 0 6px 14px rgba(190, 56, 64, 0.18);
+}
+
+.rd-btn.danger:hover:not(:disabled) {
+  border-color: var(--rd-btn-danger-bg-hover);
+  background: var(--rd-btn-danger-bg-hover);
+}
+
+.rd-btn:disabled,
+.rd-btn[aria-disabled='true'] {
+  opacity: 0.5;
+  cursor: not-allowed;
+  box-shadow: none;
+}
+
+.rd-btn[aria-busy='true'] {
+  cursor: progress;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .rd-btn {
+    transition: none;
+  }
+
+  .rd-btn:hover:not(:disabled) {
+    transform: none;
+  }
 }

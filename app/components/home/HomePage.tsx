@@ -20,6 +20,8 @@ import Image from 'next/image';
 import Link from 'next/link';
 
 import HamburgerMenu from '@/components/common/HamburgerMenu';
+import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
+import { faBars } from '@fortawesome/free-solid-svg-icons';
 import SearchBox from '@/components/common/SearchBox';
 import ThemeToggle from '@/components/common/ThemeToggle';
 import NpcDetailModal, {
@@ -1143,8 +1145,8 @@ export default function HomePage({
                   true,
                 );
               }}
-              className="wiki-admin-menu-btn"
-              aria-label="관리 메뉴 열기"
+              className={`wiki-admin-menu-btn ${styles.headerMenuButton}`}
+              aria-label="메뉴 열기"
               aria-haspopup="dialog"
               aria-expanded={
                 isHeaderMenuOpen
@@ -1154,7 +1156,7 @@ export default function HomePage({
                   'inline-flex',
               }}
             >
-              ☰
+              <FontAwesomeIcon icon={faBars} style={{ width: 20, height: 20 }} />
             </button>
           </div>
         </div>
@@ -1691,6 +1693,7 @@ export default function HomePage({
                                 styles.documentType
                               }
                               data-home-badge="type"
+                              title={document.category}
                             >
                               {
                                 document.category

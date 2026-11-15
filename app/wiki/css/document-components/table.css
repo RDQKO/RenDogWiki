@@ -71,3 +71,29 @@
     padding: 7px 9px;
   }
 }
+
+/* ===== 열이 많은 표 (열람 화면) =====
+ * 열이 5개 이상이면 균등 폭 대신 내용에 맞춘 열 너비를 쓰고,
+ * 어절 단위로만 줄바꿈한다. 표가 본문보다 넓어지면 가로 스크롤로 넘긴다.
+ * (열이 적은 표는 기존 균등 폭 배치를 그대로 유지한다.) */
+.rdwiki-table-block[data-wiki-mode='read'] .rdwiki-table-cell {
+  word-break: keep-all;
+}
+
+.rdwiki-table-block[data-wiki-mode='read'] table:has(tr > td:nth-child(5)) {
+  table-layout: auto !important;
+  width: max-content !important;
+  min-width: 100%;
+}
+
+.rdwiki-table-block[data-wiki-mode='read'] table:has(tr > td:nth-child(5)) .rdwiki-table-cell {
+  min-width: 4.5em;
+  max-width: 18em;
+  overflow-wrap: normal;
+}
+
+.rdwiki-table-block[data-wiki-mode='read'],
+.rdwiki-table-block[data-wiki-mode='read'] .rdwiki-table-scroll {
+  scrollbar-width: thin;
+  scrollbar-color: var(--scrollbar-thumb-soft) transparent;
+}

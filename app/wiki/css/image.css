@@ -1120,63 +1120,23 @@
   gap: 8px;
 }
 
-.rd-btn {
-  min-width: 92px;
-  height: 40px;
-  padding: 0 16px;
-  border: 1px solid transparent;
-  border-radius: 11px;
-  font: inherit;
-  font-size: 14px;
-  font-weight: 900;
-  cursor: pointer;
-  transition:
-    transform 130ms ease,
-    border-color 130ms ease,
-    background-color 130ms ease,
-    box-shadow 130ms ease;
-}
 
-.rd-btn:hover:not(:disabled) {
-  transform: translateY(-1px);
-}
 
-.rd-btn.primary {
-  color: #fff;
-  border-color: #4a9d51;
-  background: #54a957;
-  box-shadow: 0 7px 14px rgba(58, 126, 64, 0.19);
-}
 
-.rd-btn.primary:hover:not(:disabled) {
-  background: #449a4c;
-}
 
-.rd-btn.secondary {
-  color: #4a554d;
-  border-color: rgba(99, 128, 100, 0.22);
-  background: #f3f6f2;
-}
 
-.rd-btn.secondary:hover:not(:disabled) {
-  background: #eaf1e7;
-}
 
-.rd-btn.danger {
-  color: #fff;
-  border-color: #dc4c53;
-  background: #df575e;
-  box-shadow: 0 7px 14px rgba(188, 56, 64, 0.17);
-}
 
-.rd-btn.danger:hover:not(:disabled) {
-  background: #cf424b;
-}
 
-.rd-btn:disabled {
-  opacity: 0.48;
-  cursor: not-allowed;
-}
+
+
+
+
+
+
+
+
+
 
 .rd-exit-btn {
   position: absolute;
@@ -1370,6 +1330,8 @@
   }
 
   .toolbar-search {
+    /* 세로 배치에서는 flex-basis(275px)가 높이로 적용되어 머리 영역이 크게 벌어지므로 해제한다. */
+    flex: 0 0 auto;
     width: min(100%, 275px);
   }
 
@@ -2473,4 +2435,10 @@
 ) {
   background: #1b3223;
   border-color: rgba(126, 215, 143, 0.6);
+}
+
+/* 제목이 "관/리"처럼 글자 단위로 끊기지 않게 어절 단위로만 줄바꿈한다. */
+.image-explorer-title {
+  font-size: clamp(20px, 1.55vw, 26px);
+  word-break: keep-all;
 }

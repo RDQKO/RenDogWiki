@@ -228,7 +228,7 @@
   display: inline-block;
   margin-bottom: 4px;
   color: #4f8757;
-  font-size: 11px;
+  font-size: 12px;
   font-weight: 850;
   letter-spacing: 0.06em;
 }
@@ -250,7 +250,7 @@
 .faq-upsert-header p {
   margin: 5px 0 0;
   color: #7a847c;
-  font-size: 12px;
+  font-size: 13.5px;
   font-weight: 620;
   line-height: 1.5;
 }
@@ -317,7 +317,7 @@
   align-items: center;
   gap: 7px;
   color: #273029;
-  font-size: 12px;
+  font-size: 13.5px;
   font-weight: 850;
 }
 
@@ -328,7 +328,7 @@
   align-items: center;
   box-sizing: border-box;
   padding: 0 7px;
-  font-size: 9px;
+  font-size: 11px;
   font-style: normal;
   font-weight: 850;
   border-radius: 999px;
@@ -356,7 +356,7 @@
   box-sizing: border-box;
   color: #202921;
   font: inherit;
-  font-size: 13px;
+  font-size: 15px;
   font-weight: 620;
   background:
     rgba(255, 255, 255, 0.96);
@@ -399,7 +399,7 @@
 
 .faq-form-field > small {
   color: #929c94;
-  font-size: 10px;
+  font-size: 12px;
   font-weight: 650;
 }
 
@@ -430,7 +430,7 @@ small {
   box-sizing: border-box;
   padding: 0 9px;
   color: #527357;
-  font-size: 11px;
+  font-size: 12.5px;
   font-weight: 760;
   white-space: nowrap;
   background: #f4faf2;
@@ -443,7 +443,7 @@ small {
 .faq-form-message {
   min-height: 19px;
   color: #879188;
-  font-size: 11px;
+  font-size: 12.5px;
   font-weight: 680;
   line-height: 1.5;
 }
@@ -477,7 +477,7 @@ small {
   gap: 8px;
   box-sizing: border-box;
   padding: 0 15px;
-  font-size: 12px;
+  font-size: 14px;
   font-weight: 830;
   white-space: nowrap;
   cursor: pointer;
@@ -499,19 +499,10 @@ small {
 
 .faq-upsert-submit {
   min-width: 110px;
-  color: #fff;
-  background:
-    linear-gradient(
-      180deg,
-      #63b669,
-      #50a558
-    );
-  border:
-    1px solid
-    #46984f;
-  box-shadow:
-    0 8px 18px
-    rgba(66, 148, 75, 0.18);
+  color: var(--rd-btn-primary-fg, #fff);
+  background: var(--rd-btn-primary-bg, #2f8748);
+  border: 1px solid var(--rd-btn-primary-bg, #2f8748);
+  box-shadow: 0 6px 14px rgba(47, 135, 72, 0.2);
 }
 
 .faq-upsert-cancel:hover:not(
@@ -534,12 +525,8 @@ small {
 .faq-upsert-submit:hover:not(
   :disabled
 ) {
-  background:
-    linear-gradient(
-      180deg,
-      #5aae61,
-      #489b51
-    );
+  background: var(--rd-btn-primary-bg-hover, #26733c);
+  border-color: var(--rd-btn-primary-bg-hover, #26733c);
 }
 
 .faq-upsert-cancel:disabled,

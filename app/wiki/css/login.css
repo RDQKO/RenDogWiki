@@ -15,10 +15,11 @@
 .login-bg {
   position: relative;
   display: grid;
-  min-height: calc(100dvh - 64px);
+  /* 고정 헤더(64px) 아래에서 화면 끝까지 배경이 이어지게 한다. */
+  min-height: 100dvh;
   place-items: center;
   box-sizing: border-box;
-  padding: 42px 24px;
+  padding: calc(64px + 42px) 24px 42px;
   overflow: hidden;
   background:
     radial-gradient(
@@ -304,12 +305,12 @@
   align-items: center;
   justify-content: center;
   gap: 9px;
-  color: #fff;
-  font-size: 13px;
+  color: var(--rd-btn-primary-fg, #fff);
+  font-size: 15px;
   font-weight: 850;
   cursor: pointer;
-  background: linear-gradient(180deg, #62b667, #4fa457);
-  border: 1px solid #46964e;
+  background: var(--rd-btn-primary-bg, #2f8748);
+  border: 1px solid var(--rd-btn-primary-bg, #2f8748);
   border-radius: 13px;
   box-shadow:
     0 10px 22px rgba(63, 147, 72, 0.2),
@@ -322,7 +323,7 @@
 
 #submit-button:hover:not(:disabled) {
   transform: translateY(-1px);
-  background: linear-gradient(180deg, #5cad62, #479a50);
+  background: var(--rd-btn-primary-bg-hover, #26733c);
 }
 
 #submit-button:disabled {
@@ -400,7 +401,7 @@
 
 @media (max-width: 800px) {
   .login-bg {
-    padding: 24px 14px;
+    padding: calc(64px + 20px) 14px 24px;
   }
 
   .login-shell {
@@ -431,7 +432,7 @@
 @media (max-width: 480px) {
   .login-bg {
     align-items: start;
-    padding: 14px 10px 28px;
+    padding: calc(64px + 14px) 10px 28px;
   }
 
   .login-shell {

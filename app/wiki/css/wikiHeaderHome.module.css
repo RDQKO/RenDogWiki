@@ -36,7 +36,7 @@
   width:
     min(
       calc(100% - 48px),
-      1480px
+      100vw
     );
   height: 100%;
   margin: 0 auto;
@@ -128,7 +128,13 @@
   outline-offset: 2px;
 }
 
-.mobileMenuButton {
+.iconButton svg {
+  width: 20px;
+  height: 20px;
+}
+
+.mobileMenuButton,
+.mobileSearchButton {
   display: none;
 }
 
@@ -159,7 +165,7 @@
     width:
       min(
         calc(100% - 32px),
-        1480px
+        100vw
       );
     grid-template-columns:
       164px
@@ -189,9 +195,6 @@
     max-height: 48px;
   }
 
-  .desktopAdminButton {
-    display: none;
-  }
 
   .mobileMenuButton {
     display: inline-flex;
@@ -221,8 +224,32 @@
     width: 142px;
   }
 
+  .mobileSearchButton {
+    display: inline-flex;
+  }
+
+  /* 검색창은 접어 두었다가 검색 버튼으로 헤더 바로 아래에 펼친다.
+     헤더 높이는 그대로이므로 본문 배치에 영향을 주지 않는다. */
   .search {
     display: none;
+  }
+
+  .search.searchOpen {
+    position: absolute;
+    top: 100%;
+    right: 0;
+    left: 0;
+    display: block;
+    box-sizing: border-box;
+    width: 100%;
+    padding: 8px 12px 10px;
+    border-bottom: 1px solid var(--border);
+    background: var(--header-bg);
+    box-shadow: 0 8px 18px rgba(15, 23, 42, 0.08);
+  }
+
+  .actions {
+    gap: 4px;
   }
 }
 

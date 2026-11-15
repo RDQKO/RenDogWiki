@@ -10,12 +10,12 @@
    ============================================= */
 
 .tree {
-  --tree-root-icon-box: 42px;
-  --tree-root-icon-size: 30px;
-  --tree-child-icon-box: 36px;
-  --tree-child-icon-size: 26px;
-  --tree-doc-icon-box: 28px;
-  --tree-doc-icon-size: 24px;
+  --tree-root-icon-box: 34px;
+  --tree-root-icon-size: 24px;
+  --tree-child-icon-box: 30px;
+  --tree-child-icon-size: 22px;
+  --tree-doc-icon-box: 26px;
+  --tree-doc-icon-size: 20px;
 }
 
 /*
@@ -82,7 +82,7 @@
   height: var(--tree-root-icon-size) !important;
   min-width: var(--tree-root-icon-size) !important;
   min-height: var(--tree-root-icon-size) !important;
-  font-size: 24px !important;
+  font-size: 20px !important;
 }
 
 /* ===== 모든 깊이의 하위 카테고리 ===== */
@@ -132,7 +132,7 @@
   height: var(--tree-child-icon-size) !important;
   min-width: var(--tree-child-icon-size) !important;
   min-height: var(--tree-child-icon-size) !important;
-  font-size: 21px !important;
+  font-size: 18px !important;
 }
 
 /* ===== 문서 아이콘 ===== */
@@ -177,7 +177,7 @@
   min-width: var(--tree-doc-icon-size);
   min-height: var(--tree-doc-icon-size);
   place-items: center;
-  font-size: 20px;
+  font-size: 17px;
   line-height: 1;
 }
 
@@ -197,12 +197,12 @@
 
 @media (max-width: 1024px) {
   .tree {
-    --tree-root-icon-box: 40px;
-    --tree-root-icon-size: 29px;
-    --tree-child-icon-box: 35px;
-    --tree-child-icon-size: 25px;
-    --tree-doc-icon-box: 27px;
-    --tree-doc-icon-size: 23px;
+    --tree-root-icon-box: 34px;
+    --tree-root-icon-size: 24px;
+    --tree-child-icon-box: 30px;
+    --tree-child-icon-size: 22px;
+    --tree-doc-icon-box: 26px;
+    --tree-doc-icon-size: 20px;
   }
 }
 
