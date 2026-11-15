@@ -852,7 +852,7 @@
 
 @media (max-width: 1280px) {
   :root {
-    --wiki-sidebar-width: 316px;
+    --wiki-sidebar-width: 348px;
     --wiki-toc-width: 264px;
   }
 }

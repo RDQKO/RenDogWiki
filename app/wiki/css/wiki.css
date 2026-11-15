@@ -17,7 +17,7 @@
   --wiki-gutter: 24px;
   --wiki-header-height: 64px;
   --wiki-rail-width: 64px;
-  --wiki-sidebar-width: 340px;
+  --wiki-sidebar-width: 388px;
   --wiki-toc-width: 280px;
   --wiki-content-max: 920px;
 }
@@ -317,6 +317,40 @@
 
 
 
+
+.wiki-content-title {
+  font-size: 2rem;
+  font-weight: 700;
+  margin-bottom: 1rem;
+}
+
+.wiki-content-title-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding-bottom: 40px;
+}
+
+.wiki-doc-icon-img {
+  width: 32px;
+  height: 32px;
+  vertical-align: middle;
+  margin-right: 8px;
+  object-fit: contain;
+  display: inline-block;
+}
+
+.wiki-doc-icon-emoji {
+  font-size: 28px;
+  margin-right: 8px;
+}
+
+@media (max-width: 768px) {
+  .wiki-content-title {
+    font-size: 25px !important;
+    line-height: 1.3 !important;
+  }
+}
 
 /* ===== [6] TOC ===== */
 .wiki-toc, .wiki-toc-sidebar {

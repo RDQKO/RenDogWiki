@@ -3290,6 +3290,144 @@ export default function WikiPageInner({ user: initialUser }: Props) {
           opacity: 1;
         }
 
+        .wiki-doc-header {
+          display: flex;
+          align-items: center;
+          justify-content: space-between;
+          gap: 12px;
+        }
+
+        .wiki-doc-header > .wiki-doc-title-wrap {
+          flex: 1;
+          min-width: 0;
+        }
+
+        .wiki-doc-title-wrap {
+          display: flex;
+          align-items: center;
+          justify-content: flex-start;
+          gap: 6px;
+          padding-bottom: 10px;
+        }
+
+        .wiki-content-title-row {
+          display: inline-flex;
+          align-items: center;
+          gap: 8px;
+          margin: 0;
+          line-height: 1.1;
+          padding: 2px 0;
+        }
+
+        .wiki-doc-title-tooltip-anchor {
+          position: relative;
+          display: inline-flex;
+          align-items: center;
+          min-width: 0;
+          cursor: help;
+        }
+
+        .wiki-doc-title-tooltip-anchor:focus {
+          outline: none;
+        }
+
+        .wiki-doc-updated-tooltip {
+          position: absolute;
+          left: 50%;
+          bottom: calc(100% + 10px);
+          transform: translate(-50%, 6px);
+          padding: 8px 11px;
+          border-radius: 12px;
+          background: rgba(17, 24, 39, 0.96);
+          color: #fff;
+          font-size: 12px;
+          font-weight: 700;
+          line-height: 1.25;
+          white-space: nowrap;
+          box-shadow: 0 10px 24px rgba(0, 0, 0, 0.18);
+          border: 1px solid rgba(255, 255, 255, 0.08);
+          opacity: 0;
+          visibility: hidden;
+          pointer-events: none;
+          z-index: 30;
+          transition:
+            opacity 0.16s ease,
+            transform 0.16s ease,
+            visibility 0.16s ease;
+        }
+
+        .wiki-doc-updated-tooltip::after {
+          content: '';
+          position: absolute;
+          top: 100%;
+          left: 50%;
+          transform: translateX(-50%);
+          border-width: 6px 6px 0 6px;
+          border-style: solid;
+          border-color: rgba(17, 24, 39, 0.96) transparent transparent transparent;
+        }
+
+        .wiki-doc-title-tooltip-anchor:hover .wiki-doc-updated-tooltip,
+        .wiki-doc-title-tooltip-anchor:focus-visible .wiki-doc-updated-tooltip {
+          opacity: 1;
+          visibility: visible;
+          transform: translate(-50%, 0);
+        }
+
+        .wiki-doc-icon-img {
+          width: 24px;
+          height: 24px;
+          image-rendering: pixelated;
+        }
+
+        .wiki-doc-title-action-btn {
+          width: 22px;
+          height: 22px;
+          margin-left: 6px;
+          display: grid;
+          place-items: center;
+          border: none;
+          border-radius: 50%;
+          background: transparent;
+          color: #9ca3af;
+          font-size: 13px;
+          opacity: 0.6;
+          cursor: pointer;
+          transition: all 0.15s ease;
+        }
+
+        .wiki-doc-title-wrap:hover .wiki-doc-title-action-btn,
+        .wiki-doc-title-wrap:focus-within .wiki-doc-title-action-btn {
+          opacity: 1;
+          pointer-events: auto;
+        }
+
+        .wiki-doc-link-btn:hover {
+          background: #eef2ff;
+          color: #4f46e5;
+        }
+
+        .wiki-doc-link-btn--copied {
+          background: #dcfce7;
+          color: #16a34a;
+          opacity: 1;
+          pointer-events: auto;
+        }
+
+        .wiki-doc-favorite-btn {
+          font-size: 14px;
+        }
+
+        .wiki-doc-favorite-btn:hover {
+          background: #fff7ed;
+          color: #f59e0b;
+        }
+
+        .wiki-doc-favorite-btn--active {
+          background: #fff7ed;
+          color: #f59e0b;
+        }
+
         .wiki-paged-section {
           display: flex;
           flex-direction: column;

@@ -664,3 +664,31 @@ aside[role='navigation'] button[data-toc-index] > .rd-toc-text {
   padding-left: 34px !important;
   font-size: 13px !important;
 }
+
+/* 목차 제목 아이콘을 키워 한눈에 구분되게 한다. */
+.wiki-toc-sidebar > aside[role='navigation'] > ul:last-of-type > li > button[data-toc-index] > span.rd-toc-icon:not([data-empty='true']) {
+  flex: 0 0 32px !important;
+  width: 32px !important;
+  height: 32px !important;
+  margin-right: 9px !important;
+  border-radius: 9px !important;
+}
+
+.wiki-toc-sidebar > aside[role='navigation'] > ul:last-of-type > li > button[data-toc-index] > span.rd-toc-icon img {
+  width: 26px !important;
+  height: 26px !important;
+}
+
+.wiki-toc-sidebar > aside[role='navigation'] > ul:last-of-type > li > button[data-toc-index] > span.rd-toc-icon > span {
+  font-size: 20px !important;
+}
+
+/* 모바일·태블릿 목차 패널(인라인 스타일 기준 24px)도 함께 키운다. */
+aside[role='navigation'] button[data-toc-index] > .rd-toc-icon:not([data-empty='true']) {
+  width: 30px !important;
+  height: 30px !important;
+}
+
+aside[role='navigation'] button[data-toc-index] > .rd-toc-icon > span {
+  font-size: 19px !important;
+}
