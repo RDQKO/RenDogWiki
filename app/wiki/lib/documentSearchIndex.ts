@@ -372,10 +372,8 @@ export async function replaceDocumentSearchSectionsUsing(
   db: SQL,
   documentId: number,
   content: unknown,
+  builtSections = buildDocumentSearchSections(content),
 ) {
-  const builtSections =
-    buildDocumentSearchSections(content);
-
   const sections =
     builtSections.length > 0
       ? builtSections

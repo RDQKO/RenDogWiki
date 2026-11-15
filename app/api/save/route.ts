@@ -1,9 +1,9 @@
-import { NextRequest, NextResponse } from 'next/server';
+import { after, NextRequest, NextResponse } from 'next/server';
 import { requireRole } from '@/wiki/lib/requireRole';
-import { sql, withTx } from '@/wiki/lib/db';
+import { sql, withTx, isTransientDbError } from '@/wiki/lib/db';
 import { cached, invalidate } from '@/wiki/lib/cache';
 import { invalidateDocumentCache } from '@/wiki/lib/documentCache';
-import { replaceDocumentSearchSectionsUsing } from '@/wiki/lib/documentSearchIndex';
+import { buildDocumentSearchSections, replaceDocumentSearchSectionsUsing } from '@/wiki/lib/documentSearchIndex';
 import { logActivity, resolveCategoryName } from '@/wiki/lib/activity';
 import { isPositiveId } from '@/wiki/lib/apiInput';
 import { parseDocumentContent } from '@/wiki/lib/documentInput';
@@ -18,6 +18,19 @@ const headers = { 'Cache-Control': 'no-store' };
 
 class SaveError extends Error {
   constructor(public status: number, message: string) { super(message); }
+}
+
+// Retry only errors for which PostgreSQL has definitely rolled the transaction back.
+// Connection failures after COMMIT are ambiguous and must not create duplicate writes.
+async function retryRolledBackSave<T>(operation: () => Promise<T>): Promise<T> {
+  for (let attempt = 0; ; attempt++) {
+    try { return await operation(); }
+    catch (error) {
+      const code = (error as { code?: string } | null)?.code;
+      if (attempt >= 1 || !code || !['55P03', '40P01', '40001'].includes(code)) throw error;
+      await new Promise(resolve => setTimeout(resolve, 150));
+    }
+  }
 }
 
 export async function POST(req: NextRequest) {
@@ -38,6 +51,7 @@ export async function POST(req: NextRequest) {
     const content = parseDocumentContent(body.content);
     if (content === null) throw new SaveError(400, '문서 본문 형식이 올바르지 않습니다. 기존 문서는 변경되지 않았습니다.');
     const contentJson = JSON.stringify(content);
+    const searchSections = buildDocumentSearchSections(content);
     const tags = Array.from(new Set<string>((Array.isArray(body.tags) ? body.tags : typeof body.tags === 'string' ? body.tags.split(',') : [])
       .filter((tag: unknown): tag is string => typeof tag === 'string').map((tag: string) => tag.trim()).filter(Boolean)));
     const icon = typeof body.icon === 'string' ? body.icon : '';
@@ -59,14 +73,15 @@ export async function POST(req: NextRequest) {
       };
     });
 
-    const saved = await withTx(async (tx) => {
-      // Serialize wiki mutations, including duplicate-title checks, across serverless instances.
-      // 다른 요청이 잠금을 쥔 채 멈춰 있으면(예: 서버리스 인스턴스가 트랜잭션 도중 정지)
-      // 여기서 함수 제한 시간까지 기다리다 504가 된다. 잠금 대기에 상한을 두어 바로 안내하고,
-      // 이 트랜잭션이 방치될 경우 DB가 스스로 정리해 잠금을 풀도록 한다.
-      await tx`SET LOCAL lock_timeout = '6s'`;
+    const saved = await retryRolledBackSave(() => withTx(async (tx) => {
+      // Saves may run in parallel across categories. Category mutations and document deletions retain
+      // the exclusive global gate, so they cannot race a save. A category lock still
+      // protects duplicate-title checks and new-document ordering in that category.
+      await tx`SET LOCAL lock_timeout = '3s'`;
+      await tx`SET LOCAL statement_timeout = '12s'`;
       await tx`SET LOCAL idle_in_transaction_session_timeout = '20s'`;
-      await tx`SELECT pg_advisory_xact_lock(191919, 1)`;
+      await tx`SELECT pg_advisory_xact_lock_shared(191919, 1)`;
+      await tx`SELECT pg_advisory_xact_lock(191920, hashtext(${path}))`;
       let previous: { path: string; updated_at: Date | string } | undefined;
       if (id !== null) {
         const rows = await tx`SELECT path, updated_at FROM documents WHERE id = ${id} FOR UPDATE`;
@@ -101,28 +116,37 @@ export async function POST(req: NextRequest) {
         ON CONFLICT (document_id) DO UPDATE SET content = EXCLUDED.content
       `;
       // Content, metadata and the search index either all commit or all roll back.
-      await replaceDocumentSearchSectionsUsing(tx, documentId, content);
+      await replaceDocumentSearchSectionsUsing(tx, documentId, content, searchSections);
       return { id: documentId, updatedAt: rows[0].updated_at, oldPath: previous?.path, created: id === null };
-    });
+    }));
 
-    invalidateDocumentCache(saved.id);
+    try { invalidateDocumentCache(saved.id); }
+    catch (error) { console.error('[save] content cache invalidation failed after commit:', error); }
     invalidate('search:index', 'doc:list', `doclist:${path}`, ...(saved.oldPath ? [`doclist:${saved.oldPath}`] : []));
-    // Auxiliary logging must not turn an already committed save into a failure response.
-    try {
-      const label = await resolveCategoryName(/^\d+$/.test(path) ? Number(path) : null);
-      await logActivity({ action: saved.created ? 'document.create' : 'document.update', username: uploader,
-        targetType: 'document', targetId: saved.id, targetName: title, targetPath: label,
-        meta: { tags, icon, created: saved.created } });
-    } catch (error) { console.error('[save] activity log failed:', error); }
+    // Send the committed result before auxiliary DB logging. A slow log must not
+    // consume the response deadline and make a completed save appear to fail.
+    after(async () => {
+      try {
+        const label = await resolveCategoryName(/^\d+$/.test(path) ? Number(path) : null);
+        await logActivity({ action: saved.created ? 'document.create' : 'document.update', username: uploader,
+          targetType: 'document', targetId: saved.id, targetName: title, targetPath: label,
+          meta: { tags, icon, created: saved.created } });
+      } catch (error) { console.error('[save] activity log failed:', error); }
+    });
     return NextResponse.json({ success: true, id: saved.id, updatedAt: saved.updatedAt, searchIndexUpdated: true }, { headers });
   } catch (error) {
     if (error instanceof SaveError) return NextResponse.json({ error: error.message }, { status: error.status, headers });
     // 55P03: lock_not_available (lock_timeout 초과). 저장은 반영되지 않았다.
-    if ((error as { code?: string } | null)?.code === '55P03') {
+    if (['55P03', '40P01', '40001', '57014'].includes((error as { code?: string } | null)?.code ?? '')) {
       return NextResponse.json(
-        { error: '다른 저장 작업이 끝나지 않아 저장하지 못했습니다. 문서는 변경되지 않았습니다. 잠시 후 다시 저장해 주세요.' },
+        { error: '저장 작업이 지연되어 완료하지 못했습니다. 문서는 변경되지 않았습니다. 잠시 후 다시 저장해 주세요.' },
         { status: 503, headers: { ...headers, 'Retry-After': '5' } },
       );
+    }
+    if (isTransientDbError(error)) {
+      console.error('[save] database connection unavailable:', error);
+      return NextResponse.json({ error: 'DB 연결이 일시적으로 불안정합니다. 편집 내용은 유지됩니다. 저장 결과를 확인한 뒤 다시 시도해주세요.' },
+        { status: 503, headers: { ...headers, 'Retry-After': '3' } });
     }
     console.error('[save] unexpected error:', error);
     return NextResponse.json({ error: '문서 저장 중 오류가 발생했습니다.' }, { status: 500, headers });

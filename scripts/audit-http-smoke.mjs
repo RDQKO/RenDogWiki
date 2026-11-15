@@ -26,9 +26,10 @@ try{
  await call('PUT','/api/faq/1',{title:'bad'},401,false);
  await call('POST','/api/chat/publish',{type:'new-message',data:{}},401,false);
  const login=await call('POST','/api/auth/login',{username:'writer',password:'LocalAudit123!'});
+ assert.equal(login.data.loggedIn,true);assert.equal(login.data.role,'writer');assert.ok(login.data.user.id);assert.equal(login.data.password_hash,undefined);
  cookie=login.r.headers.getSetCookie().map(c=>c.split(';')[0]).join('; ');
  assert.equal((await call('GET','/api/auth/me')).data.role,'writer');
- const previous=(await call('GET','/api/documents?id=74')).data;
+ const previous=(await call('GET','/api/documents?id=74&fresh=1')).data;
  const statKeys=['damage','cooldown','hitCount','range','duration','heal',...Array.from({length:9},(_,i)=>`custom-${i+1}`)];
  const region={type:'collapsible',title:'접힌 영역',defaultOpen:false,children:[{type:'heading-two',children:[{text:'접힌 검색 목차'}]},{type:'paragraph',children:[{text:'HTTPSMOKE 고유검색문구'}]},{type:'weapon-card',weaponType:'hidden',name:'검증 무기',stats:statKeys.map((key,i)=>({key,label:`정보 ${i+1}`,summary:String(i+1),unit:'%',enabled:true,levels:[{levelLabel:'기본',value:String(i+1)}]})),children:[{text:''}]}]};
  const payload={...previous,content:[{type:'heading-one',children:[{text:'검증 목차'}]},region],expectedUpdatedAt:previous.updated_at};

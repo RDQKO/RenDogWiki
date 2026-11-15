@@ -45,7 +45,7 @@ function WritePageInner() {
     setDoc(null);
     if (!path) { setLoading(false); return () => controller.abort(); }
     if (id) {
-      fetch(`/api/documents?id=${id}`, { cache: 'no-store', signal: controller.signal })
+      fetch(`/api/documents?id=${id}&fresh=1`, { cache: 'no-store', signal: controller.signal })
         .then(async (res) => {
           if (!res.ok || res.status === 204) throw new Error('문서를 불러오지 못했습니다. 다시 열어주세요.');
           const data = await res.json();

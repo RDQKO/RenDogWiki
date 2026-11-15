@@ -261,9 +261,17 @@ export async function POST(req: NextRequest) {
       { expiresIn: '7d' }
     );
 
+    const role =
+      String(user.role ?? '').toLowerCase() === 'admin'
+        ? 'admin'
+        : String(user.role ?? '').toLowerCase() === 'writer'
+          ? 'writer'
+          : 'guest';
+
     // 9) 쿠키 저장 -> httpOnly + sameSite=lax + (prod) secure, 전체 경로(/), 7일
     const res = NextResponse.json(
-      { message: '로그인 성공' },
+      { message: '로그인 성공', loggedIn: true, role, roleSource: 'db',
+        user: { id: user.id, username: user.username, email: user.email, minecraft_name: user.minecraft_name, role } },
       {
         headers: {
           'Cache-Control': 'no-store',
@@ -278,13 +286,6 @@ export async function POST(req: NextRequest) {
       path: '/',
       maxAge: 60 * 60 * 24 * 7,
     });
-
-    const role =
-      String(user.role ?? '').toLowerCase() === 'admin'
-        ? 'admin'
-        : String(user.role ?? '').toLowerCase() === 'writer'
-          ? 'writer'
-          : 'guest';
 
     res.cookies.set('rd_role', role, {
       httpOnly: true,

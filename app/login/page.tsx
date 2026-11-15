@@ -15,6 +15,7 @@ import {
   useRouter,
 } from 'next/navigation';
 
+import { useAuth } from '@/components/auth/AuthProvider';
 import WikiHeader from '@/components/common/Header';
 import {
   DEFAULT_WIKI_DOCUMENT_URL,
@@ -38,6 +39,7 @@ type MessageTone =
   | '';
 
 export default function LoginPage() {
+  const { setAuthFromPayload, refreshAuth } = useAuth();
   const [
     form,
     setForm,
@@ -133,14 +135,10 @@ export default function LoginPage() {
       );
       setMessageTone('success');
 
-      window.setTimeout(
-        () => {
-          router.push(
-            DEFAULT_WIKI_DOCUMENT_URL,
-          );
-        },
-        900,
-      );
+      if (data?.loggedIn && data?.user) setAuthFromPayload(data);
+      else await refreshAuth({ force: true });
+      router.replace(DEFAULT_WIKI_DOCUMENT_URL);
+      router.refresh();
     } catch {
       setMessage(
         '서버에 연결하지 못했습니다. 잠시 후 다시 시도해주세요.',

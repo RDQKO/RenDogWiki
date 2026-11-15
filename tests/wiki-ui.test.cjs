@@ -271,3 +271,88 @@ test('real Slate editor creates a region, changes its saved default state, folds
   assert.deepEqual(JSON.parse(JSON.stringify(editor.children)), initial);
   assert.equal(document.querySelector('[data-wiki-collapsible="edit"]'), null);
 });
+
+test('login state immediately grants management access and ignores a late signed-out /me response', async () => {
+  await cleanup();
+  let resolveOld; let current; let calls = 0;
+  fetchMock = () => { calls++; return new Promise(resolve => { resolveOld = resolve; }); };
+  const authLoad = makeLoader({}, globals);
+  const { default: Provider, useAuth } = authLoad('app/components/auth/AuthProvider.tsx');
+  function Probe() { current = useAuth(); return h('span', null, current.canWrite ? 'writer' : 'guest'); }
+  await render(h(Provider, null, h(Probe)));
+  const writer = { loggedIn: true, role: 'writer', user: { id: 1, username: 'writer', email: '', minecraft_name: 'Writer' } };
+  await act(async () => current.setAuthFromPayload(writer));
+  assert.equal(current.canWrite, true); assert.equal(current.loading, false);
+  await act(async () => resolveOld(Response.json({ loggedIn: false, user: null, role: 'guest' })));
+  assert.equal(current.canWrite, true); assert.equal(current.loggedIn, true);
+  assert.equal(calls, 1, 'hydration must not issue another initial request');
+});
+
+test('forced auth refreshes are ordered and late responses cannot restore a logged-out session', async () => {
+  await cleanup();
+  const requests = []; let current;
+  fetchMock = (url, options) => new Promise(resolve => requests.push({ resolve, signal: options.signal }));
+  const { default: Provider, useAuth } = makeLoader({}, globals)('app/components/auth/AuthProvider.tsx');
+  function Probe() { current = useAuth(); return null; }
+  await render(h(Provider, null, h(Probe)));
+  await act(async () => { void current.refreshAuth({ force: true }); });
+  assert.equal(requests[0].signal.aborted, true);
+  await act(async () => requests[1].resolve(Response.json({ loggedIn: true, role: 'admin', user: { id: 3, username: 'admin' } })));
+  await act(async () => requests[0].resolve(Response.json({ loggedIn: false, user: null, role: 'guest' })));
+  assert.equal(current.isAdmin, true);
+  await act(async () => { void current.refreshAuth(); });
+  await act(async () => current.clearAuth());
+  await act(async () => requests[2].resolve(Response.json({ loggedIn: true, role: 'admin', user: { id: 3, username: 'admin' } })));
+  assert.equal(current.loggedIn, false); assert.equal(current.isAdmin, false);
+});
+
+test('temporary auth errors preserve an established role and a later refresh recovers', async () => {
+  await cleanup(); let current; let fail = false; let calls = 0;
+  const payload = { loggedIn: true, role: 'writer', user: { id: 1, username: 'writer' } };
+  fetchMock = async () => { calls++; return fail ? Response.json({ degraded: true }, { status: 503 }) : Response.json(payload); };
+  const { default: Provider, useAuth } = makeLoader({}, globals)('app/components/auth/AuthProvider.tsx');
+  function Probe() { current = useAuth(); return null; }
+  await render(h(Provider, null, h(Probe)));
+  assert.equal(current.canWrite, true); assert.equal(calls, 1);
+  fail = true; await act(async () => current.refreshAuth());
+  assert.equal(current.canWrite, true); assert.equal(current.degraded, true);
+  fail = false; await act(async () => current.refreshAuth());
+  assert.equal(current.canWrite, true); assert.equal(current.degraded, false);
+});
+
+test('login page applies the login response before navigating and pending initialization cannot undo it', async () => {
+  await cleanup(); let current; let resolveOld; let destination; let refreshed = 0;
+  const loginLoad = makeLoader({
+    '@/components/common/Header': { __esModule: true, default: () => null },
+    'next/link': { __esModule: true, default: props => h('a', { href: props.href }, props.children) },
+    'next/navigation': { useRouter: () => ({ replace: url => { destination = url; }, refresh: () => refreshed++ }) },
+  }, globals);
+  const { default: Provider, useAuth } = loginLoad('app/components/auth/AuthProvider.tsx');
+  const Login = loginLoad('app/login/page.tsx').default;
+  const payload = { loggedIn: true, role: 'admin', user: { id: 3, username: 'admin', email: '', minecraft_name: 'Admin' } };
+  fetchMock = async url => url === '/api/auth/login' ? Response.json(payload) : new Promise(resolve => { resolveOld = resolve; });
+  function Probe() { current = useAuth(); return null; }
+  await render(h(Provider, null, h(Probe), h(Login)));
+  const { Simulate } = require('react-dom/test-utils');
+  await act(async () => {
+    Simulate.change(document.getElementById('username'), { target: { name: 'username', value: 'admin' } });
+    Simulate.change(document.getElementById('password'), { target: { name: 'password', value: 'fixture-only' } });
+  });
+  await act(async () => document.querySelector('form').dispatchEvent(new Event('submit', { bubbles: true, cancelable: true })));
+  assert.ok(destination?.startsWith('/wiki')); assert.equal(refreshed, 1); assert.equal(current.isAdmin, true);
+  await act(async () => resolveOld(Response.json({ loggedIn: false, role: 'guest', user: null })));
+  assert.equal(current.isAdmin, true);
+});
+
+test('management distinguishes a temporary permission lookup outage from access denial and retries', async () => {
+  await cleanup(); let fail = true;
+  fetchMock = async () => fail ? Response.json({ degraded: true }, { status: 503 }) : Response.json({ loggedIn: true, role: 'writer', user: { id: 1, username: 'writer' } });
+  const authLoad = makeLoader({ 'next/navigation': { useRouter: () => ({ replace() {} }) } }, globals);
+  const Provider = authLoad('app/components/auth/AuthProvider.tsx').default;
+  const Layout = authLoad('app/manage/layout.tsx').default;
+  await render(h(Provider, null, h(Layout, null, '관리 내용')));
+  assert.match(document.body.textContent, /서버 연결 문제/);
+  assert.equal(document.body.textContent.includes('권한이 없습니다'), false);
+  fail = false; await click(button('다시 확인'));
+  assert.match(document.body.textContent, /관리 내용/); assert.equal(document.querySelector('[role="dialog"]'), null);
+});

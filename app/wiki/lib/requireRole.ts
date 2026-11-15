@@ -1,5 +1,5 @@
 import { getAuthUser } from '@/app/wiki/lib/auth';
-import { sql } from '@/app/wiki/lib/db';
+import { sql, runDbRead } from '@/app/wiki/lib/db';
 
 export type Role = 'guest' | 'writer' | 'admin';
 type CurrentUser = {
@@ -17,10 +17,10 @@ export async function requireAuth() {
   if (!tokenUser) {
     return { ok: false as const, status: 401, error: 'UNAUTHORIZED' as const };
   }
-  const rows = await sql<CurrentUser[]>`
+  const rows = await runDbRead('auth:require', () => sql<CurrentUser[]>`
     SELECT id, username, email, minecraft_name, role, verified
     FROM users WHERE id = ${tokenUser.id} LIMIT 1
-  `;
+  `);
   const row = rows[0];
   if (!row || !row.verified) {
     return { ok: false as const, status: 401, error: 'UNAUTHORIZED' as const };

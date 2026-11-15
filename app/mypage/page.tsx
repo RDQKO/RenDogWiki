@@ -10,6 +10,7 @@
 
 'use client';
 
+import { useAuth } from '@/components/auth/AuthProvider';
 import {
   useEffect,
   useMemo,
@@ -172,6 +173,7 @@ function roleLabel(
 }
 
 export default function MyPage() {
+  const { clearAuth } = useAuth();
   const router =
     useRouter();
 
@@ -268,16 +270,19 @@ export default function MyPage() {
 
   const logout = async () => {
     try {
-      await fetch(
+      const response = await fetch(
         '/api/auth/logout',
         {
           method: 'POST',
           credentials: 'include',
         },
       );
-    } finally {
-      router.push('/login');
+      if (!response.ok) throw new Error('logout-failed');
+      clearAuth();
+      router.replace('/login');
       router.refresh();
+    } catch {
+      window.alert('로그아웃에 실패했습니다. 다시 시도해주세요.');
     }
   };
 

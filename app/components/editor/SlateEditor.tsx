@@ -750,15 +750,26 @@ function SlateEditorContent({
     if (saveInFlightRef.current) return;
     const titleTrim = String(doc.title ?? '').trim();
     if (!titleTrim) { alert('문서 제목을 입력해주세요.'); return; }
+    const snapshot = { ...doc, title: titleTrim, content: editor.children as Descendant[],
+      tags: Array.from(new Set(tagInput.split(',').map(tag => tag.trim()).filter(Boolean))) };
+    const savedContentJson = serializeContentForDraft(snapshot.content);
     saveInFlightRef.current = true;
     setSaving(true);
     try {
       const res = await fetch('/api/save', {
         method: 'POST', headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ ...doc, title: titleTrim, expectedUpdatedAt: doc.updated_at }),
+        body: JSON.stringify({ ...snapshot, expectedUpdatedAt: doc.updated_at }),
+        credentials: 'include',
       });
       const saved = await res.json().catch(() => null);
-      if (!res.ok) { alert(saved?.error || '문서 저장 실패'); return; }
+      if (!res.ok) {
+        console.error('[editor] save failed:', { status: res.status, requestId: res.headers.get('x-vercel-id') });
+        alert(saved?.error || (res.status === 413 ? '문서 용량이 서버 한도를 초과했습니다. 편집 내용은 유지됩니다.' : '문서를 저장하지 못했습니다. 편집 내용은 유지됩니다. 잠시 후 다시 시도해주세요.'));
+        return;
+      }
+      if (!saved?.success || !Number.isInteger(saved.id) || !saved.updatedAt) {
+        throw new Error('invalid-save-response');
+      }
       const documentId = saved?.id ?? doc.id;
       setDoc((previous) => ({ ...previous, id: documentId, updated_at: saved?.updatedAt ?? previous.updated_at }));
 
@@ -777,7 +788,7 @@ function SlateEditorContent({
           if (!linked.ok) { alert('본문은 저장됐지만 대표 문서 설정에 실패했습니다. 다시 저장해주세요.'); return; }
         }
       }
-      serverContentJsonRef.current = serializeContentForDraft(doc.content);
+      serverContentJsonRef.current = savedContentJson;
       draftBaselineReadyRef.current = true;
       alert('저장 완료!');
     } catch { alert('문서 저장 결과를 확인하지 못했습니다. 임시 저장 후 다시 확인해주세요.'); }

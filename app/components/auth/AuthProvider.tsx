@@ -1,33 +1,16 @@
-// =============================================
-// File: components/auth/AuthProvider.tsx
-// (전체 코드)
-// - 전역 인증/권한 상태 공급자
-// - 최초 1회 /api/auth/me 호출
-// - 어디서든 useAuth()로 user / role / canWrite / isAdmin 사용
-// - 기존 구조를 크게 바꾸지 않고 전역 권한 상태만 추가
-// =============================================
 'use client';
 
-import React, {
-  createContext,
-  useCallback,
-  useContext,
-  useEffect,
-  useMemo,
-  useRef,
-  useState,
-} from 'react';
+import React, { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from 'react';
 
 export type Role = 'guest' | 'writer' | 'admin';
-
 export type AuthUser = {
   id: number;
   username: string;
   email: string;
   minecraft_name: string;
+  role?: Role;
 } | null;
-
-type AuthMeResponse = {
+export type AuthMeResponse = {
   loggedIn?: boolean;
   user?: AuthUser;
   role?: string;
@@ -37,7 +20,7 @@ type AuthMeResponse = {
   roleSource?: string;
 };
 
-type AuthContextValue = {
+type AuthState = {
   user: AuthUser;
   role: Role;
   loggedIn: boolean;
@@ -45,6 +28,8 @@ type AuthContextValue = {
   hydrated: boolean;
   degraded: boolean;
   roleSource: string | null;
+};
+type AuthContextValue = AuthState & {
   canWrite: boolean;
   isAdmin: boolean;
   refreshAuth: (opts?: { force?: boolean }) => Promise<void>;
@@ -53,168 +38,95 @@ type AuthContextValue = {
 };
 
 const AuthContext = createContext<AuthContextValue | null>(null);
-
+const signedOut: AuthState = { user: null, role: 'guest', loggedIn: false, loading: false, hydrated: true, degraded: false, roleSource: null };
 function normalizeRole(value: unknown): Role {
-  const s = String(value ?? '').toLowerCase();
-  if (s === 'admin') return 'admin';
-  if (s === 'writer') return 'writer';
-  return 'guest';
+  return value === 'admin' || value === 'writer' ? value : 'guest';
+}
+function stateFromPayload(payload: Partial<AuthMeResponse>): AuthState {
+  const user = payload.user ?? null;
+  const loggedIn = !!user && Number.isInteger(user.id) && user.id > 0 && payload.loggedIn !== false;
+  return { ...signedOut, user: loggedIn ? user : null, loggedIn,
+    role: loggedIn ? normalizeRole(payload.role ?? user?.role) : 'guest', roleSource: payload.roleSource ?? null };
 }
 
-function isLoggedInPayload(user: AuthUser, loggedIn?: boolean) {
-  if (typeof loggedIn === 'boolean') return loggedIn && !!user;
-  return !!user;
-}
+export default function AuthProvider({ children }: { children: React.ReactNode }) {
+  const [state, setState] = useState<AuthState>({ ...signedOut, loading: true, hydrated: false });
+  const generation = useRef(0);
+  const inFlight = useRef<{ controller: AbortController; promise: Promise<void>; generation: number } | null>(null);
 
-export default function AuthProvider({
-  children,
-}: {
-  children: React.ReactNode;
-}) {
-  const [user, setUser] = useState<AuthUser>(null);
-  const [role, setRole] = useState<Role>('guest');
-  const [loggedIn, setLoggedIn] = useState(false);
-  const [loading, setLoading] = useState(true);
-  const [hydrated, setHydrated] = useState(false);
-  const [degraded, setDegraded] = useState(false);
-  const [roleSource, setRoleSource] = useState<string | null>(null);
-
-  const inFlightRef = useRef<Promise<void> | null>(null);
-
-  const applyPayload = useCallback((payload: Partial<AuthMeResponse>) => {
-    const nextUser = (payload.user ?? null) as AuthUser;
-    const nextRole = normalizeRole(payload.role);
-    const nextLoggedIn = isLoggedInPayload(nextUser, payload.loggedIn);
-
-    setUser(nextUser);
-    setRole(nextRole);
-    setLoggedIn(nextLoggedIn);
-    setDegraded(Boolean(payload.degraded));
-    setRoleSource(payload.roleSource ?? null);
-    setHydrated(true);
-    setLoading(false);
+  const cancelPending = useCallback(() => {
+    generation.current += 1;
+    inFlight.current?.controller.abort();
+    inFlight.current = null;
   }, []);
-
   const clearAuth = useCallback(() => {
-    setUser(null);
-    setRole('guest');
-    setLoggedIn(false);
-    setDegraded(false);
-    setRoleSource(null);
-    setHydrated(true);
-    setLoading(false);
-  }, []);
+    cancelPending();
+    setState(signedOut);
+  }, [cancelPending]);
+  const setAuthFromPayload = useCallback((payload: Partial<AuthMeResponse>) => {
+    // A pre-login or pre-logout /me response must never replace a newer session.
+    cancelPending();
+    setState(stateFromPayload(payload));
+  }, [cancelPending]);
 
-  const refreshAuth = useCallback(
-    async (opts?: { force?: boolean }) => {
-      if (inFlightRef.current && !opts?.force) {
-        return inFlightRef.current;
-      }
-
-      const task = (async () => {
-        try {
-          if (!hydrated) {
-            setLoading(true);
-          }
-
-          const url = opts?.force ? '/api/auth/me?fresh=1' : '/api/auth/me';
-
-          const res = await fetch(url, {
-            method: 'GET',
-            credentials: 'include',
-            cache: 'no-store',
-            headers: {
-              'Cache-Control': 'no-store',
-            },
-          });
-
-          if (!res.ok) {
-            clearAuth();
-            return;
-          }
-
-          const data = (await res.json()) as AuthMeResponse;
-          applyPayload(data);
-        } catch (err) {
-          console.error('[AuthProvider] refreshAuth failed:', err);
-          clearAuth();
-        } finally {
-          inFlightRef.current = null;
+  const refreshAuth = useCallback((opts?: { force?: boolean }): Promise<void> => {
+    if (inFlight.current && !opts?.force) return inFlight.current.promise;
+    cancelPending();
+    const requestGeneration = generation.current;
+    const controller = new AbortController();
+    const current = () => requestGeneration === generation.current && !controller.signal.aborted;
+    const promise = Promise.resolve().then(async () => {
+      try {
+        const response = await fetch('/api/auth/me', {
+          credentials: 'include', cache: 'no-store', signal: controller.signal,
+        });
+        if (!current()) return;
+        if (response.status === 401 || response.status === 403) {
+          setState(signedOut);
+          return;
         }
-      })();
-
-      inFlightRef.current = task;
-      return task;
-    },
-    [applyPayload, clearAuth, hydrated]
-  );
-
-  const setAuthFromPayload = useCallback(
-    (payload: Partial<AuthMeResponse>) => {
-      applyPayload({
-        loggedIn: true,
-        user: payload.user ?? null,
-        role: payload.role ?? 'guest',
-        degraded: Boolean(payload.degraded),
-        roleSource: payload.roleSource ?? 'manual',
-      });
-    },
-    [applyPayload]
-  );
+        if (!response.ok) throw new Error(`auth-unavailable:${response.status}`);
+        const payload = await response.json() as AuthMeResponse;
+        if (!current()) return;
+        if (payload.degraded) throw new Error('auth-unavailable:degraded');
+        setState(stateFromPayload(payload));
+      } catch (error) {
+        if (!current()) return;
+        console.warn('[AuthProvider] permission refresh unavailable:', error);
+        // A temporary connection failure is not a logout or a role change.
+        setState(previous => ({ ...previous, loading: false, hydrated: true, degraded: true }));
+      } finally {
+        if (inFlight.current?.generation === requestGeneration) inFlight.current = null;
+      }
+    });
+    inFlight.current = { controller, promise, generation: requestGeneration };
+    return promise;
+  }, [cancelPending]);
 
   useEffect(() => {
     void refreshAuth();
-  }, [refreshAuth]);
-
+    return cancelPending;
+  }, [refreshAuth, cancelPending]);
   useEffect(() => {
-    const handler = () => {
-      void refreshAuth({ force: true });
-    };
-
-    window.addEventListener('rdwiki-auth-changed', handler);
+    const changed = () => { void refreshAuth({ force: true }); };
+    const focused = () => { void refreshAuth(); };
+    window.addEventListener('rdwiki-auth-changed', changed);
+    window.addEventListener('focus', focused);
     return () => {
-      window.removeEventListener('rdwiki-auth-changed', handler);
+      window.removeEventListener('rdwiki-auth-changed', changed);
+      window.removeEventListener('focus', focused);
     };
   }, [refreshAuth]);
 
-  const value = useMemo<AuthContextValue>(() => {
-    const canWrite = role === 'writer' || role === 'admin';
-    const isAdmin = role === 'admin';
-
-    return {
-      user,
-      role,
-      loggedIn,
-      loading,
-      hydrated,
-      degraded,
-      roleSource,
-      canWrite,
-      isAdmin,
-      refreshAuth,
-      setAuthFromPayload,
-      clearAuth,
-    };
-  }, [
-    user,
-    role,
-    loggedIn,
-    loading,
-    hydrated,
-    degraded,
-    roleSource,
-    refreshAuth,
-    setAuthFromPayload,
-    clearAuth,
-  ]);
-
+  const value = useMemo<AuthContextValue>(() => ({ ...state, refreshAuth, setAuthFromPayload, clearAuth,
+    canWrite: state.loggedIn && (state.role === 'writer' || state.role === 'admin'),
+    isAdmin: state.loggedIn && state.role === 'admin',
+  }), [state, refreshAuth, setAuthFromPayload, clearAuth]);
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
 }
 
 export function useAuth() {
-  const ctx = useContext(AuthContext);
-  if (!ctx) {
-    throw new Error('useAuth must be used within <AuthProvider>');
-  }
-  return ctx;
+  const context = useContext(AuthContext);
+  if (!context) throw new Error('useAuth must be used within <AuthProvider>');
+  return context;
 }

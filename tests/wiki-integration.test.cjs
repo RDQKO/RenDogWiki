@@ -20,10 +20,12 @@ test('wiki API and SQL integration against isolated Postgres', async (t) => {
   t.after(async () => { await sql.end(); await server.stop(); await db.close(); });
   let user = null;
   const invalidations = [];
+  const afterTasks = [];
   process.env.MANAGE_DELETE_PASSWORD='integration-delete';
   const dbModule = { sql, withTx: (fn) => sql.begin((tx) => fn(tx)), runDbRead: (_name, fn) => fn(), isTransientDbError: () => false };
   const authModule = { getAuthUser: async () => user };
   const load = makeLoader({
+    'next/server': { ...require('next/server'), after: task => afterTasks.push(task) },
     './db': dbModule, '@/wiki/lib/db': dbModule, '@/app/wiki/lib/db': dbModule,
     '@/wiki/lib/auth': authModule, '@/app/wiki/lib/auth': authModule,
     'next/cache': { unstable_cache: (fn) => fn, revalidateTag: (tag) => invalidations.push(tag) },
@@ -87,6 +89,84 @@ test('wiki API and SQL integration against isolated Postgres', async (t) => {
     assert.equal((await sql`SELECT title FROM documents WHERE id=${docId}`)[0].title,'최신 문서');
     assert.match((await sql`SELECT content FROM document_contents WHERE document_id=${docId}`)[0].content,/보존할 본문/);
     await sql`ALTER TABLE document_search_sections DROP CONSTRAINT test_reject_section`;
+  });
+
+  for (const code of ['55P03', '40P01', '40001']) {
+    await t.test(`save retries a confirmed rollback (${code}) without partial metadata or duplicate content`, async () => {
+      await sql.unsafe(`CREATE SEQUENCE test_save_retry_seq;
+        CREATE FUNCTION fail_save_once() RETURNS trigger LANGUAGE plpgsql AS $$
+        BEGIN IF nextval('test_save_retry_seq')=1 THEN RAISE EXCEPTION 'temporary rollback' USING ERRCODE='${code}'; END IF; RETURN NEW; END $$;
+        CREATE TRIGGER fail_save_once BEFORE INSERT ON document_search_sections FOR EACH ROW EXECUTE FUNCTION fail_save_once();`);
+      try {
+        const response = await save(request('/api/save', { ...valid, id: docId, title: '최신 문서' }));
+        assert.equal(response.status, 200, await response.clone().text());
+        assert.equal(Number((await sql`SELECT last_value FROM test_save_retry_seq`)[0].last_value), 2);
+        assert.equal((await sql`SELECT count(*)::int AS n FROM document_contents WHERE document_id=${docId}`)[0].n, 1);
+        assert.match((await sql`SELECT content FROM document_contents WHERE document_id=${docId}`)[0].content, /보존할 본문/);
+      } finally {
+        await sql.unsafe('DROP TRIGGER fail_save_once ON document_search_sections; DROP FUNCTION fail_save_once(); DROP SEQUENCE test_save_retry_seq;');
+      }
+    });
+  }
+
+  await t.test('persistent lock failure returns 503 after two attempts and preserves the existing document', async () => {
+    const before = (await sql`SELECT title,updated_at FROM documents WHERE id=${docId}`)[0];
+    await sql.unsafe(`CREATE SEQUENCE test_save_retry_seq;
+      CREATE FUNCTION fail_save_always() RETURNS trigger LANGUAGE plpgsql AS $$
+      BEGIN PERFORM nextval('test_save_retry_seq'); RAISE EXCEPTION 'busy' USING ERRCODE='55P03'; END $$;
+      CREATE TRIGGER fail_save_always BEFORE UPDATE ON documents FOR EACH ROW EXECUTE FUNCTION fail_save_always();`);
+    try {
+      const response = await save(request('/api/save', { ...valid, id: docId, title: '절대 저장하지 않음' }));
+      assert.equal(response.status, 503); assert.ok(response.headers.get('Retry-After'));
+      assert.equal(Number((await sql`SELECT last_value FROM test_save_retry_seq`)[0].last_value), 2);
+      assert.deepEqual((await sql`SELECT title,updated_at FROM documents WHERE id=${docId}`)[0], before);
+    } finally {
+      await sql.unsafe('DROP TRIGGER fail_save_always ON documents; DROP FUNCTION fail_save_always(); DROP SEQUENCE test_save_retry_seq;');
+    }
+  });
+
+  await t.test('post-commit cache failure and deferred logging do not turn a successful save into 500', async () => {
+    const background = []; let logged = false;
+    const robustLoad = makeLoader({
+      './db': dbModule, '@/wiki/lib/db': dbModule, '@/app/wiki/lib/db': dbModule,
+      '@/wiki/lib/auth': authModule, '@/app/wiki/lib/auth': authModule,
+      'next/cache': { unstable_cache: fn => fn, revalidateTag() {} },
+      'next/server': { ...require('next/server'), after: task => background.push(task) },
+      '@/wiki/lib/documentCache': { invalidateDocumentCache() { throw new Error('temporary cache failure'); } },
+      '@/wiki/lib/activity': { resolveCategoryName: async () => '분류', logActivity: async () => { logged = true; } },
+    });
+    const response = await robustLoad('app/api/save/route.ts').POST(request('/api/save', { ...valid, id: docId, title: '최신 문서' }));
+    assert.equal(response.status, 200); assert.equal((await response.json()).success, true);
+    assert.equal(logged, false); assert.equal(background.length, 1);
+    await background[0](); assert.equal(logged, true);
+    assert.match((await sql`SELECT content FROM document_contents WHERE document_id=${docId}`)[0].content, /보존할 본문/);
+  });
+
+  await t.test('fresh editor loads bypass a stale public document cache', async () => {
+    let freshReads = 0; let cachedReads = 0;
+    const freshLoad = makeLoader({
+      './db': dbModule, '@/wiki/lib/db': dbModule, '@/app/wiki/lib/db': dbModule,
+      '@/wiki/lib/auth': authModule, '@/app/wiki/lib/auth': authModule,
+      'next/cache': { unstable_cache: fn => fn, revalidateTag() {} },
+      '@/wiki/lib/documentCache': {
+        getCachedDocumentById: async id => { cachedReads++; return { id, title: '오래된 문서', updated_at: '2020-01-01', content: [] }; },
+        getDocumentByIdFresh: async id => { freshReads++; return { id, title: '최신 문서', updated_at: '2026-11-16', content: valid.content }; },
+      },
+    });
+    const get = freshLoad('app/api/documents/route.ts').GET;
+    assert.equal((await (await get(request(`/api/documents?id=${docId}`, undefined, 'GET'))).json()).title, '오래된 문서');
+    assert.equal((await (await get(request(`/api/documents?id=${docId}&fresh=1`, undefined, 'GET'))).json()).title, '최신 문서');
+    assert.equal(cachedReads, 1); assert.equal(freshReads, 1);
+  });
+
+  await t.test('a temporary account lookup failure is unavailable rather than a guest role response', async () => {
+    const unavailable = { ...dbModule, sql: () => Promise.reject(Object.assign(new Error('temporary timeout'), { code: 'CONNECT_TIMEOUT' })), isTransientDbError: error => error?.code === 'CONNECT_TIMEOUT' };
+    const unavailableLoad = makeLoader({ '@/wiki/lib/db': unavailable, '@/wiki/lib/auth': authModule });
+    const response = await unavailableLoad('app/api/auth/me/route.ts').GET(request('/api/auth/me', undefined, 'GET'));
+    assert.equal(response.status, 503);
+    const payload = await response.json();
+    assert.equal(payload.degraded, true); assert.equal(payload.role, undefined);
+    assert.equal(response.headers.has('Set-Cookie'), false);
   });
 
   await t.test('search returns indexed and legacy documents with working section anchors', async () => {

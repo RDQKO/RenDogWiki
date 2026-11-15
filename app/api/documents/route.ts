@@ -17,6 +17,7 @@ import {
 } from '@/wiki/lib/db';
 import {
   getCachedDocumentById,
+  getDocumentByIdFresh,
   invalidateDocumentCache,
 } from '@/wiki/lib/documentCache';
 import {
@@ -289,7 +290,7 @@ export async function GET(req: NextRequest) {
   const titleRaw = searchParams.get('title');
   const idRaw = searchParams.get('id');
 
-  // ID가 있다면 항상 ID 기반 공유 캐시를 사용합니다.
+  // 편집기는 fresh=1로 최신 본문·수정 시각을 함께 읽고, 열람은 공유 캐시를 사용합니다.
   if (idRaw) {
     try {
       const id = Number(idRaw);
@@ -301,7 +302,7 @@ export async function GET(req: NextRequest) {
         );
       }
 
-      const data = await getCachedDocumentById(id);
+      const data = await (bypassMetadataCache ? getDocumentByIdFresh(id) : getCachedDocumentById(id));
 
       if (!data) {
         return new NextResponse(null, {

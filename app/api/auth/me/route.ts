@@ -4,13 +4,13 @@
 // - GET: 로그인 여부/유저 정보 반환
 // - DELETE: 회원 탈퇴
 // - 개선:
-//   1) GET은 기본적으로 JWT + role 쿠키로 빠르게 응답
-//   2) role 쿠키가 없을 때만 DB 조회
-//   3) DB CONNECT_TIMEOUT 시 guest로 강등하되 200 응답
+//   1) JWT와 현재 DB 계정/역할을 함께 확인
+//   2) 일시적인 DB 읽기 오류는 제한적으로 재시도
+//   3) DB 확인 실패는 503으로 구분하며 역할을 guest로 바꾸지 않음
 // =============================================
 
 import { NextRequest, NextResponse } from 'next/server';
-import { sql } from '@/wiki/lib/db';
+import { sql, runDbRead, isTransientDbError } from '@/wiki/lib/db';
 import { getAuthUser } from '@/wiki/lib/auth';
 import bcrypt from 'bcryptjs';
 
@@ -30,14 +30,7 @@ function normalizeRole(v: unknown): Role {
   return s === 'admin' || s === 'writer' ? s : 'guest';
 }
 
-function isConnectTimeoutError(err: unknown) {
-  const e = err as any;
-  return (
-    e?.code === 'CONNECT_TIMEOUT' ||
-    e?.errno === 'CONNECT_TIMEOUT' ||
-    String(e?.message ?? '').includes('CONNECT_TIMEOUT')
-  );
-}
+export const maxDuration = 15;
 
 export async function GET(req: NextRequest) {
   try {
@@ -58,7 +51,7 @@ export async function GET(req: NextRequest) {
 
     // The role cookie is a UI hint only. Always load the current account/role.
     try {
-      const rows = await sql<{
+      const rows = await runDbRead('auth:me', () => sql<{
         id: number;
         username: string;
         email: string;
@@ -70,7 +63,7 @@ export async function GET(req: NextRequest) {
         FROM users
         WHERE id = ${auth.id}
         LIMIT 1
-      `;
+      `);
 
       const row = rows?.[0];
       if (!row || !row.verified) {
@@ -114,24 +107,11 @@ export async function GET(req: NextRequest) {
 
       return res;
     } catch (err) {
-      // 3) DB가 죽어도 위키 진입 자체는 막지 않음
-      if (isConnectTimeoutError(err)) {
-        console.warn('[auth/me:GET] DB timeout, falling back to token-only mode');
-
+      if (isTransientDbError(err)) {
+        console.warn('[auth/me:GET] account lookup temporarily unavailable');
         return NextResponse.json(
-          {
-            loggedIn: true,
-            user: {
-              ...auth,
-              role: 'guest',
-            },
-            role: 'guest',
-            roles: [],
-            permissions: [],
-            degraded: true,
-            roleSource: 'token-fallback',
-          },
-          { status: 200, headers: noStoreHeaders() }
+          { error: '권한 정보를 확인하지 못했습니다. 잠시 후 다시 시도해주세요.', degraded: true },
+          { status: 503, headers: { ...noStoreHeaders(), 'Retry-After': '2' } },
         );
       }
 
