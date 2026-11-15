@@ -849,10 +849,3 @@
   outline: 2px solid var(--rd-brand);
   outline-offset: 1px;
 }
-
-@media (max-width: 1280px) {
-  :root {
-    --wiki-sidebar-width: 348px;
-    --wiki-toc-width: 264px;
-  }
-}

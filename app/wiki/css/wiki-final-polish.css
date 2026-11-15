@@ -551,36 +551,6 @@ small {
     0.75s linear infinite;
 }
 
-/* ===== 목차 너비 보정 ===== */
-
-@media (min-width: 769px) {
-  .wiki-toc,
-  .wiki-toc-sidebar,
-  .wiki-toc-sidebar-desktop {
-    width: 280px !important;
-    flex:
-      0 0
-      280px !important;
-    box-sizing: border-box;
-    padding-left: 18px !important;
-    padding-right: 18px !important;
-  }
-}
-
-@media (
-  min-width: 769px
-) and (
-  max-width: 1180px
-) {
-  .wiki-toc,
-  .wiki-toc-sidebar,
-  .wiki-toc-sidebar-desktop {
-    width: 266px !important;
-    flex-basis:
-      266px !important;
-  }
-}
-
 @media (max-width: 768px) {
   .wiki-content-body
   .faq-list-card

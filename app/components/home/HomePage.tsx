@@ -48,6 +48,7 @@ import '@/wiki/css/header.css';
 import '@/wiki/css/faq-detail-modal.css';
 
 import styles from './home.module.css';
+import headerStyles from '@/wiki/css/wikiHeaderHome.module.css';
 import darkBackgroundStyles from './homeDarkBackgrounds.module.css';
 
 const categoryCards: ReadonlyArray<{
@@ -1099,22 +1100,18 @@ export default function HomePage({
 
       <header
         className={
-          styles.header
+          headerStyles.header
         }
       >
         <div
           className={
-            styles.headerInner
+            headerStyles.inner
           }
-          style={{
-            width:
-              'min(calc(100% - 48px), 1480px)',
-          }}
         >
           <Link
             href="/"
             className={
-              styles.brand
+              headerStyles.brand
             }
             aria-label="RDWIKI 홈"
           >
@@ -1124,7 +1121,7 @@ export default function HomePage({
               width={360}
               height={120}
               className={
-                styles.brandLogo
+                headerStyles.brandLogo
               }
               priority
             />
@@ -1132,7 +1129,7 @@ export default function HomePage({
 
           <div
             className={
-              styles.headerNav
+              headerStyles.actions
             }
             aria-label="홈 도구"
           >
@@ -1145,18 +1142,14 @@ export default function HomePage({
                   true,
                 );
               }}
-              className={`wiki-admin-menu-btn ${styles.headerMenuButton}`}
+              className={headerStyles.iconButton}
               aria-label="메뉴 열기"
               aria-haspopup="dialog"
               aria-expanded={
                 isHeaderMenuOpen
               }
-              style={{
-                display:
-                  'inline-flex',
-              }}
             >
-              <FontAwesomeIcon icon={faBars} style={{ width: 20, height: 20 }} />
+              <FontAwesomeIcon icon={faBars} />
             </button>
           </div>
         </div>
