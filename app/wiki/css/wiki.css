@@ -12,14 +12,18 @@
 /* ===== 공통 변수 ===== */
 :root {
   /* 문서 화면은 화면 전체 폭을 쓰고, 본문 줄 길이는 --wiki-content-max로 제한한다. */
-  /* 헤더(header.css)도 같은 값을 사용한다: 화면 전체 폭 + 좌우 24px 여백. */
   --wiki-max-width: 100%;
   --wiki-gutter: 24px;
-  --wiki-header-height: 64px;
-  --wiki-rail-width: 64px;
   --wiki-sidebar-width: 388px;
-  --wiki-toc-width: 280px;
-  --wiki-content-max: 920px;
+  --wiki-toc-width: 344px;
+  --wiki-content-max: 860px;
+}
+
+@media (max-width: 1280px) {
+  :root {
+    --wiki-sidebar-width: 348px;
+    --wiki-toc-width: 304px;
+  }
 }
 
 /* ===== GLOBAL: 이미지 기본 처리 ===== */
@@ -61,8 +65,8 @@
   display: flex;
   width: 100%;
   max-width: 100%;
-  margin-top: 64px;
-  height: calc(100vh - 64px);
+  margin-top: var(--wiki-header-height);
+  height: calc(100vh - var(--wiki-header-height));
   overflow: hidden;
   background: var(--background);
 }
@@ -116,7 +120,7 @@
   font-weight: 600;
   margin-top: 0;
   /* 왼쪽 여백은 플로팅 바로가기 버튼이 놓이는 레일이다. 분류 패널과 겹치지 않는다. */
-  padding: 16px 12px 16px calc(var(--wiki-rail-width) + 14px);
+  padding: 16px 12px 16px var(--wiki-sidebar-inset);
   border: none !important;
   overflow-y: auto;
 }
@@ -355,15 +359,14 @@
 /* ===== [6] TOC ===== */
 .wiki-toc, .wiki-toc-sidebar {
   width: var(--wiki-toc-width);
-  padding: 1rem;
-  flex-shrink: 0;
+  flex: 0 0 var(--wiki-toc-width);
+  box-sizing: border-box;
+  padding: 32px 20px 20px 4px;
   border-left: 0;
   background: transparent;
-  overflow-y: auto;
-  position: sticky;
-  top: 64px;
-  height: calc(100vh - 64px);
-  scrollbar-gutter: stable;
+  overflow: hidden;
+  position: relative;
+  height: 100%;
 }
 
 .wiki-toc ul,
@@ -679,8 +682,8 @@
 
   .wiki-layout {
     display: block !important;
-    height: calc(100dvh - 60px);
-    margin-top: 60px;
+    height: calc(100dvh - var(--wiki-header-height));
+    margin-top: var(--wiki-header-height);
     overflow: hidden;
     background: var(--background);
   }
@@ -700,7 +703,7 @@
     width: 100% !important;
     max-width: 100% !important;
     min-width: 0 !important;
-    height: calc(100dvh - 60px);
+    height: calc(100dvh - var(--wiki-header-height));
     overflow-y: auto !important;
     overflow-x: hidden !important;
     -webkit-overflow-scrolling: touch;

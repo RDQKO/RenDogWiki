@@ -60,6 +60,11 @@
 
 .wiki-toc-sidebar
 > aside[role='navigation'] {
+  /* 데스크톱 카드는 목차 열을 채운다. 플로팅 패널의 고정 폭과 분리한다. */
+  position: relative !important;
+  inset: auto !important;
+  width: 100% !important;
+  max-height: 100% !important;
   box-sizing: border-box !important;
   padding:
     14px

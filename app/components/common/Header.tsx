@@ -236,8 +236,6 @@ export default function WikiHeader({
               <FontAwesomeIcon icon={mobileSearchOpen ? faXmark : faMagnifyingGlass} />
             </button>
 
-            <ThemeToggle />
-
             {onToggleMobileCategory && (
               <button
                 type="button"
@@ -257,6 +255,8 @@ export default function WikiHeader({
                 <FontAwesomeIcon icon={faFolderTree} />
               </button>
             )}
+
+            <ThemeToggle />
 
             {/* 메뉴(로그인·마이페이지·관리)는 모든 화면 크기에서 접근할 수 있어야 한다. */}
             {!hideAdminMenu && (

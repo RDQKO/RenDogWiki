@@ -64,6 +64,11 @@
   --header-fg: #1f2937;
   --header-hover: #f3f4f6;
 
+  /* 홈·문서 헤더와 카테고리 패널이 같은 기준선을 사용한다. */
+  --wiki-header-height: 64px;
+  --wiki-rail-width: 64px;
+  --wiki-sidebar-inset: calc(var(--wiki-rail-width) + 14px);
+
   --input-bg: #ffffff;
   --input-fg: #171717;
   --input-border: #cfd6df;
