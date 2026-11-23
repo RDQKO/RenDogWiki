@@ -93,7 +93,7 @@ declare global {
     | undefined;
 }
 
-function createSql(): SQL {
+export function createSqlConnection(): SQL {
   return postgres(
     DB.url,
     {
@@ -119,7 +119,7 @@ export const sql: SQL =
   global.__wiki_db_mode__ ===
     DB.mode
     ? global.__wiki_sql__
-    : createSql();
+    : createSqlConnection();
 
 global.__wiki_sql__ =
   sql;

@@ -5,7 +5,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { sql } from '@/wiki/lib/db';
 // ⚠️ 이 프로젝트의 getAuthUser는 인자 없는 시그니처라고 가정합니다.
 import { getAuthUser } from '@/wiki/lib/auth';
-import { requireRole } from '@/wiki/lib/requireRole';
+import { requireRole, canDeleteUploaded } from '@/wiki/lib/requireRole';
 
 type Role = 'guest' | 'writer' | 'admin';
 
@@ -63,6 +63,9 @@ export async function PATCH(_req: NextRequest) {
     `;
     if (rows.length !== ids.length) {
       return NextResponse.json({ error: '일부 이미지가 존재하지 않습니다.' }, { status: 404 });
+    }
+    if (rows.some(row => !canDeleteUploaded(gate.dbUser, row.uploader))) {
+      return NextResponse.json({ error: '본인이 업로드한 이미지만 이동할 수 있습니다.' }, { status: 403 });
     }
 
     if (newFolderId !== null) {

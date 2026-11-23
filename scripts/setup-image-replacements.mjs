@@ -17,15 +17,28 @@ CREATE TABLE IF NOT EXISTS public.image_versions (
   created_at timestamptz NOT NULL DEFAULT CURRENT_TIMESTAMP
 );
 CREATE INDEX IF NOT EXISTS image_versions_image_id_idx ON public.image_versions(image_id, id DESC);
+CREATE TABLE IF NOT EXISTS public.image_variants (
+  image_id integer NOT NULL REFERENCES public.images(id) ON DELETE CASCADE,
+  style text NOT NULL CHECK (style IN ('vanilla', '3d')),
+  s3_key text NOT NULL UNIQUE,
+  url text NOT NULL,
+  mime_type text NOT NULL,
+  name text NOT NULL,
+  PRIMARY KEY (image_id, style)
+);
+ALTER TABLE public.image_variants ENABLE ROW LEVEL SECURITY;
+REVOKE ALL ON public.image_variants FROM PUBLIC;
 ALTER TABLE public.image_versions ENABLE ROW LEVEL SECURITY;
 REVOKE ALL ON public.image_versions FROM PUBLIC;
 REVOKE ALL ON SEQUENCE public.image_versions_id_seq FROM PUBLIC;
 DO $$ BEGIN
   IF EXISTS (SELECT 1 FROM pg_roles WHERE rolname = 'anon') THEN
+    REVOKE ALL ON public.image_variants FROM anon;
     REVOKE ALL ON public.image_versions FROM anon;
     REVOKE ALL ON SEQUENCE public.image_versions_id_seq FROM anon;
   END IF;
   IF EXISTS (SELECT 1 FROM pg_roles WHERE rolname = 'authenticated') THEN
+    REVOKE ALL ON public.image_variants FROM authenticated;
     REVOKE ALL ON public.image_versions FROM authenticated;
     REVOKE ALL ON SEQUENCE public.image_versions_id_seq FROM authenticated;
   END IF;

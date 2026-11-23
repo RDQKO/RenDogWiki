@@ -15,7 +15,7 @@ import { Analytics } from "@vercel/analytics/react";
 import logoImg from "./image/logo.png";
 import AuthProvider from "@/components/auth/AuthProvider";
 import ImageReplacementProvider from "@/components/image/ImageReplacementProvider";
-import { getImageAliases } from "@/wiki/lib/imageReplacementStore";
+import { getImageManifest } from "@/wiki/lib/imageReplacementStore";
 import "./wiki/css/header.css";
 
 export const dynamic = "force-dynamic";
@@ -100,7 +100,7 @@ export default async function RootLayout({
 }: {
   children: React.ReactNode;
 }) {
-  const imageAliases = await getImageAliases();
+  const imageManifest = await getImageManifest();
   return (
     <html lang="ko" suppressHydrationWarning>
       <body className={inter.className}>
@@ -124,7 +124,7 @@ export default async function RootLayout({
         </Script>
 
         <AuthProvider>
-          <ImageReplacementProvider initialAliases={imageAliases}>{children}</ImageReplacementProvider>
+          <ImageReplacementProvider initialAliases={imageManifest.aliases} initialVariants={imageManifest.variants}>{children}</ImageReplacementProvider>
         </AuthProvider>
         <Analytics />
       </body>

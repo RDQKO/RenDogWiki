@@ -6,7 +6,7 @@ export type LogAction =
   | 'document.create' | 'document.update' | 'document.delete'
   | 'category.create' | 'category.update' | 'category.delete' | 'category.reorder'
   | 'folder.create'   | 'folder.rename'   | 'folder.move'     | 'folder.delete'
-  | 'image.upload'    | 'image.rename'    | 'image.delete' | 'image.replace' | 'image.restore'
+  | 'image.upload'    | 'image.rename'    | 'image.delete' | 'image.replace' | 'image.assign'
   | 'npc.create'      | 'npc.update'      | 'npc.delete'
   | 'head.create'     | 'head.update'     | 'head.delete'
   | 'user.rename'     | 'user.verify'

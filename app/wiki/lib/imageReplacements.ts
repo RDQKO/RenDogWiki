@@ -1,5 +1,15 @@
 /** Public, read-only aliases. Only managed object paths participate in replacement. */
 export type ImageAliases = Record<string, string>;
+export const IMAGE_STYLES = ['vanilla', '2d', '3d'] as const;
+export type ImageStyle = typeof IMAGE_STYLES[number];
+export type AdditionalImageStyle = Exclude<ImageStyle, '2d'>;
+export type ImageVariants = Partial<Record<AdditionalImageStyle, string>>;
+export type ImageVariantMap = Record<string, ImageVariants>;
+export type ImageManifest = { aliases: ImageAliases; variants: ImageVariantMap };
+export const IMAGE_STYLE_LABELS: Record<ImageStyle, string> = { vanilla: '바닐라', '2d': '2D', '3d': '3D' };
+export function isImageStyle(value: unknown): value is ImageStyle {
+  return IMAGE_STYLES.some(style => style === value);
+}
 
 const cdnBase = process.env.NEXT_PUBLIC_CDN_BASE || 'https://d1y7k8qotewoph.cloudfront.net';
 const managedHosts = new Set([
@@ -30,4 +40,13 @@ export function resolveImageReplacement(src: string | undefined, aliases: ImageA
   // The manifest always maps historical keys directly to the current file.
   // Drop historical ?v values instead of reusing their stale cache identity.
   return managedImageKey(target) ? target : src;
+}
+
+export function resolveImageVariant(src: string | undefined, manifest: ImageManifest, style: ImageStyle): string | undefined {
+  const base = resolveImageReplacement(src, manifest.aliases);
+  if (!base || style === '2d') return base;
+  const key = managedImageKey(base);
+  const variants = key && Object.prototype.hasOwnProperty.call(manifest.variants, key) ? manifest.variants[key] : undefined;
+  const target = variants?.[style];
+  return target && managedImageKey(target) ? target : base;
 }

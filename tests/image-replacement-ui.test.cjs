@@ -64,7 +64,7 @@ test('replacement modal matches upload layout and submits without a confirmation
       if(postCount===1){revision=8;return new Response(JSON.stringify({error:'다른 곳에서 변경되었습니다.'}),{status:409});}
       return json({success:true});
     }
-    return json({image:{id:1,name:'원본',url:old,s3_key:'images/1/old.png',revision},versions:[]});
+    return json({image:{id:1,name:'원본',url:old,s3_key:'images/1/old.png',revision},variants:[]});
   };
   await mount(h(Provider,null,h(Modal,{imageId:1,onClose:()=>closed++,onChanged:()=>changed++})));
   assert.equal(button('이미지 교체').disabled,true);assert.ok(button('취소'));
@@ -87,15 +87,42 @@ test('replacement modal matches upload layout and submits without a confirmation
   assert.equal(submitted.get('expectedRevision'),'8');assert.equal(changed,1);assert.equal(closed,1);
 });
 
-test('history previews show original files and restoring uses PATCH instead of uploading again',async()=>{
-  requests=[];let payload,changed=0;
+test('variant assignment shows separate previews, explicit line breaks and no restoration controls',async()=>{
+  requests=[];let submitted,changed=0;
   fetchMock=async(url,options={})=>{
-    if(url==='/api/image/replacements')return json({aliases:{'images/1/old.png':next}});
-    if(options.method==='PATCH'){payload=JSON.parse(options.body);return json({success:true});}
-    return json({image:{id:1,name:'원본',url:next,s3_key:'images/1/new.webp',revision:9},versions:[{id:3,name:'이전.png',url:old,s3_key:'images/1/old.png',created_at:'2026-11-23T00:00:00Z'}]});
+    if(url==='/api/image/replacements')return json({aliases:{'images/1/old.png':next},variants:{}});
+    if(options.method==='POST'){submitted=options.body;return json({success:true});}
+    return json({image:{id:1,name:'원본',url:next,s3_key:'images/1/new.webp',revision:9},variants:[{style:'3d',name:'3D.png',url:old,s3_key:'images/1/old.png'}]});
   };
-  await mount(h(Provider,null,h(Modal,{imageId:1,onClose(){},onChanged:()=>changed++})));
-  assert.equal(document.querySelector('img[alt="이전.png"]').getAttribute('src'),'https://d1y7k8qotewoph.cloudfront.net/images/1/old.png');
-  await click(button('복원 선택'));assert.equal(document.querySelector('input[type=checkbox]'),null);await click(button('선택 버전으로 복원'));
-  assert.deepEqual(payload,{id:1,expectedRevision:9,versionId:3});assert.equal(changed,1);
+  await mount(h(Provider,null,h(Modal,{imageId:1,mode:'assign',onClose(){},onChanged:()=>changed++})));
+  assert.equal(document.querySelector('details'),null);assert.doesNotMatch(document.body.textContent,/복원/);
+  assert.ok(document.querySelector('[role=dialog] p br'));
+  assert.match(document.body.textContent,/아직 할당되지 않았습니다/);
+  await click(button('3D · 할당됨'));
+  assert.equal(document.querySelector('img[alt="현재 이미지"]').getAttribute('src'),'https://d1y7k8qotewoph.cloudfront.net/images/1/old.png');
+  const drop=new Event('drop',{bubbles:true,cancelable:true});
+  Object.defineProperty(drop,'dataTransfer',{value:{files:[new File(['png'],'3D.png',{type:'image/png'})]}});
+  await act(async()=>document.querySelector('label[for]').dispatchEvent(drop));
+  await click(button('이미지 할당'));
+  assert.equal(submitted.get('style'),'3d');assert.equal(submitted.get('expectedRevision'),'9');assert.equal(changed,1);
+});
+
+test('site-wide variant selection persists, falls back to 2D and leaves previews and local assets unchanged',async()=>{
+  const Selector=load('app/components/common/ImageStyleSelector.tsx').default;
+  const vanilla='https://rdwiki.s3.ap-southeast-2.amazonaws.com/images/1/vanilla.png';
+  fetchMock=async()=>json({aliases:{'images/1/old.png':next},variants:{'images/1/new.webp':{vanilla}}});
+  window.localStorage.removeItem('rdwiki-image-style');
+  await mount(h(Provider,null,h(Selector),h(ManagedImage,{src:old,alt:'styled'}),h(ManagedImage,{src:'/images/logo.png',alt:'logo'})));
+  const select=label=>document.querySelector(`button[aria-label="${label} 이미지"]`);
+  assert.equal(select('2D').getAttribute('aria-pressed'),'true');
+  await click(select('바닐라'));assert.match(document.querySelector('img[alt=styled]').src,/vanilla.png$/);
+  assert.equal(window.localStorage.getItem('rdwiki-image-style'),'vanilla');
+  await click(select('3D'));assert.equal(document.querySelector('img[alt=styled]').src,nextCdn);
+  assert.equal(document.querySelector('img[alt=logo]').getAttribute('src'),'/images/logo.png');
+  await click(select('바닐라'));
+  await mount(h(Provider,null,h(Selector),h(ManagedImage,{src:old,alt:'persisted'})));
+  assert.match(document.querySelector('img[alt=persisted]').src,/vanilla.png$/);
+  await act(async()=>window.dispatchEvent(new window.StorageEvent('storage',{key:'rdwiki-image-style',newValue:'2d'})));
+  assert.equal(document.querySelector('img[alt=persisted]').src,nextCdn);
+  window.localStorage.clear();
 });

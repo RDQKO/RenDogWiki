@@ -5,9 +5,11 @@ import { pg_trgm } from '@electric-sql/pglite/contrib/pg_trgm';
 import { PGLiteSocketServer } from '@electric-sql/pglite-socket';
 import bcrypt from 'bcryptjs';
 import { imageReplacementSchema } from './setup-image-replacements.mjs';
+import { documentSaveRequestSchema } from './setup-document-save-requests.mjs';
 const db = await PGlite.create({ extensions: { pg_trgm } });
 await db.exec(await readFile(new URL('../tests/fixtures/wiki.sql', import.meta.url),'utf8'));
 await db.exec(imageReplacementSchema);
+await db.exec(documentSaveRequestSchema);
 await db.exec(`INSERT INTO images(id,name,folder_id,uploader,mime_type,s3_key,url,revision) VALUES
   (1,'교체 검증 이미지',1,'Writer','image/png','images/1/http-new.png','https://rdwiki.s3.ap-southeast-2.amazonaws.com/images/1/http-new.png',1),
   (2,'다른 작성자 이미지',1,'Other','image/png','images/1/http-other.png','https://rdwiki.s3.ap-southeast-2.amazonaws.com/images/1/http-other.png',0);
@@ -26,7 +28,7 @@ for(const [id,title,path] of [[73,'대표 문서','0'],[74,'테스트 문서','1
  await db.query('INSERT INTO document_contents(document_id,content) VALUES($1,$2)',[id,JSON.stringify(content)]);
 }
 await db.query("SELECT setval(pg_get_serial_sequence('documents','id'),74)");
-const server=new PGLiteSocketServer({db,host:'127.0.0.1',port:6543});
+const server=new PGLiteSocketServer({db,maxConnections:10,host:'127.0.0.1',port:6543});
 await server.start();
 console.log('Isolated wiki fixture ready on 127.0.0.1:6543. Local test accounts: writer / other / admin / guest. Password: LocalAudit123!');
 for(const signal of ['SIGINT','SIGTERM'])process.on(signal,async()=>{await server.stop();await db.close();process.exit(0)});

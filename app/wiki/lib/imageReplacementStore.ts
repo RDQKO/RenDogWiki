@@ -2,27 +2,39 @@ import 'server-only';
 
 import { unstable_cache, revalidateTag } from 'next/cache';
 import { runDbRead, sql, type SQL } from './db';
-import type { ImageAliases } from './imageReplacements';
+import type { AdditionalImageStyle, ImageAliases, ImageManifest } from './imageReplacements';
 
 export const IMAGE_REPLACEMENTS_TAG = 'image:replacements:v1';
 
-export async function readImageAliases(): Promise<ImageAliases> {
-  const rows = await runDbRead('image:aliases', () => sql<{ s3_key: string; url: string }[]>`
-    SELECT DISTINCT version.s3_key, image.url
-    FROM image_versions version JOIN images image ON image.id = version.image_id
-    WHERE version.s3_key <> image.s3_key
+export async function readImageManifest(): Promise<ImageManifest> {
+  const rows = await runDbRead('image:manifest', () => sql<{ s3_key: string; url: string; base_key: string; style: AdditionalImageStyle | null; variant_url: string | null }[]>`
+    WITH sources AS (
+      SELECT image_id, s3_key FROM image_versions
+      UNION SELECT image_id, s3_key FROM image_variants
+    )
+    SELECT source.s3_key, image.url, image.s3_key AS base_key, variant.style, variant.url AS variant_url
+    FROM sources source JOIN images image ON image.id = source.image_id
+    LEFT JOIN image_variants variant ON variant.image_id = image.id
   `);
-  return Object.fromEntries(rows.map(row => [row.s3_key, row.url]));
+  const aliases: ImageAliases = {};
+  const variants: ImageManifest['variants'] = {};
+  for (const row of rows) {
+    if (row.s3_key !== row.base_key) aliases[row.s3_key] = row.url;
+    if (row.style && row.variant_url) (variants[row.base_key] ??= {})[row.style] = row.variant_url;
+  }
+  return { aliases, variants };
 }
 
-const cachedAliases = unstable_cache(readImageAliases, ['image-aliases-v1'], { tags: [IMAGE_REPLACEMENTS_TAG], revalidate: 60 });
+export async function readImageAliases(): Promise<ImageAliases> { return (await readImageManifest()).aliases; }
 
-export async function getImageAliases(): Promise<ImageAliases> {
-  try { return await cachedAliases(); }
+const cachedManifest = unstable_cache(readImageManifest, ['image-manifest-v2'], { tags: [IMAGE_REPLACEMENTS_TAG], revalidate: 60 });
+
+export async function getImageManifest(): Promise<ImageManifest> {
+  try { return await cachedManifest(); }
   catch (error) {
     // Allows a reviewed code deployment before the additive schema is installed.
     console.error('[image:aliases] registry unavailable', error);
-    return {};
+    return { aliases: {}, variants: {} };
   }
 }
 
@@ -62,6 +74,7 @@ export async function selectImageFiles(ids: number[]) {
     return await sql<{ s3_key: string }[]>`
       SELECT s3_key FROM images WHERE id = ANY(${ids})
       UNION SELECT s3_key FROM image_versions WHERE image_id = ANY(${ids})
+      UNION SELECT s3_key FROM image_variants WHERE image_id = ANY(${ids})
     `;
   } catch (error) {
     if ((error as { code?: string }).code !== '42P01') throw error;

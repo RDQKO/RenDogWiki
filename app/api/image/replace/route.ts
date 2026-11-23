@@ -5,7 +5,7 @@ import { requireRole, canDeleteUploaded } from '@/wiki/lib/requireRole';
 import { logActivity } from '@/wiki/lib/activity';
 import { prepareReplacement } from '@/wiki/lib/imageReplacementFile';
 import { ImageReplacementError, invalidateImageAliases, lockImage, rememberImage, type StoredImage } from '@/wiki/lib/imageReplacementStore';
-import { managedImageKey } from '@/wiki/lib/imageReplacements';
+import { isImageStyle, managedImageKey, type ImageStyle } from '@/wiki/lib/imageReplacements';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
@@ -23,7 +23,7 @@ function integer(value: unknown, allowZero = false) {
 }
 
 function assertOwner(image: StoredImage, user: Actor, expected?: number) {
-  if (!canDeleteUploaded(user, image.uploader)) throw new ImageReplacementError(403, '본인이 업로드한 이미지만 교체하거나 복원할 수 있습니다.');
+  if (!canDeleteUploaded(user, image.uploader)) throw new ImageReplacementError(403, '본인이 업로드한 이미지만 변경할 수 있습니다.');
   if (expected !== undefined && image.revision !== expected) throw new ImageReplacementError(409, '다른 곳에서 이미지가 변경되었습니다. 창을 다시 열어 최신 이미지를 확인해 주세요.');
   if (image.mime_type?.startsWith('video/') || /\.(mp4|webm|mov)(?:[?#]|$)/i.test(image.url)) throw new ImageReplacementError(400, '이미지만 교체할 수 있습니다.');
   if (!image.s3_key || managedImageKey(image.url) !== image.s3_key) throw new ImageReplacementError(400, '관리되는 이미지 파일의 경로를 확인해 주세요.');
@@ -35,7 +35,7 @@ function failure(error: unknown) {
   return NextResponse.json({ error: '이미지 변경을 완료하지 못했습니다. 최신 상태를 확인한 후 다시 시도해 주세요.' }, { status: 503, headers });
 }
 
-async function complete(image: StoredImage, user: Actor, action: 'image.replace' | 'image.restore') {
+async function complete(image: StoredImage, user: Actor, action: 'image.replace' | 'image.assign') {
   try { invalidateImageAliases(); } catch (error) { console.error('[image/replace] cache invalidation failed', error); }
   await logActivity({ action, username: user.minecraft_name || user.username, targetType: 'image', targetId: image.id,
     targetName: image.name, meta: { revision: image.revision, s3_key: image.s3_key } });
@@ -50,11 +50,8 @@ export async function GET(req: NextRequest) {
     const result = await withTx(async tx => {
       const image = await lockImage(tx, id);
       assertOwner(image, gate.dbUser);
-      const versions = await tx`
-        SELECT id, name, url, mime_type, created_at, s3_key
-        FROM image_versions WHERE image_id = ${id} ORDER BY id DESC LIMIT 100
-      `;
-      return { image, versions };
+      const variants = await tx`SELECT style, name, url, mime_type, s3_key FROM image_variants WHERE image_id = ${id}`;
+      return { image, variants };
     });
     return NextResponse.json(result, { headers });
   } catch (error) { return failure(error); }
@@ -66,10 +63,14 @@ export async function POST(req: NextRequest) {
   let uploadedKey: string | undefined;
   let bucket: string | undefined;
   let id: number | undefined;
+  let style: ImageStyle = '2d';
   try {
     const length = Number(req.headers.get('content-length') || 0);
     if (length > 4.2 * 1024 * 1024) throw new ImageReplacementError(413, '파일은 3.9MB 이하로 선택해 주세요.');
     const form = await req.formData().catch(() => { throw new ImageReplacementError(400, '올바른 이미지 파일 요청이 필요합니다.'); });
+    const requestedStyle = form.get('style') ?? '2d';
+    if (!isImageStyle(requestedStyle)) throw new ImageReplacementError(400, '올바른 이미지 종류를 선택해 주세요.');
+    style = requestedStyle;
     id = integer(form.get('id'));
     const expected = integer(form.get('expectedRevision'), true);
     const files = form.getAll('file');
@@ -89,15 +90,29 @@ export async function POST(req: NextRequest) {
       assertOwner(old, gate.dbUser, expected);
       const actor = gate.dbUser.minecraft_name || gate.dbUser.username;
       await rememberImage(tx, old, actor);
+      if (style !== '2d') {
+        const previous = await tx`SELECT * FROM image_variants WHERE image_id = ${id!} AND style = ${style}`;
+        if (previous[0]) await rememberImage(tx, { ...old, ...previous[0], id: old.id }, actor);
+      }
       await rememberImage(tx, { ...old, s3_key: next.key, url: next.url, mime_type: next.mime, name: file.name }, actor);
-      const rows = await tx<StoredImage[]>`
-        UPDATE images SET s3_key = ${next.key}, url = ${next.url}, mime_type = ${next.mime},
-          revision = revision + 1, updated_at = CURRENT_TIMESTAMP
-        WHERE id = ${id!} RETURNING *
+      if (style === '2d') {
+        return (await tx<StoredImage[]>`
+          UPDATE images SET s3_key = ${next.key}, url = ${next.url}, mime_type = ${next.mime},
+            revision = revision + 1, updated_at = CURRENT_TIMESTAMP
+          WHERE id = ${id!} RETURNING *
+        `)[0];
+      }
+      await tx`
+        INSERT INTO image_variants (image_id, style, s3_key, url, mime_type, name)
+        VALUES (${id!}, ${style}, ${next.key}, ${next.url}, ${next.mime}, ${file.name})
+        ON CONFLICT (image_id, style) DO UPDATE SET s3_key = EXCLUDED.s3_key, url = EXCLUDED.url,
+          mime_type = EXCLUDED.mime_type, name = EXCLUDED.name
       `;
-      return rows[0];
+      return (await tx<StoredImage[]>`
+        UPDATE images SET revision = revision + 1, updated_at = CURRENT_TIMESTAMP WHERE id = ${id!} RETURNING *
+      `)[0];
     });
-    return await complete(image, gate.dbUser, 'image.replace');
+    return await complete(image, gate.dbUser, style === '2d' ? 'image.replace' : 'image.assign');
   } catch (error) {
     if (uploadedKey && bucket && id) {
       try {
@@ -108,7 +123,7 @@ export async function POST(req: NextRequest) {
           const versions = await tx`SELECT id FROM image_versions WHERE s3_key = ${uploadedKey!}`;
           return { current: current[0], committed: versions.length > 0 };
         });
-        if (state.committed && state.current) return await complete(state.current, gate.dbUser, 'image.replace');
+        if (state.committed && state.current) return await complete(state.current, gate.dbUser, style === '2d' ? 'image.replace' : 'image.assign');
         if (!state.committed) await s3.send(new DeleteObjectCommand({ Bucket: bucket, Key: uploadedKey }));
       } catch (cleanupError) {
         // Preserve an uncertain object rather than deleting a possibly active file.
@@ -117,30 +132,4 @@ export async function POST(req: NextRequest) {
     }
     return failure(error);
   }
-}
-
-export async function PATCH(req: NextRequest) {
-  const gate = await requireRole(['writer', 'admin']);
-  if (!gate.ok) return NextResponse.json({ error: gate.error }, { status: gate.status, headers });
-  try {
-    const body = await req.json().catch(() => { throw new ImageReplacementError(400, '올바른 복원 요청이 필요합니다.'); });
-    const id = integer(body.id);
-    const versionId = integer(body.versionId);
-    const expected = integer(body.expectedRevision, true);
-    const image = await withTx(async tx => {
-      const current = await lockImage(tx, id);
-      assertOwner(current, gate.dbUser, expected);
-      const versions = await tx<{ s3_key: string; url: string; mime_type: string }[]>`
-        SELECT s3_key, url, mime_type FROM image_versions WHERE id = ${versionId} AND image_id = ${id}
-      `;
-      if (!versions[0]) throw new ImageReplacementError(404, '복원할 이미지를 찾을 수 없습니다.');
-      const version = versions[0];
-      await rememberImage(tx, current, gate.dbUser.minecraft_name || gate.dbUser.username);
-      return (await tx<StoredImage[]>`
-        UPDATE images SET s3_key = ${version.s3_key}, url = ${version.url}, mime_type = ${version.mime_type},
-          revision = revision + 1, updated_at = CURRENT_TIMESTAMP WHERE id = ${id} RETURNING *
-      `)[0];
-    });
-    return await complete(image, gate.dbUser, 'image.restore');
-  } catch (error) { return failure(error); }
 }

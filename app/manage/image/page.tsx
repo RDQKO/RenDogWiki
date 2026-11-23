@@ -573,6 +573,7 @@ export default function ImageManagePage() {
   const [treeState, setTreeState] = useState<Record<number, boolean>>({});
   const [favoriteFolderIds, setFavoriteFolderIds] = useState<number[]>([]);
   const [uploadOpen, setUploadOpen] = useState(false);
+  const [replacementMode, setReplacementMode] = useState<'replace' | 'assign'>('replace');
   const [replacementId, setReplacementId] = useState<number | null>(null);
   const [contextMenu, setContextMenu] = useState<ContextMenuState>({
     visible: false,
@@ -1620,8 +1621,13 @@ export default function ImageManagePage() {
                   </button>
                   <button type="button" className="seg-btn"
                     disabled={selectedItems.length !== 1 || !canReplace(selectedItems[0])}
-                    onClick={() => setReplacementId(selectedItems[0].id)}>
+                    onClick={() => { setReplacementMode('replace'); setReplacementId(selectedItems[0].id); }}>
                     <span aria-hidden="true">↻</span><span className="seg-label">이미지 교체</span>
+                  </button>
+                  <button type="button" className="seg-btn"
+                    disabled={selectedItems.length !== 1 || !canReplace(selectedItems[0])}
+                    onClick={() => { setReplacementMode('assign'); setReplacementId(selectedItems[0].id); }}>
+                    <span aria-hidden="true">⊞</span><span className="seg-label">추가 이미지 할당</span>
                   </button>
                 </div>
               </div>
@@ -1750,9 +1756,15 @@ export default function ImageManagePage() {
               <>
                 <button type="button" className="rd-context-menu-item" role="menuitem"
                   disabled={!canReplace(contextImage)} onClick={() => {
-                    setReplacementId(contextImage.id); closeContextMenu();
+                    setReplacementMode('replace'); setReplacementId(contextImage.id); closeContextMenu();
                   }}>
                   <span aria-hidden="true">↻</span><span>이미지 교체</span>
+                </button>
+                <button type="button" className="rd-context-menu-item" role="menuitem"
+                  disabled={!canReplace(contextImage)} onClick={() => {
+                    setReplacementMode('assign'); setReplacementId(contextImage.id); closeContextMenu();
+                  }}>
+                  <span aria-hidden="true">⊞</span><span>추가 이미지 할당</span>
                 </button>
                 <button
                   type="button"
@@ -1949,7 +1961,7 @@ export default function ImageManagePage() {
         </p>
       </ModalCard>
 
-      {replacementId !== null ? <ImageReplaceModal imageId={replacementId}
+      {replacementId !== null ? <ImageReplaceModal imageId={replacementId} mode={replacementMode}
         onClose={() => setReplacementId(null)}
         onChanged={() => { setSelectedItems([]); void refreshImages(); }} /> : null}
       <ImageUploadModal

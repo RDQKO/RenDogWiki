@@ -8,18 +8,18 @@
 | --- | --- | --- | --- |
 | 문서 브레드크럼 | 원래 `img`를 공통 `ManagedImage`로 전환 | styled-jsx의 범위 클래스가 실제 이미지에 붙지 않아 16px 크기 규칙 미적용 | 원래 `img`와 CSS로 복원. 주소 변환만 부모의 resolver 훅으로 유지 |
 | 바로가기·즐겨찾기 아이콘 | 같은 공통 이미지 전환 | 같은 이유로 24px 크기 규칙의 적용이 끊기는 사례 확인 | 원래 `img`와 CSS로 복원. 주소 변환만 유지 |
-| 홈페이지 정적 이미지 | `next/image`를 `SmartImage`로 변경 | 대상이 로컬 정적 로고·아이콘이어서 이번 관리 이미지 교체에 불필요 | 원래 `next/image`로 되돌림. 기능 추가 전 파일과 동일한 상태 |
+| 홈페이지 정적 이미지 | `next/image`를 `SmartImage`로 변경 | 대상이 로컬 정적 로고·아이콘이어서 이번 관리 이미지 교체에 불필요 | 원래 `next/image`로 되돌림. 정적 이미지 코드를 기능 추가 전 상태로 복원. 현재는 이미지 종류 선택 메뉴만 추가 |
 
 범위 지정 CSS와 공통 이미지 컴포넌트의 경계를 충분히 검증하지 못한 것이 원인이었다. 일반 TSX 렌더링 테스트만으로는 해당 크기 스타일 누락을 확인하지 못하므로, 실제 styled-jsx 컴파일러를 사용해 16px·24px 규칙과 범위 클래스가 연결되는 회귀 검사를 추가했다.
 
 최초 공통 이미지 전환 대상 중 범위 지정 `<style jsx>`를 가진 파일을 모두 대조했다. 위 두 곳과 문서 화면 `WikiPageInner`가 해당했다. 문서 제목 아이콘의 크기 규칙은 `style jsx global`에 있어 동일한 범위 클래스 문제에 해당하지 않았다. 다른 대상은 전역 CSS·CSS Modules·인라인 크기를 사용한다. 모든 화면을 실제 브라우저에서 시각 검수했다는 뜻은 아니다.
 
-## 사용자 요청에 따른 모달 수정
+## 앞선 요청의 모달 수정 (6febc538)
 
 - 적용 확인 체크박스와 그에 따른 버튼 잠금을 제거했다. 추가 확인창 없이 파일 선택 후 교체 버튼으로 실행한다.
 - 기존 업로드 모달과 같은 520px 폭, 드롭 영역·아이콘·파일 목록·취소/실행 버튼 스타일을 사용한다.
 - 기존 업로드 모달 자체의 코드나 동작은 수정하지 않았다.
-- 현재·새 이미지 미리보기, 이전 버전 복원, 파일 제한, 권한 검사, 충돌 안내는 유지한다.
+- 당시 현재·새 이미지 미리보기, 이전 버전 복원, 파일 제한, 권한 검사, 충돌 안내를 유지했다. 이후 요청에서 복원 UI/API는 제거했다.
 
 ## 최초 기능 패치에서 함께 수정한 영역
 
@@ -56,7 +56,7 @@
 | `app/components/editor/TableOfContents.tsx` | 최초 기능 변경 유지 |
 | `app/components/editor/helpers/WikiDbEmbedIdModal.tsx` | 최초 기능 변경 유지 |
 | `app/components/editor/render/weapon/WeaponEditorAdapter.tsx` | 최초 기능 변경 유지 |
-| `app/components/home/HomePage.tsx` | 기능 추가 전 상태로 원복 |
+| `app/components/home/HomePage.tsx` | 정적 이미지 코드 원복, 이후 헤더에 종류 선택 메뉴 추가 |
 | `app/components/image/ImageReplaceModal.module.css` | 추가 확인 제거·업로드 모달 스타일 적용 |
 | `app/components/image/ImageReplaceModal.tsx` | 추가 확인 제거·업로드 모달 스타일 적용 |
 | `app/components/image/ImageReplacementProvider.tsx` | 네이티브 이미지에서도 사용할 주소 resolver 제공 |
@@ -95,3 +95,13 @@
 | `scripts/setup-image-replacements.mjs` | 최초 기능 변경 유지 |
 | `tests/image-replacement-ui.test.cjs` | 확인 없이 교체하는 흐름 검증으로 갱신 |
 | `tests/image-replacement.test.cjs` | 최초 기능 변경 유지 |
+
+
+## 이미지 종류별 할당·저장 안정화 후속 변경
+
+- 복원 UI/PATCH API 제거, 설명 문구의 명시적 줄바꿈.
+- 바닐라·2D·3D 설정과 기본 2D 대체 표시를 공통 이미지 주소 해석기에 추가. 홈/문서 헤더에 선택 메뉴 추가.
+- 기존 이미지 ID에 추가 파일 연결, 종류별 교체와 기존 이동·삭제 연계. 이동 API의 누락된 소유자 검사 보완.
+- 문서 저장에 요청별 연결, 동일 저장 결과 재확인, 안전한 재시도, 추적 로그 추가. 자세한 증거와 한계는 [저장 안정화 점검](DOCUMENT-SAVE-RELIABILITY.md) 참조.
+- `image_variants`와 `document_save_requests`를 추가하고 직접 접근을 차단. 기존 이미지 3,227개와 본문 215개의 전후 수·내용 해시 동일 확인.
+- 브레드크럼·바로가기의 원래 이미지 태그와 크기 스타일은 그대로 유지했다. 기존 업로드 모달과 이미지 업로드 처리 자체는 변경하지 않았다.

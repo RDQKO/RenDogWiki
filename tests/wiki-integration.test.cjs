@@ -13,7 +13,9 @@ const { makeLoader } = require('./helpers/load-ts.cjs');
 test('wiki API and SQL integration against isolated Postgres', async (t) => {
   const db = await PGlite.create({ extensions: { pg_trgm } });
   await db.exec(fs.readFileSync(path.join(__dirname, 'fixtures/wiki.sql'), 'utf8'));
-  const server = new PGLiteSocketServer({ db, host: '127.0.0.1', port: 0 });
+  const { documentSaveRequestSchema } = await import('../scripts/setup-document-save-requests.mjs');
+  await db.exec(documentSaveRequestSchema); await db.exec(documentSaveRequestSchema);
+  const server = new PGLiteSocketServer({ db, maxConnections: 10, host: '127.0.0.1', port: 0 });
   await server.start();
   const port = server.server.address().port;
   const sql = postgres({ host: '127.0.0.1', port, database: 'postgres', username: 'postgres', password: 'postgres', prepare: false, max: 1, onnotice() {} });
@@ -27,6 +29,7 @@ test('wiki API and SQL integration against isolated Postgres', async (t) => {
   const load = makeLoader({
     'next/server': { ...require('next/server'), after: task => afterTasks.push(task) },
     './db': dbModule, '@/wiki/lib/db': dbModule, '@/app/wiki/lib/db': dbModule,
+    '@/wiki/lib/saveConnection': { withSaveConnection: fn => fn(sql) },
     '@/wiki/lib/auth': authModule, '@/app/wiki/lib/auth': authModule,
     'next/cache': { unstable_cache: (fn) => fn, revalidateTag: (tag) => invalidations.push(tag) },
   });
@@ -129,6 +132,7 @@ test('wiki API and SQL integration against isolated Postgres', async (t) => {
     const background = []; let logged = false;
     const robustLoad = makeLoader({
       './db': dbModule, '@/wiki/lib/db': dbModule, '@/app/wiki/lib/db': dbModule,
+    '@/wiki/lib/saveConnection': { withSaveConnection: fn => fn(sql) },
       '@/wiki/lib/auth': authModule, '@/app/wiki/lib/auth': authModule,
       'next/cache': { unstable_cache: fn => fn, revalidateTag() {} },
       'next/server': { ...require('next/server'), after: task => background.push(task) },
@@ -142,10 +146,63 @@ test('wiki API and SQL integration against isolated Postgres', async (t) => {
     assert.match((await sql`SELECT content FROM document_contents WHERE document_id=${docId}`)[0].content, /보존할 본문/);
   });
 
+  await t.test('replaying a committed request returns the same result before optimistic concurrency checks', async () => {
+    const payload={...valid,id:docId,title:'최신 문서',saveRequestId:require('node:crypto').randomUUID()};
+    payload.expectedUpdatedAt=(await sql`SELECT updated_at FROM documents WHERE id=${docId}`)[0].updated_at;
+    const first=await save(request('/api/save',payload));assert.equal(first.status,200);
+    const saved=await first.json();
+    const before=(await sql`SELECT updated_at FROM documents WHERE id=${docId}`)[0].updated_at;
+    const replay=await save(request('/api/save',payload));assert.equal(replay.status,200);
+    assert.deepEqual(await replay.json(),saved);
+    assert.deepEqual((await sql`SELECT updated_at FROM documents WHERE id=${docId}`)[0].updated_at,before);
+    assert.equal((await save(request('/api/save',{...payload,title:'ID 재사용 변조'}))).status,409);
+    await asUser(2);assert.equal((await save(request('/api/save',payload))).status,409);await asUser(1);
+    assert.ok(first.headers.get('X-Save-Trace'));
+  });
+
+  await t.test('a lost COMMIT response can be retried without creating a duplicate new document', async () => {
+    let lose=true;
+    const ambiguousSql=(...args)=>sql(...args);
+    ambiguousSql.begin=async fn=>{
+      const result=await sql.begin(fn);
+      if(lose){lose=false;throw Object.assign(new Error('lost COMMIT acknowledgement'),{code:'ECONNRESET'});}
+      return result;
+    };
+    const saveLoad=makeLoader({
+      './db':dbModule,'@/wiki/lib/db':{...dbModule,isTransientDbError:e=>e.code==='ECONNRESET'},'@/app/wiki/lib/db':dbModule,
+      '@/wiki/lib/saveConnection':{withSaveConnection:fn=>fn(ambiguousSql)},
+      '@/wiki/lib/auth':authModule,'@/app/wiki/lib/auth':authModule,
+      'next/cache':{unstable_cache:fn=>fn,revalidateTag(){}},'next/server':{...require('next/server'),after(){}},
+    })('app/api/save/route.ts').POST;
+    const payload={...valid,title:'응답 유실 재시도',saveRequestId:require('node:crypto').randomUUID()};
+    const first=await saveLoad(request('/api/save',payload));assert.equal(first.status,503);
+    const second=await saveLoad(request('/api/save',payload));assert.equal(second.status,200);
+    const third=await saveLoad(request('/api/save',payload));assert.equal(third.status,200);
+    assert.deepEqual(await second.json(),await third.json());
+    assert.equal((await sql`SELECT count(*)::int AS n FROM documents WHERE title=${payload.title}`)[0].n,1);
+    const id=(await sql`SELECT id FROM documents WHERE title=${payload.title}`)[0].id;
+    await sql`DELETE FROM document_search_sections WHERE document_id=${id}`;await sql`DELETE FROM document_contents WHERE document_id=${id}`;await sql`DELETE FROM documents WHERE id=${id}`;
+  });
+
+  await t.test('a save acquires its own connection while the shared read connection is reserved', async () => {
+    const isolatedDb={...dbModule,createSqlConnection:()=>postgres({host:'127.0.0.1',port,database:'postgres',username:'postgres',password:'postgres',prepare:false,max:1,onnotice(){}})};
+    const isolatedLoad=makeLoader({
+      './db':isolatedDb,'@/wiki/lib/db':isolatedDb,'@/app/wiki/lib/db':isolatedDb,
+      '@/wiki/lib/auth':authModule,'@/app/wiki/lib/auth':authModule,
+      'next/cache':{unstable_cache:fn=>fn,revalidateTag(){}},'next/server':{...require('next/server'),after(){}},
+    });
+    const reserved=await sql.reserve();
+    try {
+      const response=await isolatedLoad('app/api/save/route.ts').POST(request('/api/save',{...valid,id:docId,title:'최신 문서'}));
+      assert.equal(response.status,200,await response.clone().text());
+    } finally {reserved.release();}
+  });
+
   await t.test('fresh editor loads bypass a stale public document cache', async () => {
     let freshReads = 0; let cachedReads = 0;
     const freshLoad = makeLoader({
       './db': dbModule, '@/wiki/lib/db': dbModule, '@/app/wiki/lib/db': dbModule,
+    '@/wiki/lib/saveConnection': { withSaveConnection: fn => fn(sql) },
       '@/wiki/lib/auth': authModule, '@/app/wiki/lib/auth': authModule,
       'next/cache': { unstable_cache: fn => fn, revalidateTag() {} },
       '@/wiki/lib/documentCache': {

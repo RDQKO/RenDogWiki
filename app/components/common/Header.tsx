@@ -27,6 +27,7 @@ import Link from 'next/link';
 import HamburgerMenu from '@/components/common/HamburgerMenu';
 import SearchBox from '@/components/common/SearchBox';
 import ThemeToggle from '@/components/common/ThemeToggle';
+import ImageStyleSelector from '@/components/common/ImageStyleSelector';
 import DocBadgeModeSwitcher from '@/components/wiki/DocBadgeModeSwitcher';
 import { readLocalStorage, writeLocalStorage } from '@lib/browserStorage';
 
@@ -256,6 +257,7 @@ export default function WikiHeader({
               </button>
             )}
 
+            <ImageStyleSelector />
             <ThemeToggle />
 
             {/* 메뉴(로그인·마이페이지·관리)는 모든 화면 크기에서 접근할 수 있어야 한다. */}

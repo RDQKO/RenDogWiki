@@ -24,6 +24,7 @@ import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import { faBars } from '@fortawesome/free-solid-svg-icons';
 import SearchBox from '@/components/common/SearchBox';
 import ThemeToggle from '@/components/common/ThemeToggle';
+import ImageStyleSelector from '@/components/common/ImageStyleSelector';
 import NpcDetailModal, {
   type Npc,
 } from '@/components/wiki/NpcDetailModal';
@@ -1133,6 +1134,7 @@ export default function HomePage({
             }
             aria-label="홈 도구"
           >
+            <ImageStyleSelector />
             <ThemeToggle />
 
             <button
