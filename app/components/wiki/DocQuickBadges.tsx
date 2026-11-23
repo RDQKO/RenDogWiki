@@ -5,7 +5,7 @@
  * ============================================= */
 
 'use client';
-import ManagedImage from '@/components/common/ManagedImage';
+import { useImageUrlResolver } from '@/components/image/ImageReplacementProvider';
 
 
 import React, {
@@ -179,6 +179,7 @@ export default function DocQuickBadges({
   hoverCooldownMs = 220,
   topOffset = 92,
 }: Props) {
+  const resolveImageUrl = useImageUrlResolver();
   const router =
     useRouter();
 
@@ -834,8 +835,8 @@ export default function DocQuickBadges({
                     isImageIconValue(
                       item.docIcon,
                     ) ? (
-                      <ManagedImage
-                        src={
+                      <img
+                        src={resolveImageUrl(
                           item.docIcon.startsWith(
                             'http',
                           )
@@ -843,7 +844,7 @@ export default function DocQuickBadges({
                                 item.docIcon,
                               )
                             : item.docIcon
-                        }
+                        )}
                         alt=""
                         className="qbd-doc-icon-img"
                         loading="lazy"

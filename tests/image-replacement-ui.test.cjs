@@ -55,7 +55,7 @@ test('forced refresh after a replacement waits for an older in-flight manifest t
   assert.equal(requests.length,2);assert.equal(document.querySelector('img').getAttribute('src'),nextCdn);
 });
 
-test('replacement modal keeps actions visible, previews a dropped file, handles a conflict, and sends the refreshed revision',async()=>{
+test('replacement modal matches upload layout and submits without a confirmation checkbox',async()=>{
   requests=[];let revision=7,postCount=0,changed=0,closed=0,submitted;
   fetchMock=async(url,options={})=>{
     if(url==='/api/image/replacements')return json({aliases:{}});
@@ -68,15 +68,22 @@ test('replacement modal keeps actions visible, previews a dropped file, handles 
   };
   await mount(h(Provider,null,h(Modal,{imageId:1,onClose:()=>closed++,onChanged:()=>changed++})));
   assert.equal(button('이미지 교체').disabled,true);assert.ok(button('취소'));
+  assert.equal(document.querySelector('[role=dialog]').style.width,'520px');
+  assert.ok(document.querySelector('label.custum-file-upload .icon svg'));
+  assert.ok(document.querySelector('label.custum-file-upload .text'));
+  assert.equal(document.querySelector('input[type=checkbox]'),null);
   const drop=new Event('drop',{bubbles:true,cancelable:true});
   Object.defineProperty(drop,'dataTransfer',{value:{files:[new File(['png'],'새그림.png',{type:'image/png'})]}});
   await act(async()=>document.querySelector('label[for]').dispatchEvent(drop));
   assert.match(document.body.textContent,/새그림.png/);assert.equal(document.querySelector('img[alt="교체할 이미지 미리보기"]').getAttribute('src'),'blob:preview');
-  await click(document.querySelector('input[type=checkbox]'));await click(button('이미지 교체'));
+  assert.ok(document.querySelector('.rd-upload-file .name'));
+  assert.equal(button('이미지 교체').disabled,false);
+  await click(button('이미지 교체'));
   assert.equal(submitted.get('expectedRevision'),'7');assert.equal(submitted.get('file').name,'새그림.png');
   assert.match(document.querySelector('[role=alert]').textContent,/변경/);assert.equal(button('이미지 교체').disabled,true);assert.equal(closed,0);
-  await click(button('최신 상태 다시 불러오기'));assert.equal(document.querySelector('input[type=checkbox]').checked,false);
-  await click(document.querySelector('input[type=checkbox]'));await click(button('이미지 교체'));
+  await click(button('최신 상태 다시 불러오기'));assert.equal(document.querySelector('input[type=checkbox]'),null);
+  assert.equal(button('이미지 교체').disabled,false);
+  await click(button('이미지 교체'));
   assert.equal(submitted.get('expectedRevision'),'8');assert.equal(changed,1);assert.equal(closed,1);
 });
 
@@ -89,6 +96,6 @@ test('history previews show original files and restoring uses PATCH instead of u
   };
   await mount(h(Provider,null,h(Modal,{imageId:1,onClose(){},onChanged:()=>changed++})));
   assert.equal(document.querySelector('img[alt="이전.png"]').getAttribute('src'),'https://d1y7k8qotewoph.cloudfront.net/images/1/old.png');
-  await click(button('복원 선택'));await click(document.querySelector('input[type=checkbox]'));await click(button('선택 버전으로 복원'));
+  await click(button('복원 선택'));assert.equal(document.querySelector('input[type=checkbox]'),null);await click(button('선택 버전으로 복원'));
   assert.deepEqual(payload,{id:1,expectedRevision:9,versionId:3});assert.equal(changed,1);
 });

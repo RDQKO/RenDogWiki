@@ -55,10 +55,16 @@ export default function ImageReplacementProvider({ children, initialAliases = {}
   </Context.Provider>;
 }
 
-export function useResolvedImage(src: string | undefined) {
+export function useImageUrlResolver() {
   const { aliases } = useContext(Context);
-  const resolved = resolveImageReplacement(src, aliases);
-  return resolved && resolved !== src ? cdn(resolved) : resolved;
+  return useCallback((src: string | undefined) => {
+    const resolved = resolveImageReplacement(src, aliases);
+    return resolved && resolved !== src ? cdn(resolved) : resolved;
+  }, [aliases]);
+}
+
+export function useResolvedImage(src: string | undefined) {
+  return useImageUrlResolver()(src);
 }
 
 export function useRefreshImageReplacements() {

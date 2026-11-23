@@ -1,5 +1,5 @@
 
-import ManagedImage from '@/components/common/ManagedImage';
+import { useImageUrlResolver } from '@/components/image/ImageReplacementProvider';
 // =============================================
 // File: app/components/wiki/Breadcrumb.tsx
 // (전체 코드)
@@ -66,6 +66,7 @@ export default function Breadcrumb({
   categories,
   onNavigateCategoryDoc,
 }: Props) {
+  const resolveImageUrl = useImageUrlResolver();
   if (!selectedDocPath || selectedDocPath.length === 0) return null;
 
   const crumbs = buildCrumbs(categories, selectedDocPath);
@@ -96,8 +97,8 @@ export default function Breadcrumb({
               >
                 {item.icon ? (
                   isImageUrl(item.icon) ? (
-                    <ManagedImage
-                      src={toProxyUrl(item.icon)}
+                    <img
+                      src={resolveImageUrl(toProxyUrl(item.icon))}
                       alt=""
                       aria-hidden="true"
                       loading="lazy"
