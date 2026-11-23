@@ -1,6 +1,8 @@
 /** Public, read-only aliases. Only managed object paths participate in replacement. */
 export type ImageAliases = Record<string, string>;
 export const IMAGE_STYLES = ['vanilla', '2d', '3d'] as const;
+// Keep public display on 2D until the other image sets are ready for release.
+export const IMAGE_STYLE_SWITCHING_ENABLED = false;
 export type ImageStyle = typeof IMAGE_STYLES[number];
 export type AdditionalImageStyle = Exclude<ImageStyle, '2d'>;
 export type ImageVariants = Partial<Record<AdditionalImageStyle, string>>;

@@ -3,7 +3,7 @@
 import React, { Suspense, createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from 'react';
 import { usePathname, useSearchParams } from 'next/navigation';
 import { cdn } from '@lib/cdn';
-import { type ImageAliases, type ImageVariantMap, type ImageStyle, isImageStyle, resolveImageVariant } from '@lib/imageReplacements';
+import { type ImageAliases, type ImageVariantMap, type ImageStyle, IMAGE_STYLE_SWITCHING_ENABLED, isImageStyle, resolveImageVariant } from '@lib/imageReplacements';
 import { readLocalStorage, writeLocalStorage } from '@lib/browserStorage';
 
 export const IMAGE_STYLE_STORAGE_KEY = 'rdwiki-image-style';
@@ -25,11 +25,12 @@ export default function ImageReplacementProvider({ children, initialAliases = {}
   const [variants, setVariants] = useState(initialVariants);
   const [style, updateStyle] = useState<ImageStyle>('2d');
   const setStyle = useCallback((next: ImageStyle) => {
-    if (!isImageStyle(next)) return;
+    if (!IMAGE_STYLE_SWITCHING_ENABLED || !isImageStyle(next)) return;
     updateStyle(next);
     writeLocalStorage(IMAGE_STYLE_STORAGE_KEY, next);
   }, []);
   useEffect(() => {
+    if (!IMAGE_STYLE_SWITCHING_ENABLED) return;
     const saved = readLocalStorage(IMAGE_STYLE_STORAGE_KEY);
     if (isImageStyle(saved)) updateStyle(saved);
     const onStorage = (event: StorageEvent) => {

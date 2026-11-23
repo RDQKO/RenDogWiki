@@ -107,22 +107,33 @@ test('variant assignment shows separate previews, explicit line breaks and no re
   assert.equal(submitted.get('style'),'3d');assert.equal(submitted.get('expectedRevision'),'9');assert.equal(changed,1);
 });
 
-test('site-wide variant selection persists, falls back to 2D and leaves previews and local assets unchanged',async()=>{
+test('unreleased mode controls show a preparing dialog and keep 2D despite saved preferences or storage events',async()=>{
   const Selector=load('app/components/common/ImageStyleSelector.tsx').default;
+  const {useImageStyle}=load('app/components/image/ImageReplacementProvider.tsx');
   const vanilla='https://rdwiki.s3.ap-southeast-2.amazonaws.com/images/1/vanilla.png';
-  fetchMock=async()=>json({aliases:{'images/1/old.png':next},variants:{'images/1/new.webp':{vanilla}}});
-  window.localStorage.removeItem('rdwiki-image-style');
-  await mount(h(Provider,null,h(Selector),h(ManagedImage,{src:old,alt:'styled'}),h(ManagedImage,{src:'/images/logo.png',alt:'logo'})));
+  fetchMock=async()=>json({aliases:{'images/1/old.png':next},variants:{'images/1/new.webp':{vanilla,'3d':vanilla}}});
+  window.localStorage.setItem('rdwiki-image-style','vanilla');
+  function Harness(){const {setStyle}=useImageStyle();return h('button',{onClick:()=>setStyle('3d')},'직접 모드 변경');}
+  await mount(h(Provider,null,h(Selector),h(Harness),h(ManagedImage,{src:old,alt:'styled'})));
   const select=label=>document.querySelector(`button[aria-label="${label} 이미지"]`);
   assert.equal(select('2D').getAttribute('aria-pressed'),'true');
-  await click(select('바닐라'));assert.match(document.querySelector('img[alt=styled]').src,/vanilla.png$/);
+  assert.equal(document.querySelector('img[alt=styled]').src,nextCdn);
+  for(const label of ['바닐라','2D','3D']){
+    await click(select(label));
+    assert.match(document.querySelector('[role=dialog]').textContent,/준비중/);
+    assert.equal(document.querySelector('img[alt=styled]').src,nextCdn);
+    assert.equal(select('2D').getAttribute('aria-pressed'),'true');
+    await click(button('확인'));assert.equal(document.querySelector('[role=dialog]'),null);
+  }
+  await click(document.querySelector('summary'));
+  assert.match(document.querySelector('[role=dialog]').textContent,/준비중/);
+  assert.equal(document.querySelector('details').open,false);
+  await act(async()=>document.dispatchEvent(new KeyboardEvent('keydown',{key:'Escape',bubbles:true})));
+  assert.equal(document.querySelector('[role=dialog]'),null);
+  await act(async()=>window.dispatchEvent(new window.StorageEvent('storage',{key:'rdwiki-image-style',newValue:'3d'})));
+  await click(button('직접 모드 변경'));
+  assert.equal(document.querySelector('img[alt=styled]').src,nextCdn);
+  assert.equal(select('2D').getAttribute('aria-pressed'),'true');
   assert.equal(window.localStorage.getItem('rdwiki-image-style'),'vanilla');
-  await click(select('3D'));assert.equal(document.querySelector('img[alt=styled]').src,nextCdn);
-  assert.equal(document.querySelector('img[alt=logo]').getAttribute('src'),'/images/logo.png');
-  await click(select('바닐라'));
-  await mount(h(Provider,null,h(Selector),h(ManagedImage,{src:old,alt:'persisted'})));
-  assert.match(document.querySelector('img[alt=persisted]').src,/vanilla.png$/);
-  await act(async()=>window.dispatchEvent(new window.StorageEvent('storage',{key:'rdwiki-image-style',newValue:'2d'})));
-  assert.equal(document.querySelector('img[alt=persisted]').src,nextCdn);
   window.localStorage.clear();
 });
