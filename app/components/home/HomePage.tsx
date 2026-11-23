@@ -16,7 +16,7 @@ import {
   useRef,
   useState,
 } from 'react';
-import Image from 'next/image';
+import Image from '@/components/common/SmartImage';
 import Link from 'next/link';
 
 import HamburgerMenu from '@/components/common/HamburgerMenu';

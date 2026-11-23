@@ -2,6 +2,8 @@
 // File: app/components/image/ImageSelectModal.tsx
 // =============================================
 'use client';
+import ManagedImage from '@/components/common/ManagedImage';
+
 
 /**
  * 이미지·영상 선택 모달
@@ -489,7 +491,7 @@ export default function ImageSelectModal({
                         </span>
                       </div>
                     ) : (
-                      <img
+                      <ManagedImage
                         src={toProxyUrl(img.url)}
                         alt={img.name}
                         width={88}
@@ -558,7 +560,7 @@ export default function ImageSelectModal({
                       }}
                     />
                   ) : (
-                    <img
+                    <ManagedImage
                       src={toProxyUrl(selectedImg.url)}
                       alt={selectedImg.name}
                       width={38}

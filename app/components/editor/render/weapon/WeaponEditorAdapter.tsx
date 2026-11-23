@@ -1,4 +1,6 @@
 'use client';
+import ManagedImage from '@/components/common/ManagedImage';
+
 
 import React from 'react';
 import {
@@ -894,7 +896,7 @@ export default function WeaponEditorAdapter({
           height,
           style,
         }: WeaponImageRenderArgs) => (
-          <img
+          <ManagedImage
             src={src}
             alt={alt}
             width={width}

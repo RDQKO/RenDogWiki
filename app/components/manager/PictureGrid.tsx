@@ -3,6 +3,8 @@
 // =============================================
 
 'use client';
+import ManagedImage from '@/components/common/ManagedImage';
+
 
 import React, { useMemo } from 'react';
 import { toProxyUrl } from '@lib/cdn';
@@ -68,7 +70,7 @@ export function PictureGrid({
         const src = url?.startsWith('http') ? toProxyUrl(url) : url;
         return (
           <div key={`${idx}-${url}`} style={{ position: 'relative' }}>
-            <img
+            <ManagedImage
               src={src}
               alt={`pic-${idx + 1}`}
               width={size}

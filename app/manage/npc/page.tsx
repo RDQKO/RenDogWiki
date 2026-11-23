@@ -1,5 +1,7 @@
 // File: app/manage/npc/page.tsx
 'use client';
+import ManagedImage from '@/components/common/ManagedImage';
+
 
 import { useEffect, useState, useMemo, useCallback } from 'react';
 import WikiHeader from '@/components/common/Header';
@@ -376,7 +378,7 @@ export default function NpcManager() {
             </div>
             <div className="mgr-icon-preview">
               {villageIcon?.startsWith('http') ? (
-                <img
+                <ManagedImage
                   src={toProxyUrl(villageIcon)}
                   className="rd-preview"
                   alt="icon"
@@ -614,7 +616,7 @@ export default function NpcManager() {
                 <span className="mgr-pill-value">
                   {npcPictures.length ? (
                     npcPictures.slice(0, 6).map((url, i) => (
-                      <img
+                      <ManagedImage
                         key={url + i}
                         src={toProxyUrl(url)}
                         alt=""
@@ -790,7 +792,7 @@ export default function NpcManager() {
           {npcPictures.length === 0 && <span className="rd-muted">등록된 사진이 없습니다.</span>}
           {npcPictures.map((url, idx) => (
             <div key={url + idx} className="rd-thumb">
-              <img
+              <ManagedImage
                 src={toProxyUrl(url)}
                 alt={`npc-pic-${idx}`}
                 loading="lazy"
@@ -900,7 +902,7 @@ export default function NpcManager() {
             </div>
             <div className="mgr-icon-preview">
               {editVillageIcon?.startsWith('http') ? (
-                <img
+                <ManagedImage
                   src={toProxyUrl(editVillageIcon)}
                   alt="icon"
                   loading="lazy"
@@ -928,7 +930,7 @@ export default function NpcManager() {
             </div>
             <div className="mgr-icon-preview">
               {editVillageHeadIcon?.startsWith('http') ? (
-                <img
+                <ManagedImage
                   src={toProxyUrl(editVillageHeadIcon)}
                   alt="head_icon"
                   loading="lazy"

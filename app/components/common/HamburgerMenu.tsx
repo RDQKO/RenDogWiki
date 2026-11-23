@@ -14,6 +14,8 @@
 // =============================================
 
 'use client';
+import ManagedImage from '@/components/common/ManagedImage';
+
 
 import { useAuth } from '@/components/auth/AuthProvider';
 import {
@@ -484,7 +486,7 @@ export default function HamburgerMenu({
               >
                 {effectiveLoggedIn &&
                 skinUrl ? (
-                  <img
+                  <ManagedImage
                     src={toProxyUrl(
                       skinUrl,
                     )}

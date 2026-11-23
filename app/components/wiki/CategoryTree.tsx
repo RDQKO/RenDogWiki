@@ -2,6 +2,8 @@
 // File: components/wiki/CategoryTree.tsx
 // =============================================
 "use client";
+import ManagedImage from '@/components/common/ManagedImage';
+
 
 import React, { useRef, useLayoutEffect, useMemo, useEffect } from "react";
 import SmartImage from "../common/SmartImage"; // ✅ import 유지
@@ -578,7 +580,7 @@ const CategoryTree: React.FC<Props> = ({
             <span className="wiki-category-main">
               <span className="wiki-cat-icon-token">
                 {node.icon?.startsWith("http") ? (
-                  <img
+                  <ManagedImage
                     src={toProxyUrl(node.icon)}
                     alt=""
                     aria-hidden="true"
@@ -679,7 +681,7 @@ const CategoryTree: React.FC<Props> = ({
                         aria-hidden="true"
                       >
                         {doc.icon?.startsWith("http") ? (
-                          <img
+                          <ManagedImage
                             src={toProxyUrl(doc.icon)}
                             alt=""
                             className="wiki-doc-icon-img"
@@ -744,7 +746,7 @@ const CategoryTree: React.FC<Props> = ({
                 <span className="wiki-category-main">
                   <span className="wiki-cat-icon-token">
                     {doc.icon?.startsWith("http") ? (
-                      <img
+                      <ManagedImage
                         src={toProxyUrl(doc.icon)}
                         alt=""
                         aria-hidden="true"

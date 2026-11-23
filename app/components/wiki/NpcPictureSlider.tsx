@@ -2,6 +2,8 @@
 // File: app/components/wiki/NpcPictureSlider.tsx
 // =============================================
 'use client';
+import ManagedImage from '@/components/common/ManagedImage';
+
 
 import React, { useEffect, useMemo, useState } from 'react';
 import { toProxyUrl } from '@lib/cdn';
@@ -49,7 +51,7 @@ const NpcPictureSlider = ({ pictures = [] }: { pictures: string[] }) => {
         if (e.key === 'ArrowRight') { e.preventDefault(); next(); }
       }}
     >
-      <img
+      <ManagedImage
         src={urls[idx]}
         alt={`npc image ${idx + 1}/${total}`}
         className="npc-picture-img"

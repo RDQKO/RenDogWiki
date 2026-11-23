@@ -1,3 +1,5 @@
+
+import ManagedImage from '@/components/common/ManagedImage';
 import React from 'react';
 import type { WikiRenderMode } from '../types';
 
@@ -118,7 +120,7 @@ export default function MediaBlock({
             className: 'wiki-media-image',
           })
         ) : (
-          <img
+          <ManagedImage
             src={safeSrc}
             alt={alt || ''}
             loading="lazy"
@@ -220,7 +222,7 @@ export default function MediaBlock({
           className: 'wiki-media-image',
         })
       ) : (
-        <img
+        <ManagedImage
           ref={imageRef}
           src={safeSrc}
           alt={alt || ''}

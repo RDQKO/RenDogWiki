@@ -14,6 +14,8 @@
 //   → 다시 해당 위치로 끌어당기는 현상 방지
 // =============================================
 'use client';
+import ManagedImage from '@/components/common/ManagedImage';
+
 
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
@@ -888,7 +890,7 @@ export default function TableOfContents({
               aria-hidden
             >
               {resolvedDocIcon?.startsWith('http') ? (
-                <img
+                <ManagedImage
                   src={toProxyUrl(resolvedDocIcon)}
                   alt=""
                   width={24}
@@ -973,7 +975,7 @@ export default function TableOfContents({
               aria-hidden
             >
                 {resolvedDocIcon?.startsWith('http') ? (
-                  <img
+                  <ManagedImage
                     src={toProxyUrl(resolvedDocIcon)}
                     alt=""
                     width={24}
@@ -1077,7 +1079,7 @@ export default function TableOfContents({
                   aria-hidden
                 >
                   {h.icon?.startsWith('http') ? (
-                    <img
+                    <ManagedImage
                       src={toProxyUrl(h.icon)}
                       alt=""
                       width={24}

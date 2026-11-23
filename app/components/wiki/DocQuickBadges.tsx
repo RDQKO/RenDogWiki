@@ -5,6 +5,8 @@
  * ============================================= */
 
 'use client';
+import ManagedImage from '@/components/common/ManagedImage';
+
 
 import React, {
   useEffect,
@@ -832,7 +834,7 @@ export default function DocQuickBadges({
                     isImageIconValue(
                       item.docIcon,
                     ) ? (
-                      <img
+                      <ManagedImage
                         src={
                           item.docIcon.startsWith(
                             'http',

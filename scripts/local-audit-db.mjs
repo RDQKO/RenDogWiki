@@ -4,8 +4,16 @@ import { PGlite } from '@electric-sql/pglite';
 import { pg_trgm } from '@electric-sql/pglite/contrib/pg_trgm';
 import { PGLiteSocketServer } from '@electric-sql/pglite-socket';
 import bcrypt from 'bcryptjs';
+import { imageReplacementSchema } from './setup-image-replacements.mjs';
 const db = await PGlite.create({ extensions: { pg_trgm } });
 await db.exec(await readFile(new URL('../tests/fixtures/wiki.sql', import.meta.url),'utf8'));
+await db.exec(imageReplacementSchema);
+await db.exec(`INSERT INTO images(id,name,folder_id,uploader,mime_type,s3_key,url,revision) VALUES
+  (1,'교체 검증 이미지',1,'Writer','image/png','images/1/http-new.png','https://rdwiki.s3.ap-southeast-2.amazonaws.com/images/1/http-new.png',1),
+  (2,'다른 작성자 이미지',1,'Other','image/png','images/1/http-other.png','https://rdwiki.s3.ap-southeast-2.amazonaws.com/images/1/http-other.png',0);
+  INSERT INTO image_versions(image_id,s3_key,url,mime_type,name) VALUES
+  (1,'images/1/http-old.png','https://rdwiki.s3.ap-southeast-2.amazonaws.com/images/1/http-old.png','image/png','이전.png'),
+  (1,'images/1/http-new.png','https://rdwiki.s3.ap-southeast-2.amazonaws.com/images/1/http-new.png','image/png','현재.png');`);
 await db.query('UPDATE users SET password_hash=$1',[await bcrypt.hash('LocalAudit123!',10)]);
 const content=[
   {type:'heading-one',children:[{text:'문서 안내'}]},

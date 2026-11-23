@@ -5,6 +5,7 @@ import { sql } from '@/wiki/lib/db';
 import { S3Client, DeleteObjectsCommand } from '@aws-sdk/client-s3';
 import { logActivity } from '@wiki/lib/activity';
 import { requireRole, canDeleteUploaded } from '@/wiki/lib/requireRole';
+import { selectImageFiles, invalidateImageAliases } from '@/wiki/lib/imageReplacementStore';
 
 export const runtime = 'nodejs';
 
@@ -60,7 +61,8 @@ export async function DELETE(req: NextRequest) {
       return NextResponse.json({ error: '본인이 업로드한 이미지만 삭제할 수 있습니다.' }, { status: 403 });
     }
 
-    const keys = rows
+    const files = await selectImageFiles(ids);
+    const keys = files
       .map((r) => (r?.s3_key ? String(r.s3_key) : ''))
       .filter((k) => k.length > 0)
       .map((k) => ({ Key: k }));
@@ -94,6 +96,7 @@ export async function DELETE(req: NextRequest) {
       DELETE FROM images
       WHERE id = ANY(${ids})
     `;
+    invalidateImageAliases();
 
     // 로그
     await logActivity({

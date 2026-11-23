@@ -1,4 +1,6 @@
 "use client";
+import ManagedImage from '@/components/common/ManagedImage';
+
 
 import React, {
   useEffect,
@@ -412,7 +414,7 @@ function HeadCard({
           {isImageSource(
             thumbnail,
           ) ? (
-            <img
+            <ManagedImage
               src={toProxyUrl(
                 thumbnail!,
               )}

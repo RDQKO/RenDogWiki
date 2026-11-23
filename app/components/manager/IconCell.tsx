@@ -2,6 +2,8 @@
 // File: app/components/manager/IconCell.tsx
 // =============================================
 'use client';
+import ManagedImage from '@/components/common/ManagedImage';
+
 
 import React from 'react';
 import { toProxyUrl } from '@lib/cdn';
@@ -47,7 +49,7 @@ export const IconCell = React.memo(function IconCell({
   if (isImageLike(icon)) {
     const src = isRemoteHttp(icon) ? toProxyUrl(icon) : icon;
     return (
-      <img
+      <ManagedImage
         src={src}
         alt={alt}
         className={className}

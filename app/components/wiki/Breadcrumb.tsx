@@ -1,3 +1,5 @@
+
+import ManagedImage from '@/components/common/ManagedImage';
 // =============================================
 // File: app/components/wiki/Breadcrumb.tsx
 // (전체 코드)
@@ -94,7 +96,7 @@ export default function Breadcrumb({
               >
                 {item.icon ? (
                   isImageUrl(item.icon) ? (
-                    <img
+                    <ManagedImage
                       src={toProxyUrl(item.icon)}
                       alt=""
                       aria-hidden="true"

@@ -1,3 +1,5 @@
+
+import ManagedImage from '@/components/common/ManagedImage';
 import React from 'react';
 import { createPortal } from 'react-dom';
 
@@ -290,7 +292,7 @@ function defaultRenderImage({
   style,
 }: WeaponImageRenderArgs) {
   return (
-    <img
+    <ManagedImage
       src={src}
       alt={alt}
       width={width}

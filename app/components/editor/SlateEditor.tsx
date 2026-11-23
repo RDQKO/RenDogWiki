@@ -1,4 +1,6 @@
 'use client';
+import ManagedImage from '@/components/common/ManagedImage';
+
 
 import React, {
   useMemo, useState, useCallback, useEffect, useRef
@@ -1206,7 +1208,7 @@ function SlateEditorContent({
                       // 이미지 로딩 실패 시: 텍스트로 fallback (깨진 아이콘 방지)
                       <span className="meta-icon-fallback">🖼️</span>
                     ) : (
-                      <img
+                      <ManagedImage
                         src={getIconSrc(doc.icon)}
                         alt="문서 아이콘"
                         width={36}

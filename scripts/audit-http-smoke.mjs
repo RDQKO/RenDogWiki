@@ -22,6 +22,10 @@ try{
  await waitUntil(()=>app.logs().includes('Ready'));
  for(const path of ['/','/wiki?id=74&path=1','/login','/register','/wiki/write?path=1&id=74&title=Test'])await call('GET',path);
  for(const path of ['/api/bootstrap','/api/categories','/api/faq','/api/npcs?village_id=1','/api/head?village_id=1','/api/villages','/api/home/faqs','/api/home/popular','/api/home/search-keywords'])await call('GET',path);
+ const aliasBefore=(await call('GET','/api/image/replacements')).data.aliases;
+ assert.match(aliasBefore['images/1/http-old.png'],/http-new\.png$/);
+ await call('GET','/api/image/replace?id=1',undefined,401,false);
+ await call('POST','/api/image/replace',{},401,false);
  await call('PATCH','/api/head/1',{},401,false);
  await call('PUT','/api/faq/1',{title:'bad'},401,false);
  await call('POST','/api/chat/publish',{type:'new-message',data:{}},401,false);
@@ -29,6 +33,15 @@ try{
  assert.equal(login.data.loggedIn,true);assert.equal(login.data.role,'writer');assert.ok(login.data.user.id);assert.equal(login.data.password_hash,undefined);
  cookie=login.r.headers.getSetCookie().map(c=>c.split(';')[0]).join('; ');
  assert.equal((await call('GET','/api/auth/me')).data.role,'writer');
+ const imageHistory=(await call('GET','/api/image/replace?id=1')).data;
+ assert.equal(imageHistory.versions.length,2);
+ await call('GET','/api/image/replace?id=2',undefined,403);
+ const oldVersion=imageHistory.versions.find(v=>v.s3_key==='images/1/http-old.png');
+ const restored=(await call('PATCH','/api/image/replace',{id:1,expectedRevision:1,versionId:oldVersion.id})).data.image;
+ assert.equal(restored.revision,2);assert.match(restored.url,/http-old\.png$/);
+ await call('PATCH','/api/image/replace',{id:1,expectedRevision:1,versionId:oldVersion.id},409);
+ const aliasAfter=(await call('GET','/api/image/replacements')).data.aliases;
+ assert.match(aliasAfter['images/1/http-new.png'],/http-old\.png$/);
  const previous=(await call('GET','/api/documents?id=74&fresh=1')).data;
  const statKeys=['damage','cooldown','hitCount','range','duration','heal',...Array.from({length:9},(_,i)=>`custom-${i+1}`)];
  const region={type:'collapsible',title:'접힌 영역',defaultOpen:false,children:[{type:'heading-two',children:[{text:'접힌 검색 목차'}]},{type:'paragraph',children:[{text:'HTTPSMOKE 고유검색문구'}]},{type:'weapon-card',weaponType:'hidden',name:'검증 무기',stats:statKeys.map((key,i)=>({key,label:`정보 ${i+1}`,summary:String(i+1),unit:'%',enabled:true,levels:[{levelLabel:'기본',value:String(i+1)}]})),children:[{text:''}]}]};
