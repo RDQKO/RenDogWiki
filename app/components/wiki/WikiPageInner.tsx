@@ -4,6 +4,8 @@
 //  + 문서 제목 오른쪽 링크 복사 버튼: 클릭 시 ✔ 애니메이션)
 // =============================================
 'use client';
+import ManagedImage from '@/components/common/ManagedImage';
+
 
 import { useState, useEffect, useRef, useMemo } from 'react';
 import { consumeNextDocumentHeading } from '@/wiki/lib/documentScrollIntent';
@@ -2959,7 +2961,7 @@ export default function WikiPageInner({ user: initialUser }: Props) {
                     <h2 className="wiki-content-title-row wiki-content-title">
                       {currentDoc?.icon ? (
                         currentDoc.icon.startsWith('http') ? (
-                          <img
+                          <ManagedImage
                             src={toProxyUrl(currentDoc.icon)}
                             alt="icon"
                             className="wiki-doc-icon-img"

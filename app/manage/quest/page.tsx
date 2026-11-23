@@ -1,5 +1,7 @@
 // File: app/manage/quest/page.tsx
 'use client';
+import ManagedImage from '@/components/common/ManagedImage';
+
 
 import { useEffect, useMemo, useState, useCallback } from 'react';
 import WikiHeader from '@/components/common/Header';
@@ -432,7 +434,7 @@ export default function QuestNpcManager() {
             </div>
             <div className="mgr-icon-preview">
               {villageIcon?.startsWith('http') ? (
-                <img
+                <ManagedImage
                   src={toProxyUrl(villageIcon)}
                   className="rd-preview"
                   alt="icon"
@@ -660,7 +662,7 @@ export default function QuestNpcManager() {
                       <span key={i} className="mgr-chip">
                         {rw.icon ? (
                           rw.icon.startsWith('http') ? (
-                            <img src={toProxyUrl(rw.icon)} alt="" loading="lazy" decoding="async" />
+                            <ManagedImage src={toProxyUrl(rw.icon)} alt="" loading="lazy" decoding="async" />
                           ) : (
                             <span className="mgr-chip-emoji">{rw.icon}</span>
                           )
@@ -702,7 +704,7 @@ export default function QuestNpcManager() {
                 <span className="mgr-pill-value">
                   {npcPictures && npcPictures.length > 0 ? (
                     npcPictures.slice(0, 6).map((url, idx) => (
-                      <img
+                      <ManagedImage
                         key={url + idx}
                         src={toProxyUrl(url)}
                         alt=""
@@ -984,7 +986,7 @@ export default function QuestNpcManager() {
                 >
                   {reward.icon ? (
                     reward.icon.startsWith('http') ? (
-                      <img
+                      <ManagedImage
                         src=  {toProxyUrl(reward.icon)}
                         alt=""
                         className="rw-icon-img"
@@ -1126,7 +1128,7 @@ export default function QuestNpcManager() {
           {npcPictures.length === 0 && <span className="rd-muted">등록된 사진이 없습니다.</span>}
           {npcPictures.map((url, idx) => (
             <div key={url + idx} className="rd-thumb">
-              <img
+              <ManagedImage
                 src={toProxyUrl(url)}
                 alt={`npc-pic-${idx}`}
                 loading="lazy"
@@ -1232,7 +1234,7 @@ export default function QuestNpcManager() {
             </div>
             <div className="mgr-icon-preview">
               {editVillageIcon?.startsWith('http') ? (
-                <img
+                <ManagedImage
                   src={toProxyUrl(editVillageIcon)}
                   alt="icon"
                   loading="lazy"
@@ -1260,7 +1262,7 @@ export default function QuestNpcManager() {
             </div>
             <div className="mgr-icon-preview">
               {editVillageHeadIcon?.startsWith('http') ? (
-                <img
+                <ManagedImage
                   src={toProxyUrl(editVillageHeadIcon)}
                   alt="head_icon"
                   loading="lazy"

@@ -1,4 +1,6 @@
 "use client";
+import ManagedImage from '@/components/common/ManagedImage';
+
 
 import React, {
   useEffect,
@@ -508,7 +510,7 @@ function QuestCard({
             {isImageUrl(
               npc.icon,
             ) ? (
-              <img
+              <ManagedImage
                 src={toProxyUrl(
                   npc.icon,
                 )}

@@ -1,3 +1,5 @@
+
+import ManagedImage from '@/components/common/ManagedImage';
 // app/wiki/lib/QuestNpcList.tsx
 
 // 퀘스트 NPC 목록 테이블
@@ -21,7 +23,7 @@ export function QuestNpcList({ npcs }: { npcs: any[] }) {
             {/* 아이콘(이미지 or 이모지) */}
             <td>
               {npc.icon?.startsWith('http')
-                ? <img src={npc.icon} alt="" style={{ width: 28 }} />
+                ? <ManagedImage src={npc.icon} alt="" style={{ width: 28 }} />
                 : npc.icon}
             </td>
             {/* 이름 */}
@@ -29,7 +31,7 @@ export function QuestNpcList({ npcs }: { npcs: any[] }) {
             {/* 보상: 아이콘+텍스트 */}
             <td>
               {npc.reward_icon?.startsWith('http')
-                ? <img src={npc.reward_icon} alt="" style={{ width: 20, marginRight: 5 }} />
+                ? <ManagedImage src={npc.reward_icon} alt="" style={{ width: 20, marginRight: 5 }} />
                 : npc.reward_icon}
               {npc.reward}
             </td>

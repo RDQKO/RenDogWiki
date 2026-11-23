@@ -10,6 +10,8 @@
 // - 컨텍스트 메뉴 디자인 및 위치 보정
 // =============================================
 'use client';
+import ManagedImage from '@/components/common/ManagedImage';
+
 
 import {
   useCallback,
@@ -26,6 +28,7 @@ import {
 import WikiHeader from '@/components/common/Header';
 import { ModalCard } from '@/components/common/Modal';
 import ImageUploadModal from '@/components/image/ImageUploadModal';
+import ImageReplaceModal from '@/components/image/ImageReplaceModal';
 import { toProxyUrl } from '@lib/cdn';
 import { readLocalStorage, writeLocalStorage } from '@lib/browserStorage';
 import '@/wiki/css/image.css';
@@ -536,7 +539,7 @@ function FileList({
                   <span className="video-badge">▶ 영상</span>
                 </span>
               ) : (
-                <img
+                <ManagedImage
                   src={toProxyUrl(image.url)}
                   alt={image.name}
                   className="image-explorer-thumbimg"
@@ -570,6 +573,8 @@ export default function ImageManagePage() {
   const [treeState, setTreeState] = useState<Record<number, boolean>>({});
   const [favoriteFolderIds, setFavoriteFolderIds] = useState<number[]>([]);
   const [uploadOpen, setUploadOpen] = useState(false);
+  const [replacementMode, setReplacementMode] = useState<'replace' | 'assign'>('replace');
+  const [replacementId, setReplacementId] = useState<number | null>(null);
   const [contextMenu, setContextMenu] = useState<ContextMenuState>({
     visible: false,
     x: 0,
@@ -1297,6 +1302,10 @@ export default function ImageManagePage() {
     (selectedItems.length > 0 && !canDeleteImages) ||
     (selectedItems.length === 0 && !canDeleteFolders);
   const canRenameImage = selectedItems.length === 1;
+  const canReplace = (item: MediaItem) =>
+    !(item.mime_type || '').startsWith('video/') &&
+    !/\.(mp4|webm|mov)(?:[?#]|$)/i.test(item.url) &&
+    (isAdmin || (isWriter && !!myName && item.uploader?.toLowerCase() === myName));
   const isMultiSelecting =
     selectedItems.length > 1 || selectedFolderIds.length > 1;
 
@@ -1610,6 +1619,16 @@ export default function ImageManagePage() {
                     <span aria-hidden="true">✎</span>
                     <span className="seg-label">이름변경</span>
                   </button>
+                  <button type="button" className="seg-btn"
+                    disabled={selectedItems.length !== 1 || !canReplace(selectedItems[0])}
+                    onClick={() => { setReplacementMode('replace'); setReplacementId(selectedItems[0].id); }}>
+                    <span aria-hidden="true">↻</span><span className="seg-label">이미지 교체</span>
+                  </button>
+                  <button type="button" className="seg-btn"
+                    disabled={selectedItems.length !== 1 || !canReplace(selectedItems[0])}
+                    onClick={() => { setReplacementMode('assign'); setReplacementId(selectedItems[0].id); }}>
+                    <span aria-hidden="true">⊞</span><span className="seg-label">추가 이미지 할당</span>
+                  </button>
                 </div>
               </div>
             </header>
@@ -1735,6 +1754,18 @@ export default function ImageManagePage() {
               </>
             ) : contextImage ? (
               <>
+                <button type="button" className="rd-context-menu-item" role="menuitem"
+                  disabled={!canReplace(contextImage)} onClick={() => {
+                    setReplacementMode('replace'); setReplacementId(contextImage.id); closeContextMenu();
+                  }}>
+                  <span aria-hidden="true">↻</span><span>이미지 교체</span>
+                </button>
+                <button type="button" className="rd-context-menu-item" role="menuitem"
+                  disabled={!canReplace(contextImage)} onClick={() => {
+                    setReplacementMode('assign'); setReplacementId(contextImage.id); closeContextMenu();
+                  }}>
+                  <span aria-hidden="true">⊞</span><span>추가 이미지 할당</span>
+                </button>
                 <button
                   type="button"
                   className="rd-context-menu-item"
@@ -1930,6 +1961,9 @@ export default function ImageManagePage() {
         </p>
       </ModalCard>
 
+      {replacementId !== null ? <ImageReplaceModal imageId={replacementId} mode={replacementMode}
+        onClose={() => setReplacementId(null)}
+        onChanged={() => { setSelectedItems([]); void refreshImages(); }} /> : null}
       <ImageUploadModal
         open={uploadOpen}
         onClose={() => setUploadOpen(false)}

@@ -1,4 +1,6 @@
 "use client";
+import ManagedImage from '@/components/common/ManagedImage';
+
 
 import React, {
   useEffect,
@@ -343,7 +345,7 @@ export default function HeadDetailModal({
               {isRemoteImage(
                 docIcon,
               ) ? (
-                <img
+                <ManagedImage
                   src={toProxyUrl(
                     docIcon!,
                   )}

@@ -16,6 +16,8 @@
 // =============================================
 
 'use client';
+import ManagedImage from '@/components/common/ManagedImage';
+
 
 import { setNextDocumentHeading } from '@/wiki/lib/documentScrollIntent';
 import {
@@ -1706,7 +1708,7 @@ export default function SearchBox({
                                 isImageLike(
                                   result.icon,
                                 ) ? (
-                                  <img
+                                  <ManagedImage
                                     src={
                                       isRemoteHttp(
                                         result.icon,
@@ -1818,7 +1820,7 @@ export default function SearchBox({
                               isImageLike(
                                 npc.icon,
                               ) ? (
-                                <img
+                                <ManagedImage
                                   src={
                                     isRemoteHttp(
                                       npc.icon,

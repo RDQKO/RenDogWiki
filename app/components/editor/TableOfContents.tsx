@@ -1,4 +1,6 @@
 'use client';
+import ManagedImage from '@/components/common/ManagedImage';
+
 
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
@@ -272,7 +274,7 @@ export default function TableOfContents({
                 >
                   <span style={iconBox} aria-hidden>
                     {h.icon?.startsWith('http') ? (
-                      <img
+                      <ManagedImage
                         src={toProxyUrl(h.icon)}
                         alt=""
                         width={24}

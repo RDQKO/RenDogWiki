@@ -1,5 +1,7 @@
 // app/manage/category/page.tsx
 'use client';
+import ManagedImage from '@/components/common/ManagedImage';
+
 
 import {
   useEffect,
@@ -137,7 +139,7 @@ function EntityIcon({
 
   if (typeof icon === 'string' && icon.startsWith('http')) {
     return (
-      <img
+      <ManagedImage
         src={toProxyUrl(icon)}
         alt=""
         width={size}

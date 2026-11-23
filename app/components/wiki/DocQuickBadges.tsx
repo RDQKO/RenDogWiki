@@ -5,6 +5,8 @@
  * ============================================= */
 
 'use client';
+import { useImageUrlResolver } from '@/components/image/ImageReplacementProvider';
+
 
 import React, {
   useEffect,
@@ -177,6 +179,7 @@ export default function DocQuickBadges({
   hoverCooldownMs = 220,
   topOffset = 92,
 }: Props) {
+  const resolveImageUrl = useImageUrlResolver();
   const router =
     useRouter();
 
@@ -833,7 +836,7 @@ export default function DocQuickBadges({
                       item.docIcon,
                     ) ? (
                       <img
-                        src={
+                        src={resolveImageUrl(
                           item.docIcon.startsWith(
                             'http',
                           )
@@ -841,7 +844,7 @@ export default function DocQuickBadges({
                                 item.docIcon,
                               )
                             : item.docIcon
-                        }
+                        )}
                         alt=""
                         className="qbd-doc-icon-img"
                         loading="lazy"

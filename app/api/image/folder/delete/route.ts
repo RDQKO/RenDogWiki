@@ -11,6 +11,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { sql, withTx } from '@/wiki/lib/db';
 import { S3Client, DeleteObjectsCommand } from '@aws-sdk/client-s3';
+import { selectImageFiles, invalidateImageAliases } from '@/wiki/lib/imageReplacementStore';
 import { getAuthUser } from '@/wiki/lib/auth';
 import { logActivity, resolveFolderName } from '@/wiki/lib/activity';
 import { requireRole, canDeleteUploaded } from '@/wiki/lib/requireRole';
@@ -105,12 +106,13 @@ export async function DELETE(req: NextRequest) {
 
     // 4) 해당 폴더들의 이미지 S3 key 수집
     const imgRows = (await sql`
-      SELECT s3_key
+      SELECT id, s3_key
       FROM images
       WHERE folder_id = ANY(${folderIds})
-    `) as unknown as Array<{ s3_key: string | null }>;
+    `) as unknown as Array<{ id: number; s3_key: string | null }>;
 
-    const keys = imgRows
+    const files = await selectImageFiles(imgRows.map(row => row.id));
+    const keys = files
       .map((r) => (r?.s3_key ? String(r.s3_key) : ''))
       .filter((k) => k.length > 0)
       .map((k) => ({ Key: k }));
@@ -148,6 +150,7 @@ export async function DELETE(req: NextRequest) {
       await tx`DELETE FROM images WHERE folder_id = ANY(${folderIds})`;
       await tx`DELETE FROM image_folders WHERE id = ANY(${folderIds})`;
     });
+    invalidateImageAliases();
 
     // 7) 활동 로그
     await logActivity({

@@ -12,6 +12,8 @@
 // 4) ✅ 모달 최대 높이 고정 + 리스트 스크롤
 // =============================================
 'use client';
+import ManagedImage from '@/components/common/ManagedImage';
+
 
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import type { WikiEmbedKind } from '../helpers/insertWikiDbEmbed';
@@ -258,7 +260,7 @@ export default function WikiDbEmbedIdModal({ open, kind, onClose, onSubmit }: Pr
                   }}
                 >
                   {r.icon && (
-                    <img
+                    <ManagedImage
                       src={toProxyUrl(r.icon)}
                       width={32}
                       height={32}

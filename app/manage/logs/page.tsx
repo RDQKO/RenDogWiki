@@ -150,6 +150,8 @@ export default function LogsPage() {
       case 'folder.create': return `${u}님이 ${path} 폴더에 ${name} 폴더를 생성했습니다`;
       case 'folder.delete': return `${u}님이 폴더 ${name}를 삭제했습니다`;
       case 'image.delete': return `${u}님이 이미지 ${name}를 삭제했습니다`;
+      case 'image.replace': return `${u}님이 이미지 ${name}를 교체했습니다`;
+      case 'image.assign': return `${u}님이 이미지 ${name}에 추가 이미지를 할당했습니다`;
       case 'npc.create': return `${u}님이 NPC ${name}를 추가했습니다`;
       case 'npc.update': return `${u}님이 NPC ${name}를 수정했습니다`;
       case 'npc.delete': return `${u}님이 NPC ${name}를 삭제했습니다`;

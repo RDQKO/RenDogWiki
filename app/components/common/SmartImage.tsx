@@ -4,6 +4,7 @@
 import React, { CSSProperties } from 'react';
 import Image, { type ImageProps } from 'next/image';
 import { toProxyUrl } from '@lib/cdn';
+import { useResolvedImage } from '@/components/image/ImageReplacementProvider';
 
 type Props = Omit<ImageProps, 'src'> & {
   src: string;
@@ -41,7 +42,8 @@ export default function SmartImage({
   alt,
   ...rest
 }: Props) {
-  const proxied = toProxyUrl(src);
+  const resolved = useResolvedImage(src) || src;
+  const proxied = toProxyUrl(resolved);
 
   const wNum = typeof width === 'number' ? width : null;
   const hNum = typeof height === 'number' ? height : null;

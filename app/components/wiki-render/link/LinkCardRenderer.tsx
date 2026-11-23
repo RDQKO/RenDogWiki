@@ -1,4 +1,6 @@
 'use client';
+import ManagedImage from '@/components/common/ManagedImage';
+
 
 import React from 'react';
 
@@ -207,7 +209,7 @@ export default function LinkCardRenderer({
       <WikiDocumentIcon />
     )
   ) : externalFavicon && !faviconFailed ? (
-    <img
+    <ManagedImage
       src={externalFavicon}
       alt=""
       loading="lazy"

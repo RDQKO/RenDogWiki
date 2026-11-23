@@ -4,6 +4,8 @@
 // =============================================
 
 'use client';
+import ManagedImage from '@/components/common/ManagedImage';
+
 
 import React, {
   useEffect,
@@ -139,7 +141,7 @@ export default function NpcDetailModal({
               aria-hidden
             >
               {isRemoteImage(npc.icon) ? (
-                <img
+                <ManagedImage
                   src={toProxyUrl(
                     npc.icon,
                   )}
@@ -310,7 +312,7 @@ export default function NpcDetailModal({
                             isRemoteImage(
                               reward.icon,
                             ) ? (
-                              <img
+                              <ManagedImage
                                 src={toProxyUrl(
                                   reward.icon,
                                 )}

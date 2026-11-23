@@ -1,4 +1,6 @@
 'use client';
+import ManagedImage from '@/components/common/ManagedImage';
+
 
 import React, {
   useMemo, useState, useCallback, useEffect, useRef
@@ -44,6 +46,7 @@ import {
 } from './helpers/tableClipboard';
 import FootnoteEditModal from './FootnoteEditModal';
 import type { FootnoteElement } from '@/types/slate';
+import { createDocumentSaveAttempt, sendDocumentSave, type DocumentSaveAttempt } from '@lib/documentSaveClient';
 
 type DocState = {
   id?: number;
@@ -600,6 +603,7 @@ function SlateEditorContent({
 
   // 문서 초기값 반영
   useEffect(() => {
+    pendingSaveRef.current = null;
     const nextDoc = {
       id: initialDoc?.id ?? undefined,
     updated_at: initialDoc?.updated_at,
@@ -745,6 +749,7 @@ function SlateEditorContent({
   );
 
   const saveInFlightRef = useRef(false);
+  const pendingSaveRef = useRef<DocumentSaveAttempt | null>(null);
   const [saving, setSaving] = useState(false);
   const handleSave = async () => {
     if (saveInFlightRef.current) return;
@@ -752,29 +757,31 @@ function SlateEditorContent({
     if (!titleTrim) { alert('문서 제목을 입력해주세요.'); return; }
     const snapshot = { ...doc, title: titleTrim, content: editor.children as Descendant[],
       tags: Array.from(new Set(tagInput.split(',').map(tag => tag.trim()).filter(Boolean))) };
-    const savedContentJson = serializeContentForDraft(snapshot.content);
+    const requestedSnapshot = JSON.stringify({ ...snapshot, expectedUpdatedAt: doc.updated_at });
+    // Settle an unacknowledged request before issuing a different write, including new documents.
+    const attempt = pendingSaveRef.current ?? createDocumentSaveAttempt(requestedSnapshot);
+    pendingSaveRef.current = attempt;
+    const sentSnapshot = JSON.parse(attempt.snapshot);
+    const savedContentJson = serializeContentForDraft(sentSnapshot.content);
     saveInFlightRef.current = true;
     setSaving(true);
     try {
-      const res = await fetch('/api/save', {
-        method: 'POST', headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ ...snapshot, expectedUpdatedAt: doc.updated_at }),
-        credentials: 'include',
-      });
-      const saved = await res.json().catch(() => null);
+      const { response: res, saved } = await sendDocumentSave(attempt);
       if (!res.ok) {
-        console.error('[editor] save failed:', { status: res.status, requestId: res.headers.get('x-vercel-id') });
+        if (res.status < 500 || saved?.outcome === 'not-saved') pendingSaveRef.current = null;
+        console.error('[editor] save failed:', { status: res.status, requestId: res.headers.get('x-vercel-id'), traceId: res.headers.get('x-save-trace') });
         alert(saved?.error || (res.status === 413 ? '문서 용량이 서버 한도를 초과했습니다. 편집 내용은 유지됩니다.' : '문서를 저장하지 못했습니다. 편집 내용은 유지됩니다. 잠시 후 다시 시도해주세요.'));
         return;
       }
       if (!saved?.success || !Number.isInteger(saved.id) || !saved.updatedAt) {
         throw new Error('invalid-save-response');
       }
+      pendingSaveRef.current = null;
       const documentId = saved?.id ?? doc.id;
       setDoc((previous) => ({ ...previous, id: documentId, updated_at: saved?.updatedAt ?? previous.updated_at }));
 
-      if (isMain && doc.path != null) {
-        const pathStr = String(doc.path);
+      if (isMain && sentSnapshot.path != null) {
+        const pathStr = String(sentSnapshot.path);
         if (pathStr !== '0') {
           const catsRes = await fetch('/api/categories', { cache: 'no-store' });
           if (!catsRes.ok) { alert('본문은 저장됐지만 대표 문서 설정을 불러오지 못했습니다.'); return; }
@@ -790,7 +797,7 @@ function SlateEditorContent({
       }
       serverContentJsonRef.current = savedContentJson;
       draftBaselineReadyRef.current = true;
-      alert('저장 완료!');
+      alert(attempt.snapshot === requestedSnapshot ? '저장 완료!' : '이전 저장이 완료된 것을 확인했습니다. 이후 편집한 내용은 유지되며, 저장 버튼을 한 번 더 누르면 반영됩니다.');
     } catch { alert('문서 저장 결과를 확인하지 못했습니다. 임시 저장 후 다시 확인해주세요.'); }
     finally { saveInFlightRef.current = false; setSaving(false); }
   };
@@ -1206,7 +1213,7 @@ function SlateEditorContent({
                       // 이미지 로딩 실패 시: 텍스트로 fallback (깨진 아이콘 방지)
                       <span className="meta-icon-fallback">🖼️</span>
                     ) : (
-                      <img
+                      <ManagedImage
                         src={getIconSrc(doc.icon)}
                         alt="문서 아이콘"
                         width={36}

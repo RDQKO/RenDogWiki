@@ -1,3 +1,5 @@
+
+import ManagedImage from '@/components/common/ManagedImage';
 import React from 'react';
 
 type InlineImageProps = {
@@ -62,7 +64,7 @@ export default function InlineImage({
         ...(attributes?.style ?? {}),
       }}
     >
-      <img
+      <ManagedImage
         {...imageProps}
         src={safeSrc}
         alt={alt}
